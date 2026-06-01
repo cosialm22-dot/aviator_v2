@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Minus, Plus, Zap } from 'lucide-react';
 import type { GameStatus } from '../../types';
 import { formatMultiplier } from '../../lib/gameEngine';
@@ -19,40 +19,49 @@ const MIN_BET = 50;
 const QUICK_AMOUNTS = [50, 100, 200, 500];
 
 export default function BettingPanel({
-  panelIndex,
-  status, multiplier, balance, activeBet,
+  panelIndex, status, multiplier, balance, activeBet,
   onPlaceBet, onCashOut, onAuthRequired, isAuthenticated,
 }: Props) {
-  const [amount, setAmount] = useState(MIN_BET);
-  const [autoMode, setAutoMode] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [rawAmount, setRawAmount] = useState(String(MIN_BET));
+  const [autoMode, setAutoMode]   = useState(false);
+  const [loading, setLoading]     = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  const amount = Math.max(MIN_BET, Math.floor(parseFloat(rawAmount) || MIN_BET));
   const canBet = status === 'waiting' && !activeBet && amount >= MIN_BET && amount <= balance;
-  const canCashOut = status === 'flying' && activeBet && !activeBet.cashedOut;
 
   const handleBet = async () => {
     if (!isAuthenticated) { onAuthRequired(); return; }
     if (!canBet) return;
     setLoading(true);
-    try {
-      await onPlaceBet(amount, null);
-    } finally {
-      setLoading(false);
-    }
+    try { await onPlaceBet(amount, null); } finally { setLoading(false); }
   };
 
-  const decrement = () => setAmount(v => Math.max(MIN_BET, v - 50));
-  const increment = () => setAmount(v => v + 50);
+  const adjust = (delta: number) => {
+    const next = Math.max(MIN_BET, amount + delta);
+    setRawAmount(String(next));
+  };
+
+  const handleRawChange = (v: string) => {
+    // Allow free typing — only digits, strip leading zeros
+    const clean = v.replace(/[^0-9]/g, '');
+    setRawAmount(clean === '' ? '' : String(parseInt(clean, 10) || ''));
+  };
+
+  const handleBlur = () => {
+    const n = parseFloat(rawAmount) || MIN_BET;
+    setRawAmount(String(Math.max(MIN_BET, Math.floor(n))));
+  };
 
   const winnings = activeBet && !activeBet.cashedOut
     ? Math.floor(activeBet.amount * multiplier * 100) / 100
     : activeBet?.winnings ?? 0;
 
-  const isCashable = canCashOut && panelIndex === 0;
+  const isCashable = status === 'flying' && activeBet && !activeBet.cashedOut && panelIndex === 0;
 
   const betLabel = () => {
-    if (status === 'flying') return panelIndex === 0 ? 'Round in progress' : 'Watching...';
-    if (status === 'crashed') return 'Crashed — next round soon';
+    if (status === 'flying')  return panelIndex === 0 ? 'In flight' : 'Watching';
+    if (status === 'crashed') return 'Next round';
     return loading ? 'Placing...' : 'Bet';
   };
 
@@ -61,46 +70,54 @@ export default function BettingPanel({
       {/* Bet / Auto tabs */}
       <div className="flex items-center gap-2 px-3 pt-2 pb-1">
         <div className="flex bg-[#1a1a2e] rounded-full p-0.5">
-          <button
-            onClick={() => setAutoMode(false)}
-            className={`px-4 py-1 text-xs font-semibold rounded-full transition-all ${
-              !autoMode ? 'bg-[#2a2a45] text-white' : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            Bet
-          </button>
-          <button
-            onClick={() => setAutoMode(true)}
-            className={`px-4 py-1 text-xs font-semibold rounded-full transition-all ${
-              autoMode ? 'bg-[#2a2a45] text-white' : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            Auto
-          </button>
+          {(['Bet', 'Auto'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setAutoMode(tab === 'Auto')}
+              className={`px-4 py-1 text-xs font-semibold rounded-full transition-all ${
+                (tab === 'Auto') === autoMode
+                  ? 'bg-[#2a2a45] text-white'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
-        {panelIndex === 1 && (
-          <div className="ml-auto w-5 h-5 rounded bg-[#1a1a2e] flex items-center justify-center text-slate-500 text-xs">—</div>
-        )}
       </div>
 
       {/* Amount stepper + action button */}
       <div className="flex items-stretch gap-2 px-3 pb-2">
+        {/* Editable amount field with +/- */}
         <div className="flex items-center bg-[#1a1a2e] rounded-lg border border-[#2a2a45] flex-shrink-0">
           <button
-            onClick={decrement}
+            onClick={() => adjust(-50)}
             disabled={!!activeBet || amount <= MIN_BET}
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-l-lg transition disabled:opacity-40 active:scale-95"
           >
             <Minus size={14} />
           </button>
-          <div className="px-2 h-11 flex flex-col items-center justify-center min-w-[60px]">
-            <span className="text-white font-bold text-sm tabular-nums leading-none">
-              {amount.toLocaleString()}
-            </span>
+
+          {/* Tappable / editable amount */}
+          <div
+            className="flex flex-col items-center justify-center px-1 h-11 min-w-[62px] cursor-text"
+            onClick={() => inputRef.current?.focus()}
+          >
+            <input
+              ref={inputRef}
+              type="number"
+              inputMode="numeric"
+              value={rawAmount}
+              onChange={e => handleRawChange(e.target.value)}
+              onBlur={handleBlur}
+              disabled={!!activeBet}
+              className="w-full bg-transparent text-white font-bold text-sm tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
             <span className="text-slate-500 text-[9px] leading-none mt-0.5">KShs</span>
           </div>
+
           <button
-            onClick={increment}
+            onClick={() => adjust(50)}
             disabled={!!activeBet}
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-r-lg transition disabled:opacity-40 active:scale-95"
           >
@@ -119,18 +136,18 @@ export default function BettingPanel({
               <span>Cash Out</span>
             </div>
             <div className="text-xs font-semibold opacity-90">
-              KSh {winnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              KSh {winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
             </div>
           </button>
         ) : activeBet && !activeBet.cashedOut && panelIndex === 0 ? (
-          <button disabled className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl bg-amber-600 text-white font-black cursor-not-allowed">
+          <button disabled className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl bg-amber-600/80 text-white font-black cursor-not-allowed">
             <span className="text-sm leading-tight">Flying...</span>
-            <span className="text-xs opacity-90">KSh {activeBet.amount.toLocaleString()}</span>
+            <span className="text-xs opacity-90">KSh {activeBet.amount.toLocaleString('en-KE', { maximumFractionDigits: 0 })}</span>
           </button>
         ) : activeBet?.cashedOut && panelIndex === 0 ? (
           <button disabled className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl bg-green-900/40 border border-green-500/40 text-green-400 font-black cursor-not-allowed">
             <span className="text-sm">Cashed Out!</span>
-            <span className="text-xs">+KSh {(activeBet.winnings ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            <span className="text-xs">+KSh {(activeBet.winnings ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</span>
           </button>
         ) : (
           <button
@@ -139,11 +156,13 @@ export default function BettingPanel({
             className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl font-black transition-all active:scale-95 ${
               status === 'waiting' && !loading && !(panelIndex === 0 && !!activeBet)
                 ? 'bg-[#22c55e] hover:bg-[#16a34a] text-white shadow-lg shadow-green-500/30'
-                : 'bg-[#22c55e]/30 text-white/40 cursor-not-allowed'
+                : 'bg-[#22c55e]/20 text-white/40 cursor-not-allowed'
             }`}
           >
             <span className="text-sm leading-tight">{betLabel()}</span>
-            <span className="text-xs font-semibold opacity-90">KSh {amount.toLocaleString()}</span>
+            <span className="text-xs font-semibold opacity-90">
+              {status === 'waiting' ? `KSh ${amount.toLocaleString('en-KE')}` : ''}
+            </span>
           </button>
         )}
       </div>
@@ -153,7 +172,7 @@ export default function BettingPanel({
         {QUICK_AMOUNTS.map(q => (
           <button
             key={q}
-            onClick={() => setAmount(q)}
+            onClick={() => setRawAmount(String(q))}
             disabled={!!activeBet}
             className="flex-1 py-1 text-[11px] font-semibold bg-[#1a1a2e] border border-[#2a2a45] rounded text-slate-400 hover:text-white hover:bg-[#2a2a45] transition disabled:opacity-40 active:scale-95"
           >
@@ -162,10 +181,10 @@ export default function BettingPanel({
         ))}
       </div>
 
-      {/* Cashout details (panel 0 only) */}
+      {/* Cashout confirmation row */}
       {activeBet?.cashedOut && panelIndex === 0 && (
         <div className="px-3 pb-2 text-center text-green-400 text-[11px] font-semibold">
-          Won KSh {(activeBet.winnings ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} @ {formatMultiplier(activeBet.cashout_multiplier ?? multiplier)}
+          +KSh {(activeBet.winnings ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })} @ {formatMultiplier(activeBet.cashout_multiplier ?? multiplier)}
         </div>
       )}
     </div>

@@ -163,12 +163,12 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                   >
                     {countdown}
                   </div>
-                  <div className="text-slate-400 text-xs mt-2 tracking-widest uppercase font-semibold">
-                    Next round in...
+                  <div className="text-slate-400 text-xs mt-1.5 tracking-widest uppercase font-semibold">
+                    Starting in...
                   </div>
                   {activeBet && (
                     <div className="mt-2 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
-                      Bet placed — wait for takeoff!
+                      Bet in — ready!
                     </div>
                   )}
                 </div>

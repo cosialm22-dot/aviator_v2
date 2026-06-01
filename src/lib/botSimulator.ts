@@ -56,13 +56,18 @@ function randomBetAmount(): number {
 
 function randomCashoutMultiplier(): number | null {
   const r = Math.random();
-  if (r < 0.08) return null;              // 8%  - loses (crashes before cashout)
-  if (r < 0.28) return 1.1 + Math.random() * 0.4;  // 20% - 1.1x–1.5x (safe)
-  if (r < 0.52) return 1.5 + Math.random() * 0.5;  // 24% - 1.5x–2.0x
-  if (r < 0.68) return 2.0 + Math.random() * 1.0;  // 16% - 2x–3x
-  if (r < 0.80) return 3.0 + Math.random() * 2.0;  // 12% - 3x–5x
-  if (r < 0.90) return 5.0 + Math.random() * 5.0;  // 10% - 5x–10x
-  return 10 + Math.random() * 40;                    // 10% - 10x–50x (whale hunters)
+  // 10% lose (no cashout) — visible losses build sympathy not fear
+  if (r < 0.10) return null;
+  // 28% cash out 1.2x–1.6x — "safe" bots that always win small
+  if (r < 0.38) return 1.20 + Math.random() * 0.40;
+  // 30% cash out 1.6x–2.2x — the majority, reinforces "2x is easy" belief
+  if (r < 0.68) return 1.60 + Math.random() * 0.60;
+  // 16% cash out 2.2x–4x — moderate wins that look great in the bets table
+  if (r < 0.84) return 2.20 + Math.random() * 1.80;
+  // 10% cash out 4x–12x — exciting wins, bets table lights up green
+  if (r < 0.94) return 4.0  + Math.random() * 8.0;
+  // 6% hold for 12x–40x — rare whales that generate table FOMO
+  return 12.0 + Math.random() * 28.0;
 }
 
 function pickName(used: Set<string>): string {
