@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Scrollbar styling */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #1e3a5f;
+  border-radius: 2px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #2a4f80;
+}
+
+/* Multiplier display - smooth font variant numeric */
+.multiplier-display {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  transition: color 0.1s ease;
+}
+
+/* Countdown pulse */
+@keyframes countdownPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.9; }
+}
+.countdown-pulse {
+  animation: countdownPulse 1s ease-in-out infinite;
+}
+
+/* Cashout notification bounce in */
+@keyframes bounceIn {
+  0% { transform: translateX(-50%) translateY(-20px) scale(0.8); opacity: 0; }
+  60% { transform: translateX(-50%) translateY(4px) scale(1.05); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+}
+.animate-bounce-in {
+  animation: bounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Cashout button pulse */
+@keyframes cashoutPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4), 0 8px 24px rgba(16, 185, 129, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0), 0 8px 32px rgba(16, 185, 129, 0.5); }
+}
+.animate-pulse-cashout {
+  animation: cashoutPulse 1s ease-in-out infinite;
+}
+
+/* Fade in up */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+/* Screen flash on crash */
+@keyframes crashFlash {
+  0% { opacity: 0; }
+  20% { opacity: 0.3; }
+  100% { opacity: 0; }
+}
+.crash-flash {
+  animation: crashFlash 0.6s ease-out forwards;
+}
+
+/* Glow text */
+.text-glow-green {
+  text-shadow: 0 0 20px rgba(16, 185, 129, 0.8), 0 0 40px rgba(16, 185, 129, 0.4);
+}
+.text-glow-red {
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4);
+}
+
+/* Smooth number transitions */
+@keyframes numberTick {
+  0% { transform: translateY(-4px); opacity: 0.7; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.number-tick {
+  animation: numberTick 0.1s ease-out;
+}
+
+/* History chip fade in */
+@keyframes chipSlideIn {
+  from { opacity: 0; transform: translateX(-10px) scale(0.9); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+.chip-slide-in {
+  animation: chipSlideIn 0.3s ease-out;
+}
+
+/* Bet row appear */
+@keyframes betRowIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.bet-row-in {
+  animation: betRowIn 0.25s ease-out;
+}
+
+/* Win highlight */
+@keyframes winHighlight {
+  0% { background-color: rgba(16, 185, 129, 0.3); }
+  100% { background-color: rgba(16, 185, 129, 0.05); }
+}
+.win-highlight {
+  animation: winHighlight 1s ease-out forwards;
+}
+
+/* Prevent text selection on game elements */
+canvas {
+  user-select: none;
+  -webkit-user-select: none;
+}
