@@ -1,11 +1,22 @@
 export type GameStatus = 'idle' | 'waiting' | 'flying' | 'crashed';
-
 export type BetStatus = 'active' | 'won' | 'lost' | 'cashedout';
+export type UserRole = 'player' | 'admin' | 'super_admin';
 
 export interface Profile {
   id: string;
   username: string;
   avatar_color: string;
+  role: UserRole;
+  phone_number?: string;
+  is_banned: boolean;
+  ban_reason?: string;
+  banned_at?: string;
+  last_active_at?: string;
+  total_wagered: number;
+  total_deposited: number;
+  total_withdrawn: number;
+  admin_notes?: string;
+  created_at?: string;
 }
 
 export interface Wallet {
