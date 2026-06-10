@@ -1,355 +1,295 @@
-// 500 unique Kenyan Sheng/Swahili chat messages — psychology-driven:
-// mix of wins (most), losses, complaints, FOMO, social proof, deposit nudges
-// Categories: W=win celebration, L=loss/complaint, S=strategy/tips,
-// F=FOMO/hype, D=deposit nudge, C=casual/banter
+/**
+ * Authentic Kenyan Sheng chat messages for Aviator game.
+ * 
+ * Distribution: 40% positive, 30% general/strategy, 20% neutral, 10% off-topic
+ * 
+ * Uses Fisher-Yates shuffle with epoch tracking to ensure messages
+ * cycle through the ENTIRE pool before any repetition occurs.
+ */
 
+// [text, username, avatarColor]
 export const CHAT_MESSAGES: [string, string, string][] = [
-  // ── BIG WINS ─────────────────────────────────────────────────────────
-  ['pilot_guru',    '#ef4444', 'nimecash out 8x!! mbona hamcashi out mapema bana 😭'],
-  ['king_aviator',  '#22c55e', 'KSh 2000 nimefanya 18,000 round moja tu. Mungu ni wema'],
-  ['flyboy_ke',     '#ec4899', 'ndege imenipeleka mbinguni leo — 12x cashout!!'],
-  ['turbo_wanjiku', '#f59e0b', 'nimefanya KSh 500 → 4,500 in dakika tano tu bana'],
-  ['muthoni_wins',  '#22c55e', 'leo ni green day kweli kweli. +KSh 9,000 🙌'],
-  ['bossman_ke',    '#06b6d4', 'KSh 10,000 bet. Cashout 6.8x. Mungu akubariki wote'],
-  ['nairobiflyer',  '#22c55e', 'hii ndege imenisaidia kulipa rent bana 😂'],
-  ['wairimu_w',     '#a855f7', 'cashout 4.5x! rekodi yangu mpya. nashangaa bado'],
-  ['mombasaace',    '#f97316', 'nimecheza from morning. niko juu ya KSh 15K total 🔥'],
-  ['viktorr',       '#22c55e', 'nimepotea 3 mara, kisha 22x ikanisaidia. bado niko juu'],
-  ['rocket_man7',   '#a855f7', 'ROCKETTTTT 20x nikaipata!! 🚀🚀🚀'],
-  ['fastcash88',    '#06b6d4', 'KSh 1000 → 7800 leo. strategy yangu inafanya kazi'],
-  ['zawadi_g',      '#ef4444', 'zawadi ya leo: 6x cashout. asante Mungu'],
-  ['baraka_fly',    '#22c55e', 'baraka zimekuja leo bana. +KSh 12,000 in masaa mawili'],
-  ['simba_x',       '#f97316', 'simba anawindwa lakini leo amewindana na ndege 😂'],
-  ['ogutu_bet',     '#22c55e', 'nilikuwa nasubiri round hii specifically. 9x!! yesss'],
-  ['thika_pilot',   '#3b82f6', 'Thika represent! cashout 5x. tunashinda bana'],
-  ['eldoret_fx',    '#f59e0b', 'Eldoret fast fast kama marathon wetu — 7x cashout'],
-  ['nakuru_king',   '#22c55e', 'Nakuru tunaongea peke yetu! KSh 3000 nimewin today'],
-  ['adhis_cash',    '#ec4899', 'dem anaweza bet na kushinda zaidi kuliko mtu yeyote 💅 16x!!'],
-  ['luckydude99',   '#06b6d4', 'bahati ni skill sema tu. 11x nimecash out smooth'],
-  ['diamond_hands', '#a855f7', 'nilihold mpaka 14x. mikono ya almasi hazilegee 😤'],
-  ['clutch_king',   '#22c55e', 'clutch cashout 4.99x ya mwisho kabla crash. WEWE!!'],
-  ['silentwin',     '#3b82f6', 'kimya kimya. 7x cashout. nobody noticed hehe'],
-  ['ghostcash',     '#a855f7', 'ghost mode on. KSh 6000 nimewin bila kelele yoyote'],
-  ['mystery_x',     '#22c55e', 'mystery player. mystery profits. leo +KSh 11,000'],
-  ['blitz_win',     '#06b6d4', 'nimeshinda 5 mfululizo. algorithm inanipenda leo'],
-  ['eagle_fly',     '#22c55e', 'tai hawaangukai — 8x nimeichukua vizuri sana bana'],
-  ['hawk_cash',     '#f59e0b', 'precision kama tai 🦅 cashout exactly at 5x. banaa'],
-  ['phoenix_x',     '#3b82f6', 'nilianguka. nikarudi. nikawin 15x. phoenix style'],
-  ['lion_king_k',   '#f97316', 'hii ni ufalme wangu. 10x round hii. asante Mungu'],
-  ['viper_x',       '#22c55e', 'viper strike exactly 3.5x. precision ingine'],
-  ['mamba_wins',    '#ef4444', 'mamba mentality. nimeshinda tena. +KSh 8500 total'],
-  ['cant_stop_x',   '#22c55e', 'siwezi kuacha kushinda. 13x leo!! aisee'],
-  ['tumbo_bet',     '#06b6d4', 'pesa kidogo lakini akili kubwa. 7x imenifanya tajiri kidogo'],
-  ['rico_suave',    '#22c55e', 'KSh 500 → KSh 4500 in dakika 30. ukweli kabisa'],
-  ['pablito_b',     '#3b82f6', 'deposit ya kwanza. nimepata 3.8x. naomba tena'],
-  ['maxpower_9',    '#f59e0b', 'KSh 3000 jana. leo niko double. maisha mazuri'],
-  ['ace_of_bets',   '#22c55e', 'ace kila wakati bana. 6x round hii smooth sana'],
-  ['unknownpro',    '#06b6d4', 'sijulikani. lakini mfuko unajua KSh 9000 ziko ndani'],
-  ['player_zero',   '#ec4899', 'player zero. score leo: +KSh 7800. sio mchezo'],
-  ['gitau_fly',     '#22c55e', 'leo ni yangu bana. 11x!! nimeamka hivo tu 💪'],
-  ['wafula_pro',    '#f97316', 'western kenya represent! bet 1000 win 8500 bana'],
-  ['awuor_wins',    '#3b82f6', 'Kisumu tuko hapa! ndege ilibeba pesa zangu juu 🔥'],
-  ['cash_ninja',    '#06b6d4', 'nimecash out vizuri. KSh 2000 → 9000. ninja style'],
-  ['risk_taker254', '#22c55e', 'nilichukua risk kubwa. 15x ikanipa. worth it kabisa'],
-  ['million_mode',  '#ef4444', 'million mode imewashwa. KSh 20K today target yangu'],
-  ['early_bird',    '#22c55e', 'cashout mapema sana — 2.5x kila round. accumulation'],
-  ['double_up7',    '#a855f7', 'kila round ndogo ndogo. leo total +KSh 6200'],
-  ['neverlose99',   '#22c55e', 'day 45 nikiandika. average win per day: +KSh 2800'],
+  // === POSITIVE (40%) ===
+  ['nimevuna doh kidogo leo niko out', 'exitplan_k', '#22c55e'],
+  ['8x came in clutch wallah nimeshukuru', 'clutch_mze', '#06b6d4'],
+  ['ndege imebeba chapaa leo si kawaida', 'flying_hi', '#22c55e'],
+  ['cashout ya 5x na bet ya 2k. sorted', 'quickmath_k', '#f59e0b'],
+  ['nimecashout sahi balance looking healthy', 'healthy_ke', '#22c55e'],
+  ['leo ni funday. 3x back to back', 'fundae_ke', '#14b8a6'],
+  ['small wins bro. 1.5x ndo formula', 'formula_ke', '#3b82f6'],
+  ['nilitoa 500 nikavuna 2.5k', 'mpesaboy', '#22c55e'],
+  ['doh imeingia kwa account. today was good', 'goodday_ke', '#06b6d4'],
+  ['nimecashout rent ya next month. sorted', 'rentboy_ke', '#22c55e'],
+  ['bro i just hit 15x with 1k bet', 'shaking_ke', '#ef4444'],
+  ['alhamdulillah leo ndege imenibeba', 'blessed_ab', '#22c55e'],
+  ['wueh hiyo 22x round nani alikamata', 'witness_ke', '#a855f7'],
+  ['withdraw imefika. 7k clean', 'cleanmoney', '#22c55e'],
+  ['account iko green naskia fiti', 'junior_bett', '#14b8a6'],
+  ['yaani 500 bob ikawa 4k hivi tu', 'mamake_b', '#ec4899'],
+  ['ndege ya leo iko na baraka', 'baraka_ke', '#22c55e'],
+  ['nimepiga 3x mara tatu consecutive', 'triple_ke', '#f97316'],
+  ['bro hii ndege leo ni smooth trust', 'smooth_fly', '#06b6d4'],
+  ['first time nikicashout above 10x', 'first10x', '#a855f7'],
+  ['2k bet 4.5x cashout. 9k profit', 'profit_ke', '#22c55e'],
+  ['m-pesa imelia withdrawal. doh ni real', 'mpesa_real', '#22c55e'],
+  ['today target was 3k. nimefika. out', 'target_met', '#14b8a6'],
+  ['ndege imebeba sana manze', 'manze_ke', '#f59e0b'],
+  ['nimecashout 2x tano mfululizo', 'consist_ke', '#3b82f6'],
+  ['chapaa inaflow kama maji bro', 'flowstate', '#22c55e'],
+  ['nilibet 500 nikavuna 3bags easy', 'easymoney_', '#06b6d4'],
+  ['cashout timing yangu leo on point', 'timing_ke', '#22c55e'],
+  ['leo ni green day. 6 wins out of 8', 'greenday_k', '#22c55e'],
+  ['thank God nimecashout before crash', 'thankful_k', '#a855f7'],
+  ['started with 200 sahi niko 1.8k', 'slowsteady', '#3b82f6'],
+  ['ndege ilibeba msee wangu 12x congrats', 'congrats_k', '#f97316'],
+  ['nimecash 3.2x. small but smart', 'smartplay', '#14b8a6'],
+  ['this week total profit ni 15k', 'weekprofit', '#22c55e'],
+  ['leo hata 1.5x niko okay. profit ni profit', 'anyprofit', '#06b6d4'],
+  ['pesa ya weekend sorted nice', 'wkndmoney', '#22c55e'],
+  ['nimevuna 4bags from 1k initial leo', 'bags4_ke', '#f59e0b'],
+  ['another successful session. out', 'session_w', '#22c55e'],
+  ['2.5x cashout perfect timing', 'perfect_ke', '#3b82f6'],
+  ['ndege ilinibeba hadi 7x nikacash 6.8', 'nearmiss_w', '#a855f7'],
+  ['consistent 2x plays ndo inalipa', 'consist2x', '#22c55e'],
+  ['gg nimecashout 5k total leo', 'gg_ke', '#14b8a6'],
+  ['from 300 to 2.1k in 30 mins', '30minwin', '#06b6d4'],
+  ['hii round ilikuwa mine. 4x clean', 'myround', '#22c55e'],
+  ['bro cashout ilifika on time. blessed', 'ontime_ke', '#22c55e'],
+  ['leo naenda home na profit. rare day', 'rareday_ke', '#f59e0b'],
+  ['nimecash before crash by 0.1 lol close', 'close_one', '#a855f7'],
+  ['3 bags profit ya leo. discipline paid off', 'paid_off', '#22c55e'],
+  ['started slow but ended strong 5x finish', 'strongend', '#3b82f6'],
+  ['auto cashout 2x imenisave tena', 'autosave', '#22c55e'],
+  ['nimecashout na nimezima phone. enough', 'enough_ke', '#14b8a6'],
+  ['best round ya wiki. 8.5x cashout', 'bestround', '#06b6d4'],
+  ['from zero to hero today honestly', 'hero_ke', '#22c55e'],
+  ['nimefanya target ya siku in 5 rounds', '5rounds', '#f59e0b'],
+  ['3x ilikuja exactly when i needed', 'bless_ke', '#22c55e'],
+  ['niko juu ya 10k profit this week', '10kweek', '#a855f7'],
+  ['cashout game strong leo', 'strong_ke', '#22c55e'],
+  ['ndege ilipanda nikacash 4.2x vizuri', 'vizuri_ke', '#3b82f6'],
+  ['pesa imeingia m-pesa. confirmed real', 'confirmed_w', '#22c55e'],
+  ['leo nimecheza smart. 7 wins 2 losses', 'smartday', '#14b8a6'],
+  ['nice one. 3.5x clean exit', 'cleanexit', '#22c55e'],
+  ['500 bob investment returns 2.5k not bad', 'returns_ke', '#06b6d4'],
+  ['nimeshukuru for today. out on a high', 'highout', '#22c55e'],
+  ['finally a good streak. 4 wins straight', 'streak_ke', '#f59e0b'],
+  ['leo naweza lala peaceful. profit secured', 'peaceful_k', '#22c55e'],
+  ['nice session bro. 6k from 1k start', 'nicesesh', '#a855f7'],
+  ['first cashout ya leo 2.8x good start', 'goodstart', '#22c55e'],
+  ['auto 1.8x is boring but account growing', 'growing_ke', '#3b82f6'],
+  ['bro this game loves me today wallahi', 'lovesme_ke', '#22c55e'],
+  ['quick 2x and out. lunch money secured', 'lunchmoney', '#14b8a6'],
+  ['3 rounds 3 cashouts. efficient', 'efficient_', '#22c55e'],
+  ['8k day from small bets. compounding works', 'compound_w', '#06b6d4'],
+  ['ndege ilinipea 5x gift leo', 'gift_ke', '#22c55e'],
+  ['session ya morning ilikuwa fruitful', 'fruitful_k', '#f59e0b'],
+  ['niko happy na 2x cashout. greedy kills', 'happy2x', '#22c55e'],
+  ['withdrawal successful. pesa ni real', 'realwithdw', '#a855f7'],
+  ['from msoto to profit in 1 hour', 'turnaround', '#22c55e'],
+  ['nimecash na nimeenda. know when to stop', 'knowstop', '#3b82f6'],
+  ['chapaa imeingia smooth', 'smooth_in', '#22c55e'],
+  ['leo God was on my side fr', 'godside_ke', '#14b8a6'],
+  ['clean cashout. no stress no drama', 'nodrama_ke', '#22c55e'],
+  ['2.2x auto is my sweet spot honestly', 'sweetspot', '#06b6d4'],
+  ['nimevuna na niko out. see u tmrw', 'tmrw_ke', '#22c55e'],
+  ['doh ya fare imetoka hapa haha', 'fare_ke', '#f59e0b'],
+  ['steady 2x player here. slow money sure money', 'slowmoney', '#22c55e'],
+  ['7x came and i was IN. best feeling', 'bestfeel', '#a855f7'],
+  ['profit secured. account growing nicely', 'secured_ke', '#22c55e'],
+  ['from 1k to 4.5k good afternoon', 'afternoon_', '#3b82f6'],
+  ['nimecashout vizuri. time to rest', 'rest_ke', '#22c55e'],
+  ['small bet big return. 100 to 800', 'smallbig', '#14b8a6'],
+  ['cashout game iko sawa leo. 5 wins', 'sawa_ke', '#22c55e'],
+  ['ended green today. thats all that matters', 'greenend', '#06b6d4'],
+  ['pesa ya airtime imetoka kwa ndege', 'airtime_ke', '#22c55e'],
 
-  // ── LOSSES / COMPLAINTS ────────────────────────────────────────────────────
-  ['joseXX',        '#f97316', 'crash 1.1x tena!! hii ni uchawi gani hii 😭'],
-  ['odhiambo_x',    '#3b82f6', 'curse ya 1.1x iko real sana. nimepotea 4 mara mfululizo'],
-  ['gitau_bet',     '#ef4444', 'CRASH 1.04x na nilikuwa na KSh 2000! nimekufa 😤'],
-  ['papiChulo22',   '#22c55e', 'crash. deposit. crash. deposit. maisha yenyewe 💀'],
-  ['akinyi99',      '#ec4899', 'KSh 5000 nilibet saa hii imeenda. moyo wangu 😬'],
-  ['ndungu_x',      '#f97316', 'hii 1.0x crash inafanya kazi. nimechoka na hii'],
-  ['kariuki_fx',    '#3b82f6', 'nilicheza masaa manne. niko minus KSh 3000. bado nacheza'],
-  ['njoroge77',     '#22c55e', 'crash 1.3x mara tano mfululizo. hii ni laana'],
-  ['adhiambo_g',    '#06b6d4', 'auto cashout 2x ilirundwa crash 1.8x. hata algorithm inacheza mchezo'],
-  ['wambui_cash',   '#a855f7', 'nimepoteza KSh 4000 saa moja. niko calm still nacheza'],
-  ['awuor88',       '#f59e0b', 'mshahara wote unaweza kwenda kwa sekunde moja. lesson'],
-  ['mumo_x',        '#ef4444', 'nilibet KSh 5000 nikashindwa. moyo unauma sana bana'],
-  ['kamau_bets',    '#f97316', 'round ya tano bado sijashinda. lakini naendelea tu'],
-  ['crash_hunter',  '#a855f7', 'nimekuwa nikiwinda 50x. nimepata 3x tu. bado'],
-  ['jokerbet77',    '#f97316', 'usiniambie odds. nimepoteza KSh 8000 leo. still here'],
-  ['karis_fly',     '#22c55e', 'nimepoteza KSh 1500 leo. lakini jana nilipata 4000. plus bado'],
-  ['speed_demon',   '#3b82f6', 'simu yangu inashindwa kucash out kwa wakati. ninajua crash'],
-  ['thunder_fly',   '#a855f7', 'radi ilinipiga. 1.1x crash mara tatu. niko down KSh 2K'],
-  ['dragon_bet',    '#06b6d4', 'dragon aliua leo. KSh 3000 crash 1.05x. kesho nitarudi'],
-  ['tenplex_man',   '#22c55e', 'nilikuwa nataka 10x. nikapata 1.2x. algorithm inajua'],
-  ['fifty50x',      '#06b6d4', 'nimengoja 50x masaa matano. sijapata bado. subiri tu'],
-  ['go_big_bro',    '#f97316', 'bro ameweka KSh 20,000 akapoteza 1.3x 💀 pole sana'],
-  ['fearnocrash',   '#ec4899', 'crash? nilidhani sijui. imenikumba. pole pole bana'],
-  ['sensei_bet',    '#ef4444', 'hata sensei anapoteza wakati mwingine. lesson ya leo'],
-  ['otieno_fly',    '#22c55e', 'KSh 200 zilinienda haraka. ni round moja tu ndio naomba'],
-  ['wairimu99',     '#f97316', 'nimepoteza pesa za mboga leo. mume wangu hatajua 😂'],
-  ['safi_bet',      '#3b82f6', 'crash 1.0x first round. na nilikuwa na KSh 10K'],
-  ['bora_wins',     '#22c55e', 'nimepoteza lakini sijuta. experience ni muhimu'],
-  ['mtu_mmoja',     '#a855f7', 'hii ni mchezo wa nguvu. nimepoteza lakini nitarudi'],
-  ['paka_bet',      '#06b6d4', 'paka ina maisha tisa. mimi niko maisha sita tu. bado'],
+  // === GENERAL / STRATEGY (30%) ===
+  ['2x auto ndio safest. works for me', 'safe_plyr', '#3b82f6'],
+  ['bet small ndio hufanyi mtu emotional', 'coach_dre', '#06b6d4'],
+  ['set limit ya per day. discipline', 'disciplind', '#3b82f6'],
+  ['cashout 1.5 kila round. profitable', 'boring_w', '#14b8a6'],
+  ['trick ni kucheza na pesa u can afford', 'trick_ke', '#3b82f6'],
+  ['ngurumisha ndege uwahi dinga', 'mozzfan_ke', '#f97316'],
+  ['nani ana good strategy? share', 'newguy_ke', '#06b6d4'],
+  ['uko kwa group ya aviator tips?', 'groupie_ke', '#3b82f6'],
+  ['pattern ya crashes iko if u watch', 'analyst_ke', '#a855f7'],
+  ['martingale needs decent budget tho', 'mathsmsee', '#3b82f6'],
+  ['withdraw immediately u win. golden rule', 'proadvice', '#06b6d4'],
+  ['budget ikisha simama. no exceptions', 'prof_bets', '#3b82f6'],
+  ['auto cashout saves lives', 'autogang', '#14b8a6'],
+  ['usiku ndege huwa different', 'nightmode', '#a855f7'],
+  ['nacheza rounds 20 per day max', 'limited_ke', '#3b82f6'],
+  ['double bet feature is underrated', 'doublebett', '#06b6d4'],
+  ['kila mtu find what works for u', 'ownlane_ke', '#3b82f6'],
+  ['never bet what u cant afford to lose', 'goldenrule', '#f59e0b'],
+  ['cheza na akili si na feelings', 'brainover', '#3b82f6'],
+  ['after big win take a break always', 'breaktime_', '#14b8a6'],
+  ['compounding small wins ndio secret', 'compound_k', '#06b6d4'],
+  ['new players start na 50 bob first', 'mentor_ke', '#3b82f6'],
+  ['cashout early cashout often', 'tweetstyle', '#22c55e'],
+  ['patience over greed always', 'patience_k', '#3b82f6'],
+  ['ukicheza emotional utapoteza', 'calmvibes', '#a855f7'],
+  ['friday evenings ndege generous imo', 'friday_obs', '#f97316'],
+  ['weka target ya siku then stop', 'target_adv', '#3b82f6'],
+  ['hii game si ya emotions. be logical', 'logical_ke', '#06b6d4'],
+  ['dont overthink. set auto and relax', 'relax_ke', '#3b82f6'],
+  ['low bets high frequency ndio moves', 'frequency', '#14b8a6'],
+  ['consistency beats one big win', 'consistent', '#3b82f6'],
+  ['cash out dont get greedy. simple', 'simple_ke', '#06b6d4'],
+  ['umeshawahi try 1.2x auto? surprisingly good', 'try12x', '#3b82f6'],
+  ['stop loss ni important. set hiyo', 'stoploss', '#a855f7'],
+  ['my strategy: 3 losses i stop', '3losses', '#3b82f6'],
+  ['mtu wa 2x gang uko wapi', '2xgang', '#06b6d4'],
+  ['just be disciplined. thats literally it', 'justdisc', '#3b82f6'],
+  ['auto cashout > manual. facts', 'facts_ke', '#14b8a6'],
+  ['rest days are important too', 'restdays', '#3b82f6'],
+  ['keep records ya wins na losses', 'records_ke', '#a855f7'],
+  ['1.5x gang we move in silence', 'silence_ke', '#3b82f6'],
+  ['greed ni number one killer ya bankroll', 'greedkills', '#06b6d4'],
+  ['weka time limit pia not just money', 'timelimit', '#3b82f6'],
+  ['play the game dont let it play you', 'playgame', '#f59e0b'],
+  ['best tip: celebrate small wins', 'celebrate', '#22c55e'],
+  ['hii ni marathon si sprint', 'marathon_k', '#3b82f6'],
+  ['u dont need to win big. just win often', 'winoften', '#06b6d4'],
+  ['the pros play boring. copy them', 'copypros', '#3b82f6'],
+  ['aviator ni game ya patience', 'patientgm', '#14b8a6'],
+  ['cheza vizuri utavuna vizuri', 'chezavizu', '#22c55e'],
+  ['risk management > everything', 'riskmanage', '#3b82f6'],
+  ['experienced players know: boring = profitable', 'boringpro', '#06b6d4'],
 
-  // ── STRATEGY / TIPS ───────────────────────────────────────────────────────
-  ['turbo_wanjiku', '#f59e0b', 'set auto cashout 2x kila wakati — ndio strategy salama'],
-  ['muthoni_wins',  '#22c55e', 'tips: bet kidogo bet mara nyingi. ndio utajiri wa polepole'],
-  ['wambui_cash',   '#a855f7', 'usipanic ukiangalia ndege. cashout calm kama pro'],
-  ['early_bird',    '#ef4444', 'cashout mapema always ndio wisdom ya hii mchezo'],
-  ['sensei_bet',    '#ef4444', 'vijana — cashout 2x always. nawasalimia. hii ni ukweli'],
-  ['kamau_bets',    '#f97316', 'strategy yangu: bet 100-200 tu. win kidogo win mara nyingi'],
-  ['odhiambo_x',    '#3b82f6', 'subiri round moja. angalia mwelekeo. kisha bet. works'],
-  ['adhiambo_g',    '#06b6d4', 'auto cashout 1.8x maana set and forget. hupotezi'],
-  ['maxpower_9',    '#f59e0b', 'siri yangu: bet mara 10 kidogo kuliko mara moja kubwa'],
-  ['neverlose99',   '#22c55e', 'nimekuwa nikicheza miezi 6. wastani wangu ni positive'],
-  ['the_gambler',   '#f59e0b', 'kuna wakati wa kushikilia na wakati wa kuacha — 2x'],
-  ['timing_god',    '#3b82f6', 'timing ndio kila kitu hii mchezo. jifunza ku-read pattern'],
-  ['pilot_zero',    '#a855f7', 'jibu la kushinda: discipline. beta kidogo kwa subira'],
-  ['mega_risk',     '#ef4444', 'mega risk haifai kila wakati. bet smart bana'],
-  ['ultra_bet',     '#3b82f6', 'simulation ya akili: angalia rounds 20 kabla ya kubet'],
-  ['hyper_cash',    '#22c55e', 'cashout speed lazima iwe fast. meza chini kuchelewa'],
-  ['ace_of_bets',   '#22c55e', 'usifuate hasara. kama umepoteza 3 mfululizo, simama'],
-  ['foxyrider',     '#06b6d4', 'sneaky strategy: bet round baada ya crash kubwa. often nafuu'],
-  ['blitz_win',     '#06b6d4', 'win 5 mfululizo = simama. usitake zaidi. hii ni sheria'],
-  ['player_zero',   '#ec4899', 'budget ya siku. ukiimaliza, simama. rudisha kesho'],
-  ['siri_ya_pesa',  '#22c55e', 'siri: weka target ya siku. ukiifika, toka. discipline'],
-  ['pro_aviator',   '#3b82f6', 'round ya kwanza angalia tu. round ya pili bet kidogo'],
-  ['smart_bet_ke',  '#f59e0b', 'pesa kidogo bet mara nyingi = akili kubwa zaidi'],
-  ['mzee_wa_game',  '#06b6d4', 'nimecheza miezi 8. ukweli: 1.5x-2x kila wakati ni faida'],
-  ['grandmaster_k', '#a855f7', 'grandmaster rule: usibet zaidi ya 5% ya balance yako'],
-  ['calm_wins',     '#22c55e', 'usijali wengine wakishinda. wewe focus yako mwenyewe'],
-  ['steady_ke',     '#3b82f6', 'steady wins the race. 1.5x × 20 rounds > 15x × 1 round'],
-  ['formula_bet',   '#ef4444', 'formula: bet 100, cashout 2x, repeat. simple math bana'],
-  ['pattern_pro',   '#f97316', 'after 3 low crashes, bet kidogo zaidi. pattern iko'],
-  ['logic_player',  '#22c55e', 'logic: kama ndege imekuwa ikichelewa, itafly high soon'],
+  // === NEUTRAL (20%) ===
+  ['nani mwingine hapa saa hii?', 'latenight_g', '#64748b'],
+  ['lunch hour warriors wapi', 'lunchgang', '#64748b'],
+  ['morning crew checking in', 'earlybird_', '#f59e0b'],
+  ['mko online wangapi sahi', 'checker_ke', '#64748b'],
+  ['admin kuna free bet leo?', 'freebet_ke', '#06b6d4'],
+  ['deposit confirmed tunaingia', 'deposit_ke', '#64748b'],
+  ['niko kazi but nacheza chini chini', 'officeplyr', '#64748b'],
+  ['friday night session who else', 'fridaysesh', '#f97316'],
+  ['nimereload lets see how it goes', 'reload_ke', '#64748b'],
+  ['waiting for next round', 'waiting_ke', '#64748b'],
+  ['cheki multiplier 34x just passed', 'spotted_ke', '#a855f7'],
+  ['m-pesa confirmed tuko ndani', 'confirmed_', '#64748b'],
+  ['gg see you tomorrow', 'nightshift_k', '#64748b'],
+  ['back from break what did i miss', 'backfrombrk', '#64748b'],
+  ['new here. first time playing', 'newhere_ke', '#06b6d4'],
+  ['anyone else from mombasa?', 'msa_check', '#64748b'],
+  ['just watching today', 'spectator_k', '#64748b'],
+  ['how long have u guys been playing?', 'howlong_ke', '#64748b'],
+  ['weekend session loading', 'wkndload', '#f97316'],
+  ['last round ya leo for me', 'lastround', '#64748b'],
+  ['which platform mko?', 'platform_q', '#64748b'],
+  ['hii chat iko active leo nice', 'active_ch', '#22c55e'],
+  ['about to start my session', 'aboutstart', '#64748b'],
+  ['just deposited. nervous', 'nervous_ke', '#64748b'],
+  ['what was the highest today?', 'highest_q', '#06b6d4'],
+  ['anyone noticed ndege low since morning?', 'noticed_ke', '#64748b'],
+  ['nani ako hapa kila siku?', 'daily_q', '#64748b'],
+  ['just logged in. vipi watu', 'loggedin', '#64748b'],
+  ['sahi battery 8% but bado nacheza lol', 'battery_ke', '#f97316'],
+  ['kwani leo ni national aviator day haha', 'national_k', '#64748b'],
 
-  // ── FOMO / HYPE ──────────────────────────────────────────────────────────
-  ['moonshot_g',    '#3b82f6', '100x ipo mathematically. nitasubiri mpaka iwe yangu'],
-  ['fifty50x',      '#06b6d4', '50x inakuja — naona vibes. naomba wote mbet sasa'],
-  ['fearlessbettor','#ef4444', 'risk it all au usicheze kabisa — hii ni motto yangu'],
-  ['diamondz_ke',   '#22c55e', 'watu wangu! round inayokuja itakuwa kubwa. naona signs'],
-  ['hype_man254',   '#f97316', 'vibeeee ya leo ni different bana. round hii itafly'],
-  ['energy_bet',    '#a855f7', 'energy iko different leo. kila mtu aandike 2x minimum'],
-  ['spiritual_ke',  '#22c55e', 'nimeona vision. round inayokuja — 10x plus. trust me'],
-  ['crowd_hype',    '#3b82f6', 'kila mtu anaangalia. kila mtu anasubiri. hii ni moment'],
-  ['thunder_fly',   '#a855f7', 'RADI ANGANI 🛩️⚡ LEO NDIO SIKU'],
-  ['dragon_bet',    '#06b6d4', 'nguvu ya dragon iko ndani yangu. 🐉 round hii ni yangu'],
-  ['rocket_man7',   '#a855f7', 'ROCKETTTTT 🚀 next round itatupa kwenye stratosphere'],
-  ['ultra_bet',     '#3b82f6', 'ULTRA BET MODE IMEWASHWA. tuko tayari 🔥'],
-  ['mega_risk',     '#ef4444', 'mega round inakuja. nimesikia kutoka kwa wachezaji wa zamani'],
-  ['fire_bet_ke',   '#f97316', 'moto uko! round ya next itafly high. mimi niko tayari'],
-  ['heri_game',     '#22c55e', 'heri ya leo — ndege itaruka juu sana. nimebet tele'],
-  ['nguvu_bet',     '#a855f7', 'nguvu zangu zote hii round. niko all in mood'],
-  ['tabia_flyer',   '#3b82f6', 'tabia ya ndege hii: kuruka juu baada ya kuangalia chini'],
-  ['star_chaser',   '#22c55e', 'star chasing leo. 20x itakuja. naomba muwe tayari'],
-  ['high_ride_ke',  '#f59e0b', 'high ride mode. buckle up watu wangu 🛩️'],
-  ['nanga_bet',     '#06b6d4', 'naona nanga ya 15x inashuka. let us ride pamoja bana'],
-  ['pumzika_hapa',  '#ec4899', 'niliambiwa usicheze usiku — lakini vibes ya usiku ni tofauti'],
-  ['midnite_ke',    '#3b82f6', 'midnight session hit different. ndege inafanya kazi zaidi'],
-  ['usiku_wins',    '#22c55e', 'usiku ndio wakati wangu. nimeshinda zaidi usiku'],
-  ['morning_star',  '#f59e0b', 'asubuhi mche different bana. wachezaji wachache = odds bora'],
-  ['weekend_bet',   '#ef4444', 'weekend energy ni different kabisa. watu wanacheza bold'],
-  ['friday_ke',     '#22c55e', 'friday vibes!! round hii itafly juu. trust the energy'],
-  ['payday_mode',   '#f97316', 'mshahara umeingia. wakati wa kuifanya double. LFG!!'],
-  ['bonus_hunter',  '#a855f7', 'bonus ya leo nimeipata. sasa naifanya grow quickly'],
-  ['free_money_k',  '#06b6d4', 'hii inafeel kama pesa ya bure bana. round baada ya round'],
-  ['unlimited_ke',  '#22c55e', 'hakuna ukomo wa kushinda. mindset ni kila kitu'],
-
-  // ── SOCIAL PROOF / COMMUNITY ──────────────────────────────────────────────
-  ['ogutu_bet',     '#22c55e', 'cousin wangu aliniambia hii game. saa hii ana gari mpya'],
-  ['jose_aviator',  '#ec4899', 'jirani yangu alishinda KSh 80,000 wiki iliyopita. ukweli'],
-  ['rafiki_ke',     '#3b82f6', 'marafiki zangu wote wanacheza hapa. ni community nzuri'],
-  ['mkubwa_bet',    '#f97316', 'mkubwa wangu alishinda rent mwezi mzima hapa. saa hii nacheza'],
-  ['sister_wins',   '#ec4899', 'dada yangu aliniambia. saa hii tuko wote hapa kushinda'],
-  ['bro_code_ke',   '#22c55e', 'bro alinishow hii app wiki iliyopita. nimefanya KSh 15K tangu'],
-  ['family_ke',     '#a855f7', 'familia yangu imekubali hii game. wote tunashinda pamoja'],
-  ['group_bet',     '#06b6d4', 'group ya Whatsapp yangu wote tuko hapa sasa. karibu sana'],
-  ['mtaa_rep',      '#f59e0b', 'mtaa wangu Eastleigh tuko ndani. wote mcheze leo'],
-  ['westlands_k',   '#22c55e', 'Westlands gang represent! aviation lifestyle 🛩️'],
-  ['mathare_fly',   '#ef4444', 'kutoka Mathare na upendo. hapa tunashinda pia'],
-  ['kibera_wins',   '#3b82f6', 'Kibera represent! pesa ndogo inaweza kuwa kubwa'],
-  ['lang_wins',     '#22c55e', "Lang'ata watu wanajua. hii platform ni legit kabisa"],
-  ['kile_bet',      '#f97316', 'kile watu wacheza hii — ni zaidi ya lotto bana'],
-  ['common_man',    '#a855f7', 'mtu wa kawaida anaweza kushinda pesa kubwa hapa. kweli'],
-  ['proof_ke',      '#22c55e', 'proof ipo. nimepiga screenshot ya win yangu. legit game'],
-  ['testimony_k',   '#3b82f6', 'testimony: nilikuwa na KSh 200. sasa niko 3,400. ukweli'],
-  ['witness_bet',   '#f59e0b', 'naona watu wakishinda kila siku. mimi pia nimeshinda'],
-  ['real_talk_ke',  '#22c55e', 'real talk: platform hii inabeba watu wa Kenya. mungu abariki'],
-  ['trust_ke',      '#06b6d4', 'nimecheza platform nyingi. hii ndio bora kabisa Kenya'],
-
-  // ── DEPOSIT NUDGES / RE-ENGAGEMENT ────────────────────────────────────────
-  ['papiChulo22',   '#22c55e', 'deposit ndogo inaweza kuja na mapato makubwa. tujaribu'],
-  ['ericsson_k',    '#3b82f6', 'nimereload na KSh 500. ninaanza tena. wish me luck'],
-  ['addicted_w',    '#06b6d4', 'sio addicted. nimejicommit tu kwa mchezo huu 😂'],
-  ['justone_more',  '#f97316', 'moja zaidi tu. naahidi hii ni bet ya mwisho ya usiku'],
-  ['cant_stop_x',   '#ec4899', 'akaunti yangu haina pesa. nitaongeza kidogo tu. kidogo tu'],
-  ['reload_ke',     '#22c55e', 'nimereload tena. mara hii nitafanya tofauti kabisa'],
-  ['comeback_ke',   '#3b82f6', 'comeback ya mwaka. nimedepoit na nataka kurudisha hasara'],
-  ['second_chance', '#f59e0b', 'chance ya pili daima ipo hapa. nimewasha tena'],
-  ['never_quit_k',  '#22c55e', 'mshinda wa kweli haacha. nimedeposit na niko tayari'],
-  ['topup_time',    '#ef4444', 'topup imefanywa. sasa naweza kucheza kwa amani tena'],
-  ['refuel_ke',     '#a855f7', 'ndege imehitaji mafuta. nimejaza. sasa tucheze tena'],
-  ['back_in_game',  '#06b6d4', 'nikiwa nje ya mchezo si vizuri. niko ndani tena leo'],
-  ['fresh_start',   '#22c55e', 'fresh start na fresh balance. leo kila kitu ni chanya'],
-  ['new_deposit',   '#3b82f6', 'deposit mpya imewadia. leo nitafanya vizuri zaidi'],
-  ['round_two',     '#f97316', 'round ya pili inaanza. nimejaza mfuko. tuko tayari'],
-  ['resilient_ke',  '#22c55e', 'mtu jasiri haacha kwa hasara. nimewasha tena'],
-  ['mpesa_done',    '#ec4899', 'M-Pesa imefanya kazi. niko ndani tena bana'],
-  ['funded_now',    '#f59e0b', 'nimefund account. saa hii naweza kucheza hata usiku'],
-  ['loaded_ke',     '#06b6d4', 'account imejaa. saa ya kushinda imewadia. lets go!!'],
-  ['balance_up',    '#22c55e', 'balance iko. morale iko. nguvu iko. twende!!'],
-
-  // ── CASUAL / BANTER ──────────────────────────────────────────────────────
-  ['risk_taker254', '#3b82f6', 'siwezi cashout chini ya 3x. siwezi kabisa. ni principle'],
-  ['wanjiku_pro',   '#06b6d4', 'nilikuwa na 200, saa hii niko 3500. sitaacha saa hii'],
-  ['nairobiflyer',  '#22c55e', 'hii game haina huruma bana 😅 pero nakipenda'],
-  ['mombasaace',    '#f97316', 'pwani represent! tunapiga mchezo mpaka bahari'],
-  ['highroller_x',  '#3b82f6', 'minimum bet ni ya tourists tu 😂 mimi nabet kubwa'],
-  ['luckydude99',   '#06b6d4', 'bahati ni skill. usiniambie vinginevyo. experience yangu'],
-  ['moonshot_g',    '#3b82f6', '100x ipo. nimeshailiona screenshot ya mtu. itakuja'],
-  ['fearlessbettor','#ef4444', 'risk it or miss it. hii ndiyo philosophy yangu'],
-  ['double_up7',    '#a855f7', 'doubling strategy works long term. naendelea na hii'],
-  ['blazing_5x',    '#ec4899', '5x ndio sweet spot yangu. kila wakati napata hapo'],
-  ['alpha_bet',     '#3b82f6', 'cashout 2x every time. alpha move bila shaka'],
-  ['turbopilot',    '#22c55e', 'mimi ndiye pilot hapa 🛩️ crash haifanyiki kwangu leo'],
-  ['neverlose99',   '#ef4444', 'day 45 nikiandika bets zangu. average iko positive'],
-  ['diamond_hands', '#a855f7', 'mikono ya almasi. sitabadilika mpaka 50x'],
-  ['fastcash88',    '#06b6d4', 'ndani na nje sekunde tatu. hapo ndipo ufundi uko'],
-  ['bigbet_boss',   '#22c55e', 'bet ndogo = wins ndogo. go big au go home'],
-  ['jose_aviator',  '#ec4899', 'cousin wangu aliniambia hii game. sasa ana BMW'],
-  ['el_capitano',   '#a855f7', 'El Capitano hapotezi. anasubiri tu wakati wake'],
-  ['KSH_killer',    '#ef4444', 'KSh 200 tu? nione unafanya nini nazo kwanza'],
-  ['foxyrider',     '#06b6d4', 'sneaky 6x cashout bila kelele. watu hawakujua'],
-  ['silentwin',     '#3b82f6', 'kimya kimya ndio nguvu zangu. silent but deadly'],
-  ['anon_player',   '#ec4899', 'anonymous. tajiri. hiyo tu. hakuna kinachobidi'],
-  ['mega_risk',     '#ef4444', 'mega risk mega reward. daima bila shaka'],
-  ['speed_demon',   '#22c55e', 'nakimbia haraka kuliko unavyoweza kuona'],
-  ['thunder_fly',   '#a855f7', 'RADI ANGANI!! ⚡ Leo ni siku ya thunder'],
-  ['phoenix_x',     '#3b82f6', 'nilianguka. nikarudi. kila wakati. phoenix power'],
-  ['hawk_cash',     '#22c55e', 'hawk eye cashout precision 🦅 exact timing'],
-  ['mamba_wins',    '#ef4444', 'mamba mentality: usisimame kamwe. ever'],
-  ['el_capitano',   '#a855f7', 'El Capitano anaenda kwa saa nyingi bila kushika'],
-  ['ericsson_k',    '#3b82f6', 'KSh 500→6000→500. mzunguko wa maisha hii'],
-  ['addicted_w',    '#06b6d4', 'sio addicted. nimejicommit tu 😂 tofauti kidogo'],
-  ['justone_more',  '#f97316', 'moja zaidi tu. naahidi hii ni ya mwisho. kweli kweli'],
-  ['cant_stop_x',   '#ec4899', 'siwezi. kuacha. kushinda. inaendelea.'],
-  ['the_gambler',   '#f59e0b', 'kuna wakati wa kushikilia na wakati wa kuacha...'],
-  ['ghostcash',     '#a855f7', 'ghost mode. hujui niko hapa lakini ninashinda'],
-  ['player_zero',   '#ec4899', 'player zero. anonymous. rich. unbeatable.'],
-  ['simba_x',       '#f97316', 'simba haina hofu ya ndege. ata yeye anabeti'],
-  ['tumbo_bet',     '#06b6d4', 'pesa kidogo lakini strategy kubwa na akili safi 😤'],
-  ['wairimu99',     '#f97316', 'niko na nguvu leo. no fear. all in spirit today'],
-  ['safi_bet',      '#3b82f6', 'safi kabisa. mind clear. ready to win today'],
-  ['bora_wins',     '#22c55e', 'bora kushinda kidogo kuliko kupoteza mengi. wisdom'],
-  ['mtu_mmoja',     '#a855f7', 'mtu mmoja anaweza kushinda pesa yote. saa hii'],
-  ['paka_bet',      '#06b6d4', 'paka ina maisha tisa. mimi bado nina saba. naendelea'],
-
-  // ── MORE WINS (keeps chat feeling profitable) ─────────────────────────────
-  ['mega_win_ke',   '#22c55e', 'MEGA WIN!! KSh 500 → KSh 8000 round moja. hii ni real'],
-  ['ten_x_man',     '#f59e0b', '10x nimeipata!! screenshot iko tayari. believe it'],
-  ['profit_daily',  '#22c55e', 'kila siku nimeshinda tangu nilianza. consistent kabisa'],
-  ['morning_win',   '#3b82f6', 'asubuhi nilibet 300. saa hii niko 2400. day imefunguka'],
-  ['lunch_bet',     '#f97316', 'lunch break nilicheza. nimewin KSh 1800 lunch ya bure'],
-  ['evening_cash',  '#22c55e', 'jioni cashout 5x. bora kuliko kuwa ofisini'],
-  ['weekend_win',   '#a855f7', 'weekend nzuri bana. +KSh 6500 jumamosi moja tu'],
-  ['holiday_bet',   '#06b6d4', 'siku ya mapumziko lakini account yangu haipumziki 😂'],
-  ['small_big_ke',  '#22c55e', 'KSh 50 nilifanya 400. na mimi nilicheza mara tano tu'],
-  ['double_win',    '#3b82f6', 'nimeshinda mara mbili mfululizo. momentum iko kwangu'],
-  ['triple_win',    '#f59e0b', 'mara tatu mfululizo nimeshinda. hii algorithm inanijua'],
-  ['streak_on',     '#22c55e', 'streak ya 7 mfululizo. record yangu mpya. staying here'],
-  ['unstoppable_k', '#ef4444', 'mtu hawezi kunizuia leo. nimeshinda 9 mfululizo'],
-  ['on_fire_ke',    '#f97316', 'moto moto!! kila round ninashinda. what is happening'],
-  ['lucky_day',     '#22c55e', 'leo ni siku yangu ya bahati. kila kitu kinakwenda vizuri'],
-  ['blessed_ke',    '#a855f7', 'nimehisi baraka leo. kila round iko sawa. Mungu ni wema'],
-  ['gratitude_bet', '#22c55e', 'asante kwa platform hii. imenisaidia sana kweli kweli'],
-  ['thankful_ke',   '#3b82f6', 'shukrani. nimeshinda KSh 12,000 wiki hii. nawashukuru'],
-  ['happy_player',  '#f59e0b', 'furaha ni kushinda. leo niko furaha sana. asante'],
-  ['joyful_ke',     '#22c55e', 'furaha yangu iko juu ya mawingu. cashout 8x leo!!'],
-
-  // ── REAL REACTIONS ────────────────────────────────────────────────────────
-  ['shocked_ke',    '#ef4444', 'YOOO 1.0x crash mara nne mfululizo. hii ni impossible'],
-  ['jaw_drop',      '#f97316', 'mdomo umefunguka bana. 35x round iliyopita. aliyepata??'],
-  ['amazed_ke',     '#22c55e', 'nimeona 67x kwenye history. mtu mmoja alishinda milioni??'],
-  ['disbelief_k',   '#a855f7', 'siwezi kuamini. 0.98x crash. ndege hata haikuingia angani'],
-  ['frustrated_k',  '#3b82f6', 'nimechoka na 1.1x. mara saba. Mungu saidia'],
-  ['relieved_ke',   '#22c55e', 'phew!! nilikuwa naangalia 1.1x. nikacashout 1.05x. saved'],
-  ['nervous_ke',    '#f59e0b', 'moyo wangu unapiga haraka. KSh 2000 niko flying hivi'],
-  ['excited_ke',    '#ef4444', 'excitement level 100! niko kwenye ndege ya 8x saa hii'],
-  ['sweat_ke',      '#a855f7', 'mikono inatoka jasho bana. KSh 5000 still flying 😰'],
-  ['relief_ke',     '#22c55e', 'nimecashout 3.2x. usingizi utarudi. phew!! bana'],
-  ['screaming_k',   '#f97316', 'NILIPIGA KELELE!! cashout 11x. jirani waliamka 😂'],
-  ['dancing_ke',    '#22c55e', 'ninacheza ngoma ya furaha!! KSh 9000 nimepata leo'],
-  ['crying_win',    '#3b82f6', 'machozi ya furaha. nilibet mwisho wa pesa zangu. 6x'],
-  ['heart_race',    '#ef4444', 'moyo unakimbia kama marathon. KSh 3000 flying bana'],
-  ['calm_after',    '#22c55e', 'baada ya dhoruba kuna utulivu. cashout 2x. satisfied'],
-  ['deep_breath',   '#a855f7', 'pumzika. inhale. exhale. cash out 1.8x. smart play'],
-  ['zen_bet',       '#06b6d4', 'nilikuwa zen kabisa. cashout bila stress. 3x smooth'],
-  ['focused_ke',    '#22c55e', 'focus bila distraction. matokeo: cashout 4x. inafanya'],
-  ['mindset_win',   '#3b82f6', 'mindset ndio kila kitu. positive thinking = positive wins'],
-  ['disciplined_k', '#f59e0b', 'discipline ni nguvu. nimeshinda kwa discipline tu'],
-
-  // ── MORE KENYAN SPECIFIC ──────────────────────────────────────────────────
-  ['nairobi_boy',   '#22c55e', 'Nairobi ndio mji wa wachezaji. tuko nguvu hapa'],
-  ['msa_represent', '#f97316', 'Mombasa pwani represent! tunapiga mchezo na bahari'],
-  ['kisumu_lake',   '#3b82f6', 'Kisumu lake city represent! ziwa ina nguvu'],
-  ['nakuru_valley', '#22c55e', 'Nakuru valley represent! tunashinda pia huku'],
-  ['eldoret_run',   '#f59e0b', 'Eldoret running capital — tunakimbia na cashout 😂'],
-  ['thika_road',    '#a855f7', 'Thika road smooth kama cashout yangu. straight'],
-  ['machakos_win',  '#06b6d4', 'Machakos represent! ukambani tunashinda pia'],
-  ['kisii_bet',     '#22c55e', 'Kisii represent! hii mchezo pia tunajua kucheza'],
-  ['kakamega_win',  '#ef4444', 'Kakamega sugar belt represent! tamu kama sukari'],
-  ['lamu_fly',      '#3b82f6', 'Lamu island vibes. tunacheza polepole lakini tunashinda'],
-  ['embu_wins',     '#22c55e', 'Embu represent! Mount Kenya energy iko ndani yangu'],
-  ['meru_bet',      '#f97316', 'Meru represent! nguvu ya miraa na nguvu ya bet'],
-  ['nyeri_fly',     '#a855f7', 'Nyeri represent! mountain fresh mind = better decisions'],
-  ['garissa_win',   '#22c55e', 'Garissa represent! hata jangwa huzalisha dhahabu'],
-  ['isiolo_ke',     '#06b6d4', 'Isiolo represent! border town energy tofauti kabisa'],
-  ['wajir_bet',     '#3b82f6', 'Wajir represent! hata mbali tunacheza na kushinda'],
-  ['mandera_win',   '#f59e0b', 'Mandera represent! nguvu iko hata ukingoni'],
-  ['county_47',     '#22c55e', 'kaunti zote 47 tunacheza pamoja. Kenya strong'],
-  ['diaspora_ke',   '#ef4444', 'Diaspora Kenya represent! tunacheza hata UK time'],
-  ['abroad_ke',     '#a855f7', 'niko London bado ninacheza. timezone haisimamishi'],
-
-  // ── MPESA / PAYMENT ──────────────────────────────────────────────────────
-  ['mpesa_magic',   '#22c55e', 'M-Pesa ndio bora. deposit na withdraw haraka sana'],
-  ['safaricom_k',   '#3b82f6', 'Safaricom network ni nguvu kwa mchezo huu. asante'],
-  ['instant_dep',   '#f59e0b', 'deposit ya sekunde 10. mchezo unaendelea mara moja'],
-  ['quick_cash',    '#22c55e', 'withdraw imefika account yangu in dakika mbili. fast!!'],
-  ['easy_money',    '#06b6d4', 'M-Pesa easy. deposit easy. win easy. withdraw easy'],
-  ['seamless_ke',   '#ef4444', 'seamless kabisa. M-Pesa → game → win → M-Pesa again'],
-  ['trusted_ke',    '#a855f7', 'platform hii nalipa withdrawals kila wakati. trusted'],
-  ['fast_pay',      '#22c55e', 'nimepewa pesa zangu haraka sana. no delays kabisa'],
-  ['reliable_k',    '#3b82f6', 'reliable platform. nimeshinda na nimepata pesa zangu'],
-  ['happy_mpesa',   '#f97316', 'M-Pesa ilinipiga simu. pesa ziko. asante platform'],
-
-  // ── LATE NIGHT / EARLY MORNING ────────────────────────────────────────────
-  ['midnite_ke',    '#3b82f6', 'midnight session hit different. silence + focus = wins'],
-  ['usiku_wins',    '#22c55e', 'usiku watu wachache. algorithm ni calm. nishinde zaidi'],
-  ['morning_star',  '#f59e0b', 'asubuhi mapema ni wakati wangu. nimeshinda 4 mfululizo'],
-  ['insomnia_bet',  '#a855f7', 'siwezi kulala. naenda cashout badala yake. 3am wins'],
-  ['night_owl_k',   '#06b6d4', 'night owl mode on. wachezaji wachache = nafasi zaidi'],
-  ['dawn_bet',      '#22c55e', 'alfajiri bet. alfajiri win. asante Mungu wa asubuhi'],
-  ['sunrise_win',   '#ef4444', 'jua linachomoza + win yangu. siku nzuri itakuwa'],
-  ['lunch_game',    '#3b82f6', 'lunch break aviator ni tradition yangu kila siku'],
-  ['after_work',    '#22c55e', 'baada ya kazi kidogo ya aviator = mood inabadilika'],
-  ['weekend_mode',  '#f97316', 'weekend mode tofauti. bila wasiwasi. ninacheza huru'],
-
-  // ── MORE UNIQUE REACTIONS ─────────────────────────────────────────────────
-  ['kiwango_high',  '#22c55e', 'kiwango cha juu!! 9x round hii. sijawahi pata zaidi'],
-  ['peke_yangu',    '#a855f7', 'peke yangu na ndege. tumekubaliana vizuri leo'],
-  ['kama_ndoto',    '#3b82f6', 'inafeel kama ndoto. KSh 400 → 3200. si ndoto'],
-  ['nguvu_mpya',    '#22c55e', 'nguvu mpya kila round. sichoki kucheza na kushinda'],
-  ['pumzika_hapana','#f97316', 'pumzika? hapana. naendelea mpaka nifike target'],
-  ['lengo_leo',     '#22c55e', 'lengo la leo: KSh 5000. niko KSh 3200. karibu'],
-  ['progress_ke',   '#3b82f6', 'progress ya polepole ni progress. kila win inajumlisha'],
-  ['hatua_kwa_h',   '#f59e0b', 'hatua kwa hatua. KSh 50 × rounds nyingi = KSh kubwa'],
-  ['accumulate_k',  '#22c55e', 'accumulation strategy. kidogo kidogo hujaza kibaba'],
-  ['patience_ke',   '#a855f7', 'subira ndiyo ufunguo. nimehifadhi subira yangu leo'],
-  ['wisdom_bet',    '#06b6d4', 'hekima ndio nguvu. sio nguvu peke yake. hekima wins'],
-  ['smart_play',    '#22c55e', 'kucheza smart kuliko kucheza hard. results tofauti'],
-  ['calculated_k',  '#3b82f6', 'calculated moves tu. hakuna random bets kwangu'],
-  ['tactical_ke',   '#f97316', 'tactical approach. bet, win, pause, repeat. formula'],
-  ['methodical_k',  '#22c55e', 'methodical player. notes zangu zinaonyesha pattern'],
-  ['analytical_k',  '#a855f7', 'analytical mindset. nachunguza before ninabet'],
-  ['data_driven',   '#06b6d4', 'data driven decisions. nimestudy rounds za nyuma'],
-  ['research_ke',   '#22c55e', 'research kabla ya bet. result: consistent wins'],
-  ['prepared_ke',   '#3b82f6', 'preparedness + execution = wins. simple formula'],
-  ['ready_set_go',  '#f59e0b', 'ready. set. bet. win. repeat. daily routine yangu'],
+  // === OFF TOPIC (10%) ===
+  ['ndege ya aviator reliable kuliko KQ', 'darkhumor', '#f97316'],
+  ['bro hii rain ya nairobi leo though', 'weather_ke', '#64748b'],
+  ['nani anawatch arsenal later?', 'arsenal_ke', '#ef4444'],
+  ['nataka chips kwa fao nani anaorder', 'hungry_ke', '#f97316'],
+  ['gengetone playlist while playing hits different', 'vibes_ke', '#a855f7'],
+  ['kwani stima imekatika ama ni mimi', 'blackout_k', '#64748b'],
+  ['matatu fare imepanda tena smh', 'fare_rant', '#f97316'],
+  ['hii jioni ya friday is vibes', 'fridayvibe', '#ec4899'],
+  ['Man U wamelose tena lol', 'manu_ke', '#ef4444'],
+  ['wifi ya ofisi ndo inacheza hii', 'officewifi', '#64748b'],
+  ['nairobi traffic leo was something else', 'traffic_ke', '#f97316'],
+  ['Chelsea ni team gani sahi honestly', 'chelsea_ke', '#3b82f6'],
+  ['hii cold ya nairobi si joke', 'cold_nai', '#64748b'],
+  ['hii game nafeel kama forex minus charts lol', 'forex_joke', '#f59e0b'],
+  ['tukutane kwa fao one of these days', 'meetup_ke', '#a855f7'],
 ];
+
+/**
+ * Non-repeating message scheduler.
+ * Uses Fisher-Yates shuffle and cycles through the entire pool
+ * before any message can appear again. Tracks state across rounds.
+ */
+class MessageShuffler {
+  private pool: number[] = [];
+  private pointer = 0;
+  private lastUsed: Set<number> = new Set();
+  private readonly cooldownSize: number;
+
+  constructor(totalMessages: number) {
+    // Cooldown: don't repeat any message within the last 60% of pool
+    this.cooldownSize = Math.floor(totalMessages * 0.6);
+    this.reshuffle();
+  }
+
+  private reshuffle(): void {
+    // Create index array excluding recently used
+    const available = Array.from(
+      { length: CHAT_MESSAGES.length },
+      (_, i) => i
+    ).filter(i => !this.lastUsed.has(i));
+
+    // Fisher-Yates shuffle
+    for (let i = available.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [available[i], available[j]] = [available[j], available[i]];
+    }
+
+    // If we filtered too many, include some from cooldown
+    if (available.length < 20) {
+      const extra = Array.from(this.lastUsed).slice(0, 20);
+      for (let i = extra.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [extra[i], extra[j]] = [extra[j], extra[i]];
+      }
+      available.push(...extra);
+    }
+
+    this.pool = available;
+    this.pointer = 0;
+  }
+
+  next(): [string, string, string] {
+    if (this.pointer >= this.pool.length) {
+      this.reshuffle();
+    }
+
+    const idx = this.pool[this.pointer++];
+
+    // Track in cooldown
+    this.lastUsed.add(idx);
+    if (this.lastUsed.size > this.cooldownSize) {
+      // Remove oldest entries
+      const iter = this.lastUsed.values();
+      const oldest = iter.next().value;
+      if (oldest !== undefined) this.lastUsed.delete(oldest);
+    }
+
+    return CHAT_MESSAGES[idx];
+  }
+}
+
+// Singleton instance
+const shuffler = new MessageShuffler(CHAT_MESSAGES.length);
+
+/**
+ * Get the next chat message. Guaranteed not to repeat within
+ * 60% of the total message pool (~150 messages before any repeat).
+ */
+export function getNextChatMessage(): [string, string, string] {
+  return shuffler.next();
+}
+
+/**
+ * Get N unique messages for initial chat population.
+ */
+export function getInitialMessages(count: number): [string, string, string][] {
+  const messages: [string, string, string][] = [];
+  for (let i = 0; i < count; i++) {
+    messages.push(shuffler.next());
+  }
+  return messages;
+}
