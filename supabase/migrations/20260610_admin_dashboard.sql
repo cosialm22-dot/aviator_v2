@@ -1,9 +1,9 @@
 -- ============================================================
 -- AVIATOR ADMIN DASHBOARD - Database Migration
--- Run this in Supabase Dashboard > SQL Editor
+-- Run in Supabase Dashboard > SQL Editor
 -- ============================================================
 
--- 1. Add role column to profiles
+-- 1. Add columns to profiles
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'player';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone_number TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT false;
@@ -145,7 +145,6 @@ CREATE TABLE IF NOT EXISTS player_risk_scores (
 
 -- 11. Indexes
 CREATE INDEX IF NOT EXISTS idx_audit_admin ON admin_audit_log(admin_id);
-CREATE INDEX IF NOT EXISTS idx_audit_action ON admin_audit_log(action);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON admin_audit_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_crash_queue_pending ON crash_queue(position) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawal_requests(status);
@@ -155,7 +154,7 @@ CREATE INDEX IF NOT EXISTS idx_affiliates_code ON affiliates(affiliate_code);
 CREATE INDEX IF NOT EXISTS idx_referrals_affiliate ON affiliate_referrals(affiliate_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role) WHERE role != 'player';
 
--- 12. RLS
+-- 12. Enable RLS
 ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE crash_queue ENABLE ROW LEVEL SECURITY;
@@ -169,53 +168,36 @@ ALTER TABLE player_risk_scores ENABLE ROW LEVEL SECURITY;
 -- 13. RLS Policies
 CREATE POLICY admin_full_access ON admin_audit_log FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
-
 CREATE POLICY admin_full_access ON system_settings FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
-
 CREATE POLICY admin_full_access ON crash_queue FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
-
 CREATE POLICY admin_full_access ON withdrawal_requests FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
-CREATE POLICY user_read_own ON withdrawal_requests FOR SELECT
+CREATE POLICY user_read_own_withdrawals ON withdrawal_requests FOR SELECT
   USING (user_id = auth.uid());
-
 CREATE POLICY admin_full_access ON mpesa_config FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
-
 CREATE POLICY admin_full_access ON mpesa_stk_requests FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
-CREATE POLICY user_read_own ON mpesa_stk_requests FOR SELECT
+CREATE POLICY user_read_own_mpesa ON mpesa_stk_requests FOR SELECT
   USING (user_id = auth.uid());
-
 CREATE POLICY admin_full_access ON affiliates FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
-
 CREATE POLICY admin_full_access ON affiliate_referrals FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
-
 CREATE POLICY admin_full_access ON player_risk_scores FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin')));
 
--- 14. Default system settings
+-- 14. Default settings
 INSERT INTO system_settings (key, value, category, description) VALUES
   ('game.house_edge_percent', '4', 'game', 'House edge percentage'),
-  ('game.min_bet', '50', 'game', 'Minimum bet in KES'),
-  ('game.max_bet', '50000', 'game', 'Maximum bet in KES'),
-  ('game.max_multiplier', '100', 'game', 'Maximum crash multiplier'),
+  ('game.min_bet', '50', 'game', 'Minimum bet KES'),
+  ('game.max_bet', '50000', 'game', 'Maximum bet KES'),
   ('finance.auto_approve_threshold', '5000', 'finance', 'Auto-approve withdrawals below this'),
-  ('finance.min_withdrawal', '100', 'finance', 'Minimum withdrawal in KES'),
-  ('finance.max_daily_withdrawal', '100000', 'finance', 'Max daily withdrawal per user'),
-  ('system.maintenance_mode', 'false', 'system', 'Maintenance mode flag')
+  ('finance.min_withdrawal', '100', 'finance', 'Minimum withdrawal KES'),
+  ('system.maintenance_mode', 'false', 'system', 'Maintenance mode')
 ON CONFLICT (key) DO NOTHING;
 
--- 15. Initial M-Pesa sandbox config
-INSERT INTO mpesa_config (environment, shortcode, callback_base_url)
-VALUES ('sandbox', '174379', 'https://yhfxgzfmcwinpgmzcgma.supabase.co/functions/v1')
-ON CONFLICT DO NOTHING;
-
--- ============================================================
--- IMPORTANT: After running this migration, promote your account to super_admin:
--- UPDATE profiles SET role = 'super_admin' WHERE username = 'YOUR_USERNAME';
--- ============================================================
+-- 15. Promote admin user
+UPDATE profiles SET role = 'super_admin' WHERE username = 'cosial';

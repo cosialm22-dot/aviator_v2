@@ -1,5 +1,7 @@
 export type GameStatus = 'idle' | 'waiting' | 'flying' | 'crashed';
+
 export type BetStatus = 'active' | 'won' | 'lost' | 'cashedout';
+
 export type UserRole = 'player' | 'admin' | 'super_admin';
 
 export interface Profile {
@@ -16,7 +18,7 @@ export interface Profile {
   total_deposited: number;
   total_withdrawn: number;
   admin_notes?: string;
-  created_at?: string;
+  created_at: string;
 }
 
 export interface Wallet {
