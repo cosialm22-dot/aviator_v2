@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Ban, CheckCircle } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface PlayerRow {
@@ -11,134 +11,162 @@ interface PlayerRow {
   is_banned: boolean;
   total_wagered: number;
   created_at: string;
-  last_active_at: string | null;
 }
+
+const PAGE_SIZE = 25;
 
 export default function UsersPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchPlayers();
-  }, []);
-
-  async function fetchPlayers() {
+  const fetchPlayers = useCallback(async () => {
     setLoading(true);
     let query = supabase
       .from('profiles')
-      .select('id, username, avatar_color, role, is_banned, total_wagered, created_at, last_active_at')
+      .select('id, username, avatar_color, role, is_banned, total_wagered, created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .limit(100);
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
     if (search.trim()) {
       query = query.ilike('username', `%${search.trim()}%`);
     }
 
-    const { data } = await query;
+    const { data, count } = await query;
     setPlayers((data ?? []) as PlayerRow[]);
+    setTotal(count ?? 0);
     setLoading(false);
-  }
+  }, [page, search]);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
     fetchPlayers();
-  }
+  }, [fetchPlayers]);
 
-  function relativeTime(dateStr: string | null): string {
-    if (!dateStr) return 'Never';
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const min = Math.floor(diff / 60000);
-    if (min < 1) return 'Just now';
-    if (min < 60) return `${min}m ago`;
-    const hrs = Math.floor(min / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
-  }
+  // Debounced search
+  useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-white text-xl font-bold">Players</h1>
-        <span className="text-slate-500 text-xs">{players.length} total</span>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Players</h1>
+          <p className="text-sm text-slate-500 mt-1">{total} total players</p>
+        </div>
       </div>
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by username..."
-            className="w-full bg-[#1a1a2e] border border-[#2a2a45] rounded-lg pl-9 pr-3 py-2 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#c8001c]/50"
-          />
-        </div>
-        <button type="submit" className="px-4 py-2 bg-[#1a1a2e] border border-[#2a2a45] rounded-lg text-white text-sm hover:bg-[#2a2a45] transition-colors">
-          Search
-        </button>
-      </form>
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by username..."
+          className="w-full pl-9 pr-4 py-2.5 bg-[#111122] border border-[#1e1e35] rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-[#c8001c] transition"
+        />
+      </div>
 
       {/* Table */}
-      <div className="bg-[#1a1a2e] border border-[#2a2a45] rounded-xl overflow-hidden">
+      <div className="bg-[#111122] border border-[#1e1e35] rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#2a2a45] text-left">
-                <th className="px-4 py-3 text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Player</th>
-                <th className="px-4 py-3 text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Role</th>
-                <th className="px-4 py-3 text-slate-400 text-[11px] font-semibold uppercase tracking-wider text-right">Wagered</th>
-                <th className="px-4 py-3 text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Joined</th>
-                <th className="px-4 py-3 text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Last Active</th>
+              <tr className="text-slate-500 text-xs border-b border-[#1e1e35]">
+                <th className="text-left px-5 py-3 font-medium">Player</th>
+                <th className="text-left px-5 py-3 font-medium">Role</th>
+                <th className="text-right px-5 py-3 font-medium">Wagered</th>
+                <th className="text-left px-5 py-3 font-medium">Status</th>
+                <th className="text-left px-5 py-3 font-medium">Joined</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#2a2a45]/50">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500 text-sm">Loading...</td></tr>
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="border-b border-[#1e1e35]/50">
+                    <td colSpan={5} className="px-5 py-4"><div className="h-4 bg-[#1a1a2e] rounded animate-pulse" /></td>
+                  </tr>
+                ))
               ) : players.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500 text-sm">No players found</td></tr>
-              ) : players.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => navigate(`/admin/users/${p.id}`)}
-                  className="hover:bg-[#2a2a45]/30 cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: p.avatar_color }}>
-                        {p.username[0]?.toUpperCase()}
+                <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-600">No players found</td></tr>
+              ) : (
+                players.map(player => (
+                  <tr
+                    key={player.id}
+                    onClick={() => navigate(`/admin/users/${player.id}`)}
+                    className="border-b border-[#1e1e35]/50 hover:bg-[#1a1a2e]/50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                          style={{ backgroundColor: player.avatar_color }}
+                        >
+                          {player.username[0]?.toUpperCase()}
+                        </div>
+                        <span className="text-white font-medium">{player.username}</span>
                       </div>
-                      <span className="text-white text-sm font-medium truncate max-w-[120px]">{p.username}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                      p.role === 'super_admin' ? 'bg-purple-500/10 text-purple-400' :
-                      p.role === 'admin' ? 'bg-blue-500/10 text-blue-400' :
-                      'bg-slate-500/10 text-slate-400'
-                    }`}>{p.role}</span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="text-white text-sm tabular-nums">KSh {Number(p.total_wagered).toLocaleString()}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.is_banned ? (
-                      <span className="flex items-center gap-1 text-red-400 text-[11px] font-medium"><Ban size={11} /> Banned</span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-green-400 text-[11px] font-medium"><CheckCircle size={11} /> Active</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">{new Date(p.created_at).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">{relativeTime(p.last_active_at)}</td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                        player.role === 'super_admin' ? 'bg-red-500/10 text-red-400' :
+                        player.role === 'admin' ? 'bg-blue-500/10 text-blue-400' :
+                        'bg-slate-500/10 text-slate-500'
+                      }`}>
+                        {player.role}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-right text-slate-300 font-mono">
+                      KSh {Number(player.total_wagered).toLocaleString('en-KE')}
+                    </td>
+                    <td className="px-5 py-3">
+                      {player.is_banned ? (
+                        <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/10 text-red-400">BANNED</span>
+                      ) : (
+                        <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-green-500/10 text-green-400">ACTIVE</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-slate-500">
+                      {new Date(player.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-[#1e1e35]">
+            <span className="text-xs text-slate-500">
+              Page {page + 1} of {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="p-1.5 rounded bg-[#1a1a2e] text-slate-400 hover:text-white disabled:opacity-30 transition"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="p-1.5 rounded bg-[#1a1a2e] text-slate-400 hover:text-white disabled:opacity-30 transition"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
