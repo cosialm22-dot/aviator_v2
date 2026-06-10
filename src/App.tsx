@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
 import Header from './components/layout/Header';
 import AviatorGame from './components/game/AviatorGame';
 import AuthModal from './components/auth/AuthModal';
 import WalletModal from './components/wallet/WalletModal';
 import { useAuth } from './hooks/useAuth';
 import { useWallet } from './hooks/useWallet';
-import AdminApp from './admin/AdminApp';
 
-function PlayerApp() {
+export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
 
@@ -86,14 +84,5 @@ function PlayerApp() {
         </div>
       )}
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <Routes>
-      <Route path="/admin/*" element={<AdminApp />} />
-      <Route path="/*" element={<PlayerApp />} />
-    </Routes>
   );
 }

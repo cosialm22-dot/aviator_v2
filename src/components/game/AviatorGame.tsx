@@ -19,7 +19,7 @@ interface Props {
 
 const LOW_BALANCE_NUDGES = [
   { title: 'Your comeback is ONE bet away!', sub: 'Top up KSh 500 and turn the game around.' },
-  { title: 'Big winners always reload fast!', sub: 'Don\'t miss the next big multiplier \u2014 deposit now.' },
+  { title: 'Big winners always reload fast!', sub: 'Don\'t miss the next big multiplier — deposit now.' },
   { title: 'The next round could be 50x!', sub: 'Deposit KSh 200 and stay in the game.' },
   { title: 'Every pilot crashes. The greats fly again.', sub: 'Reload and take back the skies!' },
   { title: '87% of players win on their comeback bet!', sub: 'Don\'t quit when you\'re this close.' },
@@ -45,9 +45,6 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
     crashPoint,
     placeBet,
     cashOut,
-    queuedBet,
-    cancelQueuedBet,
-    nextRoundNotification,
   } = useGame(profile, balance, onRefreshWallet);
 
   // Psychology nudge: low balance after a crash
@@ -76,7 +73,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
       {/* Main body */}
       <div className="flex flex-1 min-h-0">
 
-        {/* \u2500\u2500 Left: Live Bets (lg+) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+        {/* ── Left: Live Bets (lg+) ──────────────────────────────────── */}
         <div className="hidden lg:flex flex-col w-60 flex-shrink-0 bg-[#0d0d1a] border-r border-[#2a2a45]">
           <div className="flex border-b border-[#2a2a45] flex-shrink-0">
             {(['allBets', 'previous', 'top'] as const).map(tab => (
@@ -122,10 +119,10 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
           </div>
         </div>
 
-        {/* \u2500\u2500 Center: Canvas + Betting \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+        {/* ── Center: Canvas + Betting ───────────────────────────────── */}
         <div className="flex flex-col flex-1 min-w-0">
 
-          {/* Canvas \u2014 takes most vertical space */}
+          {/* Canvas — takes most vertical space */}
           <div className="relative flex-1 min-h-0 bg-[#111118] overflow-hidden">
             <GameCanvas
               status={gameStatus}
@@ -171,7 +168,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                   </div>
                   {activeBet && (
                     <div className="mt-2 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
-                      Bet in \u2014 ready!
+                      Bet in — ready!
                     </div>
                   )}
                 </div>
@@ -181,14 +178,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             {/* Cashout toast */}
             {activeBet?.cashedOut && (
               <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-green-500 text-white font-bold px-4 py-2 rounded-full text-sm shadow-lg shadow-green-500/40 z-20 whitespace-nowrap">
-                +KSh {(activeBet.winnings ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} @ {(activeBet.cashout_multiplier ?? currentMultiplier).toFixed(2)}\u00d7
-              </div>
-            )}
-
-            {/* Next round bet notification toast */}
-            {nextRoundNotification && (
-              <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-amber-500 text-white font-bold px-4 py-2 rounded-full text-sm shadow-lg shadow-amber-500/40 z-20 whitespace-nowrap animate-bounce">
-                {nextRoundNotification}
+                +KSh {(activeBet.winnings ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} @ {(activeBet.cashout_multiplier ?? currentMultiplier).toFixed(2)}×
               </div>
             )}
 
@@ -236,8 +226,6 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 onCashOut={cashOut}
                 onAuthRequired={onAuthRequired}
                 isAuthenticated={!!profile}
-                queuedBet={queuedBet}
-                onCancelQueuedBet={cancelQueuedBet}
               />
             </div>
             <div className="flex-1">
@@ -277,7 +265,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             </button>
           </div>
 
-          {/* Mobile panel \u2014 220px high */}
+          {/* Mobile panel — 220px high */}
           <div className="lg:hidden flex-shrink-0 bg-[#0d0d1a]" style={{ height: '200px' }}>
             {mobileTab === 'bets' ? (
               <div className="h-full overflow-y-auto scrollbar-thin">
@@ -291,7 +279,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
           </div>
         </div>
 
-        {/* \u2500\u2500 Right: Live Chat (xl+) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+        {/* ── Right: Live Chat (xl+) ────────────────────────────────── */}
         <div className="hidden xl:flex flex-col w-60 flex-shrink-0 bg-[#0d0d1a] border-l border-[#2a2a45]">
           <Chat userId={profile?.id} username={profile?.username} avatarColor={profile?.avatar_color} />
         </div>

@@ -16,11 +16,6 @@ interface ActiveBet {
   cashout_multiplier?: number;
 }
 
-interface QueuedBet {
-  amount: number;
-  autoCashoutAt: number | null;
-}
-
 interface LiveBetEntry {
   id: string;
   username: string;
@@ -34,6 +29,8 @@ interface LiveBetEntry {
 
 export function useGame(profile: Profile | null, walletBalance: number, onRefreshWallet: () => Promise<void>) {
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle');
+  // currentMultiplier is kept in both a ref (for smooth canvas) and state (for UI text)
+  // The ref is the source of truth; state is updated at ~10fps to reduce re-renders
   const multiplierRef = useRef(1.0);
   const [currentMultiplier, setCurrentMultiplier] = useState(1.0);
 
@@ -44,8 +41,6 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
   const [countdown, setCountdown] = useState(5);
   const [crashPoint, setCrashPoint] = useState<number>(2);
   const [bots, setBots] = useState<BotPlayer[]>([]);
-  const [queuedBet, setQueuedBet] = useState<QueuedBet | null>(null);
-  const [nextRoundNotification, setNextRoundNotification] = useState<string | null>(null);
 
   const rafRef = useRef<number>(0);
   const gameStatusRef = useRef<GameStatus>('idle');
@@ -54,16 +49,15 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
   const activeBetRef = useRef<ActiveBet | null>(null);
   const botsRef = useRef<BotPlayer[]>([]);
   const liveBetsRef = useRef<LiveBetEntry[]>([]);
-  const lastUiUpdateRef = useRef<number>(0);
-  const queuedBetRef = useRef<QueuedBet | null>(null);
+  const lastUiUpdateRef = useRef<number>(0); // throttle UI state updates
 
   gameStatusRef.current = gameStatus;
   crashPointRef.current = crashPoint;
   activeBetRef.current = activeBet;
   botsRef.current = bots;
   liveBetsRef.current = liveBets;
-  queuedBetRef.current = queuedBet;
 
+  // Expose multiplier ref for GameCanvas to read without React re-renders
   const getMultiplier = useCallback(() => multiplierRef.current, []);
 
   // Load history on mount
@@ -78,14 +72,6 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
         if (data) setHistory(data as GameRound[]);
       });
   }, []);
-
-  // Clear notification after 3 seconds
-  useEffect(() => {
-    if (nextRoundNotification) {
-      const timer = setTimeout(() => setNextRoundNotification(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [nextRoundNotification]);
 
   const startWaiting = useCallback(() => {
     const cp = generateCrashPoint();
@@ -117,17 +103,6 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
     setGameStatus('waiting');
     gameStatusRef.current = 'waiting';
 
-    // Auto-place queued bet from previous round
-    const queued = queuedBetRef.current;
-    if (queued && profile) {
-      setQueuedBet(null);
-      queuedBetRef.current = null;
-      // Place the queued bet after a short delay to ensure state is ready
-      setTimeout(() => {
-        placeQueuedBetNow(queued.amount, queued.autoCashoutAt);
-      }, 300);
-    }
-
     const tick = () => {
       const remaining = Math.ceil((end - Date.now()) / 1000);
       if (remaining > 0) {
@@ -140,58 +115,6 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
     setTimeout(tick, 200);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const placeQueuedBetNow = useCallback(async (amount: number, autoCashoutAt: number | null) => {
-    if (!profile) return;
-    if (activeBetRef.current) return;
-
-    const { data: walletData } = await supabase
-      .from('wallets').select('balance').eq('user_id', profile.id).maybeSingle();
-    if (!walletData || Number(walletData.balance) < amount) return;
-
-    await supabase.from('wallets').update({
-      balance: Number(walletData.balance) - amount,
-      updated_at: new Date().toISOString(),
-    }).eq('user_id', profile.id);
-
-    const { data: betData } = await supabase
-      .from('bets')
-      .insert({
-        round_id: currentRound?.id ?? '00000000-0000-0000-0000-000000000000',
-        user_id: profile.id,
-        username: profile.username,
-        avatar_color: profile.avatar_color,
-        amount,
-        status: 'active',
-        is_bot: false,
-      })
-      .select()
-      .maybeSingle();
-
-    const newBet: ActiveBet = {
-      id: betData?.id ?? `bet-${Date.now()}`,
-      amount,
-      cashoutAt: autoCashoutAt,
-      cashedOut: false,
-      winnings: null,
-    };
-
-    setActiveBet(newBet);
-    activeBetRef.current = newBet;
-
-    setLiveBets(prev => [{
-      id: newBet.id,
-      username: profile.username,
-      avatar_color: profile.avatar_color,
-      amount,
-      cashout_multiplier: null,
-      winnings: null,
-      status: 'active',
-      is_bot: false,
-    }, ...prev]);
-
-    await onRefreshWallet();
-  }, [profile, currentRound, onRefreshWallet]);
-
   const startFlying = useCallback(async () => {
     const now = Date.now();
     flyingStartRef.current = now;
@@ -200,6 +123,7 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
     setGameStatus('flying');
     gameStatusRef.current = 'flying';
 
+    // Persist round to DB (async, doesn't block animation)
     supabase
       .from('game_rounds')
       .insert({
@@ -225,20 +149,27 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
         }
       });
 
+    // Mark bots as having bet
     botsRef.current = botsRef.current.map(b => ({ ...b, hasBet: true }));
     setBots(botsRef.current);
 
+    // ── Pure RAF loop — NO React state inside ─────────────────────────
+    // Only refs and direct DOM-less calculations here; React state is
+    // updated at a capped ~15fps rate so the canvas stays at full 60fps.
     const animate = () => {
       if (gameStatusRef.current !== 'flying') return;
       const elapsed = Date.now() - (flyingStartRef.current ?? Date.now());
       const mult = getMultiplierAtTime(elapsed);
       multiplierRef.current = mult;
 
+      // Throttle React state update to ~15fps (every ~66ms)
       const now2 = Date.now();
       if (now2 - lastUiUpdateRef.current >= 66) {
         lastUiUpdateRef.current = now2;
         setCurrentMultiplier(mult);
 
+        // Process bot cashouts — only inside throttled block to avoid
+        // creating new arrays 60× per second
         let anyNewCashout = false;
         const updatedBots = botsRef.current.map(bot => {
           if (!bot.hasBet || bot.hasCashedOut) return bot;
@@ -252,6 +183,7 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
         if (anyNewCashout) {
           botsRef.current = updatedBots;
           setBots(updatedBots);
+          // Update liveBets for bots that just cashed out
           setLiveBets(prev => prev.map(b => {
             const bot = updatedBots.find(bt => bt.id === b.id && bt.hasCashedOut && b.status === 'active');
             if (!bot) return b;
@@ -265,12 +197,14 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
         }
       }
 
+      // Auto-cashout for real user — check every frame
       const ab = activeBetRef.current;
       if (ab && !ab.cashedOut && ab.cashoutAt !== null && mult >= ab.cashoutAt) {
         performCashout(mult);
         return;
       }
 
+      // Check crash
       if (mult >= crashPointRef.current) {
         handleCrash(crashPointRef.current);
         return;
@@ -307,6 +241,7 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
     setActiveBet(null);
     activeBetRef.current = null;
 
+    // Update round in DB (fire-and-forget)
     if (currentRound) {
       supabase.from('game_rounds').update({
         status: 'crashed',
@@ -365,19 +300,8 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
 
   const placeBet = useCallback(async (amount: number, autoCashoutAt: number | null) => {
     if (!profile) return;
-    if (activeBetRef.current) return;
-
-    // Allow betting during flying or crashed — queue for next round
-    if (gameStatusRef.current === 'flying' || gameStatusRef.current === 'crashed') {
-      // Validate balance
-      if (walletBalance < amount) throw new Error('Insufficient balance');
-      setQueuedBet({ amount, autoCashoutAt });
-      queuedBetRef.current = { amount, autoCashoutAt };
-      setNextRoundNotification(`Placed bet of KSh ${amount.toLocaleString('en-KE')} for next round ✈️`);
-      return;
-    }
-
     if (gameStatusRef.current !== 'waiting') return;
+    if (activeBetRef.current) return;
     if (walletBalance < amount) throw new Error('Insufficient balance');
 
     const { data: walletData } = await supabase
@@ -428,12 +352,6 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
     await onRefreshWallet();
   }, [profile, walletBalance, currentRound, onRefreshWallet]);
 
-  const cancelQueuedBet = useCallback(() => {
-    setQueuedBet(null);
-    queuedBetRef.current = null;
-    setNextRoundNotification(null);
-  }, []);
-
   useEffect(() => {
     const timer = setTimeout(() => startWaiting(), 500);
     return () => {
@@ -445,7 +363,7 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
   return {
     gameStatus,
     currentMultiplier,
-    getMultiplier,
+    getMultiplier,   // ref-based: canvas reads this directly at 60fps
     currentRound,
     history,
     activeBet,
@@ -454,8 +372,5 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
     crashPoint,
     placeBet,
     cashOut,
-    queuedBet,
-    cancelQueuedBet,
-    nextRoundNotification,
   };
 }
