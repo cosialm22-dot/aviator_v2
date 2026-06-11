@@ -7,7 +7,10 @@ interface Props {
   onClose: () => void;
 }
 
-/** Normalize Kenyan phone: accepts 07XX, 01XX, +2547XX, 2547XX → returns 2547XXXXXXXX */
+/**
+ * Normalize Kenyan phone number to 2547XXXXXXXX format.
+ * Accepts: 0712345678, +254712345678, 254712345678
+ */
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/[^0-9]/g, '');
   if (digits.startsWith('254') && digits.length === 12) return digits;
@@ -38,12 +41,18 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
       return;
     }
 
+    if (password.length < 4) {
+      setError('Password must be at least 4 characters');
+      return;
+    }
+
     setLoading(true);
     try {
       const normalized = normalizePhone(phone);
       if (mode === 'signup') {
-        if (username.trim().length < 3) throw new Error('Username must be at least 3 characters');
-        if (password.length < 6) throw new Error('Password must be at least 6 characters');
+        if (username.trim().length < 3) {
+          throw new Error('Username must be at least 3 characters');
+        }
         await onSignUp(normalized, password, username.trim());
       } else {
         await onSignIn(normalized, password);
@@ -51,12 +60,14 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
-      if (msg.includes('User already registered')) {
+      if (msg.includes('already been registered') || msg.includes('User already registered')) {
         setError('This phone number is already registered. Sign in instead.');
-      } else if (msg.includes('Invalid login credentials')) {
+      } else if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
         setError('Wrong phone number or password.');
       } else if (msg.includes('duplicate key') && msg.includes('username')) {
         setError('This username is already taken. Choose another.');
+      } else if (msg.includes('duplicate key') && msg.includes('phone')) {
+        setError('This phone number is already registered. Sign in instead.');
       } else {
         setError(msg);
       }
@@ -143,9 +154,9 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
                 type={showPass ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+                placeholder="\u2022\u2022\u2022\u2022"
                 required
-                minLength={6}
+                minLength={4}
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 className="w-full bg-[#071120] border border-[#1e3a5f] rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition pr-12"
               />
