@@ -52,16 +52,10 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
       }
       onClose();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong';
-      if (msg.includes('already been registered') || msg.includes('already registered')) {
-        setError('This phone number is already registered. Sign in instead.');
-      } else if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
-        setError('Wrong phone number or password.');
-      } else if (msg.includes('duplicate') && msg.includes('username')) {
-        setError('Username is taken. Try another.');
-      } else {
-        setError(msg);
-      }
+      // Errors from useAuth are already sanitized for user display.
+      // Never show raw/unfiltered error messages.
+      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setError(msg);
     } finally {
       setLoading(false);
     }

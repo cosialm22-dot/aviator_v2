@@ -26,7 +26,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     e.preventDefault();
     setError(''); setSubmitting(true);
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) setError(err.message);
+    if (err) { console.error("[Admin Auth]", err.message); setError("Invalid credentials."); }
     setSubmitting(false);
   }
 

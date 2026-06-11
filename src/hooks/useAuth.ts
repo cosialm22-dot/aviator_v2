@@ -8,11 +8,60 @@ import type { Profile, Wallet } from '../types';
  * SIGNUP: supabase.auth.signUp() -> DB trigger creates profile + wallet + bonus
  * SIGNIN: supabase.auth.signInWithPassword()
  *
- * PREREQUISITE: Disable "Confirm email" in Supabase Auth settings.
+ * SECURITY: All error messages shown to users are generic.
+ * Raw errors logged to console (dev only), never exposed to UI.
  */
 
 function phoneToEmail(phone: string): string {
   return `${phone}@phone.aviator.ke`;
+}
+
+/**
+ * Sanitize any error into a user-safe message.
+ * NEVER expose raw backend errors, stack traces, or infrastructure details.
+ */
+function sanitizeAuthError(error: { message?: string } | null, context: 'signup' | 'signin'): string {
+  if (!error?.message) return 'Something went wrong. Please try again.';
+
+  const msg = error.message.toLowerCase();
+
+  // --- Signup-specific mappings ---
+  if (context === 'signup') {
+    if (msg.includes('already registered') || msg.includes('already been registered') || msg.includes('user already exists')) {
+      return 'This phone number is already registered. Sign in instead.';
+    }
+    if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('username')) {
+      return 'Username is taken. Try another.';
+    }
+    if (msg.includes('email') && msg.includes('disabled')) {
+      // "Email signups are disabled" — config issue, but user doesn't need to know why
+      return 'Signup is temporarily unavailable. Please try again later.';
+    }
+    if (msg.includes('password') && (msg.includes('short') || msg.includes('weak') || msg.includes('length'))) {
+      return 'Password is too short. Use at least 6 characters.';
+    }
+  }
+
+  // --- Signin-specific mappings ---
+  if (context === 'signin') {
+    if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('unauthorized')) {
+      return 'Wrong phone number or password.';
+    }
+    if (msg.includes('banned') || msg.includes('disabled')) {
+      return 'Account suspended. Contact support.';
+    }
+  }
+
+  // --- Generic mappings (both contexts) ---
+  if (msg.includes('network') || msg.includes('fetch') || msg.includes('timeout')) {
+    return 'Connection error. Check your internet and try again.';
+  }
+  if (msg.includes('rate') || msg.includes('limit') || msg.includes('too many')) {
+    return 'Too many attempts. Wait a moment and try again.';
+  }
+
+  // Fallback: NEVER show the raw message
+  return 'Something went wrong. Please try again.';
 }
 
 export function useAuth() {
@@ -76,34 +125,26 @@ export function useAuth() {
     });
 
     if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes('already registered') || msg.includes('already been registered')) {
-        throw new Error('This phone number is already registered. Sign in instead.');
-      }
-      if (msg.includes('username') || msg.includes('unique') || msg.includes('duplicate')) {
-        throw new Error('Username is taken. Try another.');
-      }
-      if (msg.includes('username is required')) {
-        throw new Error('Username is required.');
-      }
-      if (msg.includes('at least 3 characters')) {
-        throw new Error('Username must be at least 3 characters.');
-      }
-      throw error;
+      // Log full error for developer debugging (never shown to user)
+      console.error('[Auth] Signup failed:', error.message, error);
+      throw new Error(sanitizeAuthError(error, 'signup'));
     }
 
     if (!data.session) {
-      throw new Error(
-        'Account created but session not established. ' +
-        'Disable "Confirm email" in Supabase Auth settings.'
-      );
+      // Config issue: email confirmation is still enabled.
+      // Log for developer, show generic message to user.
+      console.error('[Auth] No session returned. Email confirmation likely still enabled.');
+      throw new Error('Signup is temporarily unavailable. Please try again later.');
     }
   };
 
   const signIn = async (phone: string, password: string) => {
     const email = phoneToEmail(phone);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      console.error('[Auth] Signin failed:', error.message, error);
+      throw new Error(sanitizeAuthError(error, 'signin'));
+    }
     return data;
   };
 
