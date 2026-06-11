@@ -5,17 +5,18 @@ import type { Profile } from '../../types';
 interface Props {
   profile: Profile | null;
   balance: number;
-  onAuthOpen: () => void;
+  onSignInOpen: () => void;
+  onRegisterOpen: () => void;
   onWalletOpen: () => void;
   onSignOut: () => void;
 }
 
-export default function Header({ profile, balance, onAuthOpen, onWalletOpen, onSignOut }: Props) {
+export default function Header({ profile, balance, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="bg-[#0d0d1a] border-b border-[#2a2a45] px-4 h-12 flex items-center justify-between relative z-30 flex-shrink-0">
-      {/* Logo — matches image: italic bold red "Aviator" */}
+      {/* Logo */}
       <div className="flex items-center gap-1">
         <span
           className="font-black italic text-xl tracking-tight"
@@ -33,7 +34,7 @@ export default function Header({ profile, balance, onAuthOpen, onWalletOpen, onS
       <div className="flex items-center gap-2">
         {profile ? (
           <>
-            {/* Balance — KShs */}
+            {/* Balance */}
             <button
               onClick={onWalletOpen}
               className="hidden sm:flex items-center gap-1.5 hover:opacity-90 transition"
@@ -86,13 +87,13 @@ export default function Header({ profile, balance, onAuthOpen, onWalletOpen, onS
         ) : (
           <div className="flex items-center gap-2">
             <button
-              onClick={onAuthOpen}
+              onClick={onSignInOpen}
               className="px-3 py-1.5 text-sm font-semibold text-slate-400 hover:text-white transition"
             >
               Sign In
             </button>
             <button
-              onClick={onAuthOpen}
+              onClick={onRegisterOpen}
               className="px-4 py-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-white rounded-lg text-sm font-bold transition shadow-lg shadow-green-500/20"
             >
               Register
