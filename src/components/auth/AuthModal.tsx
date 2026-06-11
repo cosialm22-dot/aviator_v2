@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Eye, EyeOff, Plane, Phone } from 'lucide-react';
+import { X, Eye, EyeOff, Phone } from 'lucide-react';
 
 interface Props {
   initialMode: 'signin' | 'signup';
@@ -8,7 +8,6 @@ interface Props {
   onClose: () => void;
 }
 
-/** Normalize Kenyan phone: 0712345678 -> 254712345678 */
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/[^0-9]/g, '');
   if (digits.startsWith('254') && digits.length === 12) return digits;
@@ -37,7 +36,6 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
       setError('Enter a valid Kenyan phone number (e.g. 0712345678)');
       return;
     }
-
     if (password.length < 4) {
       setError('Password must be at least 4 characters');
       return;
@@ -47,9 +45,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     try {
       const normalized = normalizePhone(phone);
       if (mode === 'signup') {
-        if (username.trim().length < 3) {
-          throw new Error('Username must be at least 3 characters');
-        }
+        if (username.trim().length < 3) throw new Error('Username must be at least 3 characters');
         await onSignUp(normalized, password, username.trim());
       } else {
         await onSignIn(normalized, password);
@@ -62,9 +58,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
       } else if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
         setError('Wrong phone number or password.');
       } else if (msg.includes('duplicate') && msg.includes('username')) {
-        setError('This username is already taken. Choose another.');
-      } else if (msg.includes('duplicate') && msg.includes('phone')) {
-        setError('This phone number is already registered.');
+        setError('Username is taken. Try another.');
       } else {
         setError(msg);
       }
@@ -73,125 +67,159 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     }
   };
 
+  const isSignup = mode === 'signup';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-[#0e1c2f] border border-[#1e3a5f] rounded-2xl w-full max-w-md shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-[#1e3a5f]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
-              <Plane size={18} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-white font-bold text-lg">
-                {mode === 'signin' ? 'Welcome Back!' : 'Get KSh 500 Free!'}
-              </h2>
-              <p className="text-slate-400 text-xs">
-                {mode === 'signin' ? 'Sign in and keep winning' : 'Sign up and start playing now!'}
-              </p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition p-1">
-            <X size={20} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div
+        className="w-full max-w-[380px] relative overflow-hidden"
+        style={{ borderRadius: '20px' }}
+      >
+        {/* ─── BACKGROUND FRAME ─── */}
+        <div className="absolute inset-0 bg-[#0a0f1e] border border-white/[0.06]" style={{ borderRadius: '20px' }} />
+
+        {/* ─── CONTENT ─── */}
+        <div className="relative">
+
+          {/* ─── CLOSE BUTTON (Isolation: floats alone in top-right) ─── */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-500 hover:text-white transition-all"
+          >
+            <X size={15} />
           </button>
-        </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {mode === 'signup' && (
-            <div className="bg-gradient-to-r from-green-900/40 to-emerald-900/40 border border-green-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
-              <div className="text-2xl">🎁</div>
-              <div>
-                <div className="text-green-400 font-black text-sm">KSh 500 FREE on signup!</div>
-                <div className="text-slate-400 text-[11px]">Start playing immediately — no deposit required</div>
-              </div>
-            </div>
-          )}
-
-          {mode === 'signup' && (
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Choose a username"
-                required
-                minLength={3}
-                maxLength={20}
-                autoComplete="username"
-                className="w-full bg-[#071120] border border-[#1e3a5f] rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition placeholder:text-slate-600"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="text-xs text-slate-400 block mb-1">Phone Number</label>
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-                <Phone size={16} />
-              </div>
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="0712345678"
-                required
-                maxLength={13}
-                autoComplete="tel"
-                inputMode="numeric"
-                className="w-full bg-[#071120] border border-[#1e3a5f] rounded-lg pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition placeholder:text-slate-600"
-              />
-            </div>
+          {/* ─── HEADER (Tension: large title vs small subtitle) ─── */}
+          <div className="px-8 pt-10 pb-2">
+            <h1 className="text-[22px] font-bold text-white tracking-tight">
+              {isSignup ? 'Create Account' : 'Welcome back'}
+            </h1>
+            <p className="text-slate-500 text-[13px] mt-1">
+              {isSignup ? 'Start playing in 30 seconds' : 'Sign in to continue'}
+            </p>
           </div>
 
-          <div>
-            <label className="text-xs text-slate-400 block mb-1">Password</label>
-            <div className="relative">
-              <input
-                type={showPass ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Enter password"
-                required
-                minLength={4}
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                className="w-full bg-[#071120] border border-[#1e3a5f] rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition pr-12 placeholder:text-slate-600"
-              />
+          {/* ─── BONUS BANNER (Accent + Framing + Isolation) ─── */}
+          {isSignup && (
+            <div className="mx-8 mt-5 mb-1">
+              <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/30 px-5 py-4">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/[0.04] rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="relative flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl">+</span>
+                  </div>
+                  <div>
+                    <div className="text-emerald-400 font-bold text-[15px] leading-tight">KSh 500</div>
+                    <div className="text-slate-500 text-[11px] mt-0.5">Free credits on signup</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── FORM (Grouping + Movement: fields flow → CTA) ─── */}
+          <form onSubmit={handleSubmit} className="px-8 pt-6 pb-8">
+            <div className="space-y-4">
+
+              {/* Username (signup only) */}
+              {isSignup && (
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Username</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    placeholder="e.g. Kamau_254"
+                    required
+                    minLength={3}
+                    maxLength={20}
+                    autoComplete="username"
+                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
+                  />
+                </div>
+              )}
+
+              {/* Phone */}
+              <div>
+                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Phone Number</label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600">
+                    <Phone size={15} strokeWidth={1.5} />
+                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="0712 345 678"
+                    required
+                    maxLength={13}
+                    autoComplete="tel"
+                    inputMode="numeric"
+                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-11 pr-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Min 4 characters"
+                    required
+                    minLength={4}
+                    autoComplete={isSignup ? 'new-password' : 'current-password'}
+                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition"
+                  >
+                    {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ─── ERROR (Accent: red against dark) ─── */}
+            {error && (
+              <div className="mt-4 rounded-xl bg-red-500/[0.08] border border-red-500/20 px-4 py-3 text-red-400 text-[13px] leading-snug">
+                {error}
+              </div>
+            )}
+
+            {/* ─── CTA BUTTON (Movement endpoint + Accent) ─── */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-6 py-4 rounded-xl font-semibold text-[15px] text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: loading ? '#1e293b' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                boxShadow: loading ? 'none' : '0 8px 32px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
+              }}
+            >
+              {loading ? 'Please wait...' : isSignup ? 'Create Account' : 'Sign In'}
+            </button>
+
+            {/* ─── MODE TOGGLE (Symmetry: centered, balanced) ─── */}
+            <div className="mt-6 text-center">
+              <span className="text-slate-600 text-[13px]">
+                {isSignup ? 'Have an account?' : 'New here?'}
+              </span>
               <button
                 type="button"
-                onClick={() => setShowPass(!showPass)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(''); }}
+                className="ml-2 text-blue-400 hover:text-blue-300 text-[13px] font-medium transition"
               >
-                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                {isSignup ? 'Sign In' : 'Create Account'}
               </button>
             </div>
-          </div>
-
-          {error && (
-            <div className="bg-red-900/30 border border-red-500/30 rounded-lg px-4 py-2.5 text-red-400 text-sm">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-xl font-bold text-base bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
-          >
-            {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In & Play' : 'Claim KSh 500 & Play!'}
-          </button>
-
-          <p className="text-center text-slate-400 text-sm">
-            {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
-            <button
-              type="button"
-              onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); }}
-              className="text-blue-400 hover:text-blue-300 font-semibold transition"
-            >
-              {mode === 'signin' ? 'Sign Up' : 'Sign In'}
-            </button>
-          </p>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
