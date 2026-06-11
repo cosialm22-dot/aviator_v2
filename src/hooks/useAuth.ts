@@ -170,7 +170,7 @@ export function useAuth() {
         user_id: userId,
         type: 'deposit',
         amount: 500,
-        description: 'Welcome bonus \u2014 KSh 500 free credits!',
+        description: 'Welcome bonus — KSh 500 free credits!',
         status: 'completed',
       },
     });
