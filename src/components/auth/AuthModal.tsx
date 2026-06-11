@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { X, Eye, EyeOff, Plane, Phone } from 'lucide-react';
 
 interface Props {
+  initialMode: 'signin' | 'signup';
   onSignUp: (phone: string, password: string, username: string) => Promise<unknown>;
   onSignIn: (phone: string, password: string) => Promise<unknown>;
   onClose: () => void;
 }
 
-/** Normalize Kenyan phone: 0712345678 → 254712345678 */
+/** Normalize Kenyan phone: 0712345678 -> 254712345678 */
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/[^0-9]/g, '');
   if (digits.startsWith('254') && digits.length === 12) return digits;
@@ -19,8 +20,8 @@ function isValidKenyanPhone(phone: string): boolean {
   return /^254(7|1)[0-9]{8}$/.test(normalizePhone(phone));
 }
 
-export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: Props) {
+  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -98,10 +99,10 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {mode === 'signup' && (
             <div className="bg-gradient-to-r from-green-900/40 to-emerald-900/40 border border-green-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
-              <div className="text-2xl">{'\ud83c\udf81'}</div>
+              <div className="text-2xl">\ud83c\udf81</div>
               <div>
                 <div className="text-green-400 font-black text-sm">KSh 500 FREE on signup!</div>
-                <div className="text-slate-400 text-[11px]">Start playing immediately — no deposit required</div>
+                <div className="text-slate-400 text-[11px]">Start playing immediately \u2014 no deposit required</div>
               </div>
             </div>
           )}
