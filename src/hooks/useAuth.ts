@@ -3,32 +3,46 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Profile, Wallet } from '../types';
 
-/**
- * Phone-based auth hook.
+/*
+ * ─── AUTH ARCHITECTURE ───────────────────────────────────────────────
  *
- * Architecture:
- * - Signup: Uses Supabase Admin API (service role) to create a pre-confirmed user.
- *   This bypasses email verification entirely. The phone number is stored in
- *   profiles.phone_number. A deterministic email is derived from the phone
- *   (e.g. 254712345678@phone.aviator.ke) so Supabase has a valid email field.
+ * Phone-based authentication without OTP or email verification.
  *
- * - Signin: Uses standard signInWithPassword with the derived email.
+ * HOW IT WORKS:
+ * - Supabase requires an email for password auth. We derive a
+ *   deterministic fake email from the phone: {phone}@phone.aviator.ke
+ * - Signup uses the Admin API (service role key) to create a
+ *   pre-confirmed user. This bypasses email verification entirely.
+ * - Signin uses the anon key with signInWithPassword.
+ * - The real phone number is stored in profiles.phone_number.
+ * - No OTP, no email confirmation, no magic links.
  *
- * - No OTP, no email verification, no magic links.
+ * ENV VARS REQUIRED:
+ *   VITE_SUPABASE_URL
+ *   VITE_SUPABASE_ANON_KEY
+ *   VITE_SUPABASE_SERVICE_KEY
  *
- * Security note: The service role key is used only for user creation (signup).
- * All other operations use the anon key with RLS. This is acceptable for a
- * gambling platform without a separate backend service.
+ * DB DEPENDENCIES:
+ *   - profiles table (id, username, avatar_color, phone_number)
+ *   - wallets table (user_id, balance, currency)
+ *   - transactions table (user_id, type, amount, description, status)
+ *   - Trigger: on_profile_created → auto-creates wallet with 0 balance
+ *   - Signup bonus: wallet updated to 500 after creation
+ *
+ * ─────────────────────────────────────────────────────────────────────
  */
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY as string;
 
-// Admin client — only used for creating pre-confirmed users during signup
+// Admin client: used ONLY for user creation during signup.
+// autoRefreshToken=false and persistSession=false because this client
+// never holds a user session — it's purely for admin operations.
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+/** Convert phone number to deterministic email for Supabase auth. */
 function phoneToEmail(phone: string): string {
   return `${phone}@phone.aviator.ke`;
 }
@@ -55,11 +69,11 @@ export function useAuth() {
     if (wal) setWallet(wal as Wallet);
   }, []);
 
+  // Initialize session on mount + listen for auth changes
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        const email = session.user.email ?? '';
-        const phone = email.replace('@phone.aviator.ke', '');
+        const phone = (session.user.email ?? '').replace('@phone.aviator.ke', '');
         setUser({ id: session.user.id, phone });
         fetchProfile(session.user.id);
       }
@@ -67,49 +81,53 @@ export function useAuth() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        if (session?.user) {
-          const email = session.user.email ?? '';
-          const phone = email.replace('@phone.aviator.ke', '');
-          setUser({ id: session.user.id, phone });
-          await fetchProfile(session.user.id);
-        } else {
-          setUser(null);
-          setProfile(null);
-          setWallet(null);
-        }
-      })();
+      if (session?.user) {
+        const phone = (session.user.email ?? '').replace('@phone.aviator.ke', '');
+        setUser({ id: session.user.id, phone });
+        fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setWallet(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
   /**
-   * Sign up: phone + password + username.
+   * SIGNUP: phone + password + username
    *
-   * Flow:
-   * 1. Create user via admin API (pre-confirmed, no email verification)
-   * 2. Create profile with phone_number
-   * 3. Wait for wallet trigger, then set balance to 500 (signup bonus)
+   * Steps:
+   * 1. Create auth user via admin API (pre-confirmed)
+   * 2. Insert profile row (triggers wallet creation via DB trigger)
+   * 3. Wait for trigger → update wallet balance to 500 (signup bonus)
    * 4. Record bonus transaction
-   * 5. Sign in with anon key to establish browser session
+   * 5. Sign in to establish browser session
    */
   const signUp = async (phone: string, password: string, username: string) => {
     const email = phoneToEmail(phone);
 
-    // Step 1: Create pre-confirmed user via admin API
+    // 1. Create pre-confirmed user
     const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: { phone, username },
     });
-    if (adminError) throw adminError;
+
+    if (adminError) {
+      // Surface meaningful error messages
+      if (adminError.message.includes('already been registered')) {
+        throw new Error('This phone number is already registered. Sign in instead.');
+      }
+      throw adminError;
+    }
     if (!adminData.user) throw new Error('Sign up failed. Please try again.');
 
     const userId = adminData.user.id;
 
-    // Step 2: Create profile
+    // 2. Create profile (this triggers wallet creation via DB trigger)
     const colors = ['#ef4444', '#f97316', '#22c55e', '#06b6d4', '#3b82f6', '#ec4899', '#f59e0b', '#a855f7', '#14b8a6'];
     const color = colors[Math.floor(Math.random() * colors.length)];
 
@@ -119,20 +137,21 @@ export function useAuth() {
       avatar_color: color,
       phone_number: phone,
     });
+
     if (profileError) {
-      // Rollback: delete the auth user if profile creation fails
+      // Rollback auth user if profile insert fails (e.g. duplicate username)
       await supabaseAdmin.auth.admin.deleteUser(userId);
       throw profileError;
     }
 
-    // Step 3: Wait for wallet trigger, then update balance to 500
-    await new Promise(r => setTimeout(r, 400));
+    // 3. Wait for wallet trigger to execute, then set signup bonus
+    await new Promise(resolve => setTimeout(resolve, 400));
     await supabaseAdmin
       .from('wallets')
       .update({ balance: 500 })
       .eq('user_id', userId);
 
-    // Step 4: Record bonus transaction
+    // 4. Record the bonus transaction
     await supabaseAdmin.from('transactions').insert({
       user_id: userId,
       type: 'deposit',
@@ -141,15 +160,18 @@ export function useAuth() {
       status: 'completed',
     });
 
-    // Step 5: Sign in to establish session
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    // 5. Sign in to establish browser session (uses anon key)
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (signInError) throw signInError;
 
     return adminData;
   };
 
   /**
-   * Sign in: phone + password.
+   * SIGNIN: phone + password
    */
   const signIn = async (phone: string, password: string) => {
     const email = phoneToEmail(phone);
@@ -158,10 +180,12 @@ export function useAuth() {
     return data;
   };
 
+  /** Sign out and clear all state. */
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
+  /** Refresh wallet balance (call after bet/cashout/deposit/withdraw). */
   const refreshWallet = async () => {
     if (!user) return;
     const { data } = await supabase
