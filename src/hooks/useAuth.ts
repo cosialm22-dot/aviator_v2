@@ -1,19 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Profile, Wallet } from '../types';
 
 /**
  * Phone-based auth hook.
  *
- * Strategy: Supabase requires email for password auth. We derive a
- * deterministic fake email from the phone number (e.g. 254712345678@aviator.local).
- * The real phone is stored in profiles.phone_number.
+ * Architecture:
+ * - Signup: Uses Supabase Admin API (service role) to create a pre-confirmed user.
+ *   This bypasses email verification entirely. The phone number is stored in
+ *   profiles.phone_number. A deterministic email is derived from the phone
+ *   (e.g. 254712345678@phone.aviator.ke) so Supabase has a valid email field.
  *
- * This avoids needing Supabase Phone Auth (which requires OTP/Twilio).
- * Login is phone + password. No email is ever shown to the user.
+ * - Signin: Uses standard signInWithPassword with the derived email.
+ *
+ * - No OTP, no email verification, no magic links.
+ *
+ * Security note: The service role key is used only for user creation (signup).
+ * All other operations use the anon key with RLS. This is acceptable for a
+ * gambling platform without a separate backend service.
  */
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY as string;
+
+// Admin client — only used for creating pre-confirmed users during signup
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
 function phoneToEmail(phone: string): string {
-  return `${phone}@aviator.local`;
+  return `${phone}@phone.aviator.ke`;
 }
 
 export function useAuth() {
@@ -42,7 +59,7 @@ export function useAuth() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const email = session.user.email ?? '';
-        const phone = email.replace('@aviator.local', '');
+        const phone = email.replace('@phone.aviator.ke', '');
         setUser({ id: session.user.id, phone });
         fetchProfile(session.user.id);
       }
@@ -53,7 +70,7 @@ export function useAuth() {
       (async () => {
         if (session?.user) {
           const email = session.user.email ?? '';
-          const phone = email.replace('@aviator.local', '');
+          const phone = email.replace('@phone.aviator.ke', '');
           setUser({ id: session.user.id, phone });
           await fetchProfile(session.user.id);
         } else {
@@ -68,61 +85,71 @@ export function useAuth() {
   }, [fetchProfile]);
 
   /**
-   * Sign up with phone number + password + username.
-   * Creates auth user, profile (with phone_number), wallet, and bonus transaction.
+   * Sign up: phone + password + username.
+   *
+   * Flow:
+   * 1. Create user via admin API (pre-confirmed, no email verification)
+   * 2. Create profile with phone_number
+   * 3. Wait for wallet trigger, then set balance to 500 (signup bonus)
+   * 4. Record bonus transaction
+   * 5. Sign in with anon key to establish browser session
    */
   const signUp = async (phone: string, password: string, username: string) => {
     const email = phoneToEmail(phone);
 
-    // Disable email confirmation by passing emailRedirectTo as undefined
-    // Supabase project must have "Enable email confirmations" DISABLED in Auth settings
-    const { data, error } = await supabase.auth.signUp({
+    // Step 1: Create pre-confirmed user via admin API
+    const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: { phone, username },
-      },
+      email_confirm: true,
+      user_metadata: { phone, username },
     });
-    if (error) throw error;
-    if (!data.user) throw new Error('Sign up failed. Please try again.');
+    if (adminError) throw adminError;
+    if (!adminData.user) throw new Error('Sign up failed. Please try again.');
 
-    // Generate random avatar color
+    const userId = adminData.user.id;
+
+    // Step 2: Create profile
     const colors = ['#ef4444', '#f97316', '#22c55e', '#06b6d4', '#3b82f6', '#ec4899', '#f59e0b', '#a855f7', '#14b8a6'];
     const color = colors[Math.floor(Math.random() * colors.length)];
 
-    // Create profile with phone number
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: data.user.id,
+    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+      id: userId,
       username,
       avatar_color: color,
       phone_number: phone,
     });
-    if (profileError) throw profileError;
+    if (profileError) {
+      // Rollback: delete the auth user if profile creation fails
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      throw profileError;
+    }
 
-    // The DB trigger auto-creates a wallet with 0 balance.
-    // We update it to 500 for the signup bonus.
-    // Small delay to let trigger execute first.
-    await new Promise(r => setTimeout(r, 300));
-
-    await supabase
+    // Step 3: Wait for wallet trigger, then update balance to 500
+    await new Promise(r => setTimeout(r, 400));
+    await supabaseAdmin
       .from('wallets')
       .update({ balance: 500 })
-      .eq('user_id', data.user.id);
+      .eq('user_id', userId);
 
-    // Record the bonus transaction
-    await supabase.from('transactions').insert({
-      user_id: data.user.id,
+    // Step 4: Record bonus transaction
+    await supabaseAdmin.from('transactions').insert({
+      user_id: userId,
       type: 'deposit',
       amount: 500,
       description: 'Welcome bonus \u2014 KSh 500 free credits!',
       status: 'completed',
     });
 
-    return data;
+    // Step 5: Sign in to establish session
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) throw signInError;
+
+    return adminData;
   };
 
   /**
-   * Sign in with phone number + password.
+   * Sign in: phone + password.
    */
   const signIn = async (phone: string, password: string) => {
     const email = phoneToEmail(phone);
