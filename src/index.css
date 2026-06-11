@@ -8,6 +8,12 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* Set default text color to white for dark theme */
+html, body {
+  color: #e2e8f0;
+  background-color: #0d0d1a;
+}
+
 /* Scrollbar styling */
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;

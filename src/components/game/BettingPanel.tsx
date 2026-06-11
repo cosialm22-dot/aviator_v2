@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Minus, Plus, Zap } from 'lucide-react';
+import { Minus, Plus, Zap, Clock } from 'lucide-react';
 import type { GameStatus } from '../../types';
 import { formatMultiplier } from '../../lib/gameEngine';
 
@@ -9,7 +9,10 @@ interface Props {
   multiplier: number;
   balance: number;
   activeBet: { amount: number; cashedOut: boolean; winnings: number | null; cashout_multiplier?: number; cashoutAt: number | null } | null;
+  queuedBet: number | null; // NEW: queued bet amount for next round
   onPlaceBet: (amount: number, autoCashoutAt: number | null) => Promise<void>;
+  onQueueBet: (amount: number) => void; // NEW: queue bet for next round
+  onCancelQueue: () => void; // NEW: cancel queued bet
   onCashOut: () => void;
   onAuthRequired: () => void;
   isAuthenticated: boolean;
@@ -19,8 +22,8 @@ const MIN_BET = 50;
 const QUICK_AMOUNTS = [50, 100, 200, 500];
 
 export default function BettingPanel({
-  panelIndex, status, multiplier, balance, activeBet,
-  onPlaceBet, onCashOut, onAuthRequired, isAuthenticated,
+  panelIndex, status, multiplier, balance, activeBet, queuedBet,
+  onPlaceBet, onQueueBet, onCancelQueue, onCashOut, onAuthRequired, isAuthenticated,
 }: Props) {
   const [rawAmount, setRawAmount] = useState(String(MIN_BET));
   const [autoMode, setAutoMode]   = useState(false);
@@ -28,13 +31,25 @@ export default function BettingPanel({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const amount = Math.max(MIN_BET, Math.floor(parseFloat(rawAmount) || MIN_BET));
-  const canBet = status === 'waiting' && !activeBet && amount >= MIN_BET && amount <= balance;
+
+  // Can place bet during waiting OR queue during flight/crashed
+  const canBetNow = status === 'waiting' && !activeBet && !queuedBet && amount >= MIN_BET && amount <= balance;
+  const canQueueBet = (status === 'flying' || status === 'crashed') && !activeBet && !queuedBet && amount >= MIN_BET && amount <= balance;
 
   const handleBet = async () => {
     if (!isAuthenticated) { onAuthRequired(); return; }
-    if (!canBet) return;
-    setLoading(true);
-    try { await onPlaceBet(amount, null); } finally { setLoading(false); }
+
+    // During waiting: place bet immediately
+    if (canBetNow) {
+      setLoading(true);
+      try { await onPlaceBet(amount, null); } finally { setLoading(false); }
+      return;
+    }
+
+    // During flying/crashed: queue bet for next round
+    if (canQueueBet) {
+      onQueueBet(amount);
+    }
   };
 
   const adjust = (delta: number) => {
@@ -43,7 +58,6 @@ export default function BettingPanel({
   };
 
   const handleRawChange = (v: string) => {
-    // Allow free typing — only digits, strip leading zeros
     const clean = v.replace(/[^0-9]/g, '');
     setRawAmount(clean === '' ? '' : String(parseInt(clean, 10) || ''));
   };
@@ -59,11 +73,76 @@ export default function BettingPanel({
 
   const isCashable = status === 'flying' && activeBet && !activeBet.cashedOut && panelIndex === 0;
 
-  const betLabel = () => {
-    if (status === 'flying')  return panelIndex === 0 ? 'In flight' : 'Watching';
-    if (status === 'crashed') return 'Next round';
-    return loading ? 'Placing...' : 'Bet';
+  // Determine button state and label
+  const getButtonConfig = () => {
+    // Queued bet: show "Queued" with cancel option
+    if (queuedBet) {
+      return {
+        label: 'Queued for next',
+        sublabel: `KSh ${queuedBet.toLocaleString('en-KE')}`,
+        action: onCancelQueue,
+        style: 'bg-amber-600/80 text-white cursor-pointer hover:bg-amber-700',
+        icon: Clock,
+        disabled: false,
+      };
+    }
+
+    // Active bet flying: show in-flight status
+    if (activeBet && !activeBet.cashedOut && status === 'flying' && panelIndex === 0) {
+      return {
+        label: 'Flying...',
+        sublabel: `KSh ${activeBet.amount.toLocaleString('en-KE')}`,
+        action: () => {},
+        style: 'bg-amber-600/80 text-white cursor-not-allowed',
+        disabled: true,
+      };
+    }
+
+    // Cashed out: show result
+    if (activeBet?.cashedOut && panelIndex === 0) {
+      return {
+        label: 'Cashed Out!',
+        sublabel: `+KSh ${(activeBet.winnings ?? 0).toLocaleString('en-KE')}`,
+        action: () => {},
+        style: 'bg-green-900/40 border border-green-500/40 text-green-400 cursor-not-allowed',
+        disabled: true,
+      };
+    }
+
+    // Can bet now (waiting)
+    if (canBetNow) {
+      return {
+        label: loading ? 'Placing...' : 'Bet',
+        sublabel: `KSh ${amount.toLocaleString('en-KE')}`,
+        action: handleBet,
+        style: 'bg-[#22c55e] hover:bg-[#16a34a] text-white shadow-lg shadow-green-500/30',
+        disabled: loading,
+      };
+    }
+
+    // Can queue (flying/crashed, no active bet)
+    if (canQueueBet) {
+      return {
+        label: 'Bet Next Round',
+        sublabel: `KSh ${amount.toLocaleString('en-KE')}`,
+        action: handleBet,
+        style: 'bg-[#22c55e]/80 hover:bg-[#22c55e] text-white',
+        icon: Clock,
+        disabled: false,
+      };
+    }
+
+    // Default: disabled
+    return {
+      label: status === 'flying' ? 'In flight' : 'Next round',
+      sublabel: '',
+      action: () => {},
+      style: 'bg-[#22c55e]/20 text-white/40 cursor-not-allowed',
+      disabled: true,
+    };
   };
+
+  const btnConfig = getButtonConfig();
 
   return (
     <div className="flex flex-col bg-[#0d0d1a] select-none">
@@ -92,13 +171,12 @@ export default function BettingPanel({
         <div className="flex items-center bg-[#1a1a2e] rounded-lg border border-[#2a2a45] flex-shrink-0">
           <button
             onClick={() => adjust(-50)}
-            disabled={!!activeBet || amount <= MIN_BET}
+            disabled={!!activeBet || !!queuedBet || amount <= MIN_BET}
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-l-lg transition disabled:opacity-40 active:scale-95"
           >
             <Minus size={14} />
           </button>
 
-          {/* Tappable / editable amount */}
           <div
             className="flex flex-col items-center justify-center px-1 h-11 min-w-[62px] cursor-text"
             onClick={() => inputRef.current?.focus()}
@@ -110,7 +188,7 @@ export default function BettingPanel({
               value={rawAmount}
               onChange={e => handleRawChange(e.target.value)}
               onBlur={handleBlur}
-              disabled={!!activeBet}
+              disabled={!!activeBet || !!queuedBet}
               className="w-full bg-transparent text-white font-bold text-sm tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-slate-500 text-[9px] leading-none mt-0.5">KShs</span>
@@ -118,7 +196,7 @@ export default function BettingPanel({
 
           <button
             onClick={() => adjust(50)}
-            disabled={!!activeBet}
+            disabled={!!activeBet || !!queuedBet}
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-r-lg transition disabled:opacity-40 active:scale-95"
           >
             <Plus size={14} />
@@ -139,30 +217,19 @@ export default function BettingPanel({
               KSh {winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
             </div>
           </button>
-        ) : activeBet && !activeBet.cashedOut && panelIndex === 0 ? (
-          <button disabled className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl bg-amber-600/80 text-white font-black cursor-not-allowed">
-            <span className="text-sm leading-tight">Flying...</span>
-            <span className="text-xs opacity-90">KSh {activeBet.amount.toLocaleString('en-KE', { maximumFractionDigits: 0 })}</span>
-          </button>
-        ) : activeBet?.cashedOut && panelIndex === 0 ? (
-          <button disabled className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl bg-green-900/40 border border-green-500/40 text-green-400 font-black cursor-not-allowed">
-            <span className="text-sm">Cashed Out!</span>
-            <span className="text-xs">+KSh {(activeBet.winnings ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</span>
-          </button>
         ) : (
           <button
-            onClick={handleBet}
-            disabled={status !== 'waiting' || loading || (panelIndex === 0 && !!activeBet)}
-            className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl font-black transition-all active:scale-95 ${
-              status === 'waiting' && !loading && !(panelIndex === 0 && !!activeBet)
-                ? 'bg-[#22c55e] hover:bg-[#16a34a] text-white shadow-lg shadow-green-500/30'
-                : 'bg-[#22c55e]/20 text-white/40 cursor-not-allowed'
-            }`}
+            onClick={btnConfig.action}
+            disabled={btnConfig.disabled}
+            className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl font-black transition-all active:scale-95 ${btnConfig.style}`}
           >
-            <span className="text-sm leading-tight">{betLabel()}</span>
-            <span className="text-xs font-semibold opacity-90">
-              {status === 'waiting' ? `KSh ${amount.toLocaleString('en-KE')}` : ''}
-            </span>
+            <div className="flex items-center gap-1 text-sm leading-tight">
+              {btnConfig.icon && <btnConfig.icon size={13} />}
+              <span>{btnConfig.label}</span>
+            </div>
+            {btnConfig.sublabel && (
+              <div className="text-xs font-semibold opacity-90">{btnConfig.sublabel}</div>
+            )}
           </button>
         )}
       </div>
@@ -173,13 +240,22 @@ export default function BettingPanel({
           <button
             key={q}
             onClick={() => setRawAmount(String(q))}
-            disabled={!!activeBet}
+            disabled={!!activeBet || !!queuedBet}
             className="flex-1 py-1 text-[11px] font-semibold bg-[#1a1a2e] border border-[#2a2a45] rounded text-slate-400 hover:text-white hover:bg-[#2a2a45] transition disabled:opacity-40 active:scale-95"
           >
             {q >= 1000 ? `${q / 1000}K` : q}
           </button>
         ))}
       </div>
+
+      {/* Queued bet indicator */}
+      {queuedBet && (
+        <div className="px-3 pb-2 flex items-center justify-center gap-2">
+          <Clock size={11} className="text-amber-400" />
+          <span className="text-amber-400 text-[11px] font-semibold">Queued: KSh {queuedBet.toLocaleString('en-KE')} for next round</span>
+          <button onClick={onCancelQueue} className="text-[10px] text-slate-400 hover:text-red-400 underline">Cancel</button>
+        </div>
+      )}
 
       {/* Cashout confirmation row */}
       {activeBet?.cashedOut && panelIndex === 0 && (

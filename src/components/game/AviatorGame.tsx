@@ -32,6 +32,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   const [mobileTab, setMobileTab] = useState<MobileTab>('bets');
   const [nudge, setNudge] = useState<{ title: string; sub: string } | null>(null);
   const nudgeShownRef = useRef(false);
+  const [queuedBet, setQueuedBet] = useState<number | null>(null);
   const balance = wallet?.balance ?? 0;
 
   const {
@@ -60,6 +61,21 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
       setNudge(null);
     }
   }, [balance, profile, gameStatus]);
+
+  // Auto-place queued bet when waiting phase begins
+  useEffect(() => {
+    if (gameStatus === 'waiting' && queuedBet && !activeBet) {
+      placeBet(queuedBet, null).then(() => setQueuedBet(null));
+    }
+  }, [gameStatus]);
+
+  const handleQueueBet = (amount: number) => {
+    setQueuedBet(amount);
+  };
+
+  const handleCancelQueue = () => {
+    setQueuedBet(null);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#0d0d1a]">
@@ -222,7 +238,10 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 multiplier={currentMultiplier}
                 balance={balance}
                 activeBet={activeBet}
+                queuedBet={queuedBet}
                 onPlaceBet={placeBet}
+                onQueueBet={handleQueueBet}
+                onCancelQueue={handleCancelQueue}
                 onCashOut={cashOut}
                 onAuthRequired={onAuthRequired}
                 isAuthenticated={!!profile}
@@ -235,7 +254,10 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 multiplier={currentMultiplier}
                 balance={balance}
                 activeBet={null}
+                queuedBet={null}
                 onPlaceBet={async () => {}}
+                onQueueBet={() => {}}
+                onCancelQueue={() => {}}
                 onCashOut={() => {}}
                 onAuthRequired={onAuthRequired}
                 isAuthenticated={!!profile}
