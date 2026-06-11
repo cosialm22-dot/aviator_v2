@@ -99,10 +99,10 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {mode === 'signup' && (
             <div className="bg-gradient-to-r from-green-900/40 to-emerald-900/40 border border-green-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
-              <div className="text-2xl">\ud83c\udf81</div>
+              <div className="text-2xl">🎁</div>
               <div>
                 <div className="text-green-400 font-black text-sm">KSh 500 FREE on signup!</div>
-                <div className="text-slate-400 text-[11px]">Start playing immediately \u2014 no deposit required</div>
+                <div className="text-slate-400 text-[11px]">Start playing immediately — no deposit required</div>
               </div>
             </div>
           )}
