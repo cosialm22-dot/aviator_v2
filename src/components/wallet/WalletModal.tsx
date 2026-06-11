@@ -1,61 +1,18 @@
 import { useState } from 'react';
-import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Building2 } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * DESIGN SYSTEM
+/*
+ * WALLET MODAL — Redesigned for maximum visibility & clarity.
  *
- * Accent:        Green (#22c55e) for M-Pesa / success, Blue (#3b82f6) for bank
- * Isolation:     Key elements (amount, CTA) surrounded by generous whitespace
- * Grouping:      Related fields in bordered cards; methods in a row
- * Framing:       Outer modal → inner sections → field groups
- * Negative Space: 24-32px padding, spacious gaps between sections
- * Golden Ratio:  Content area ~61.8% vs info area ~38.2%
- * Movement:      Top→bottom flow: balance → method → amount → details → action
- * Diptych:       Deposit | Withdraw as two contrasting halves
- * Tension:       Dark muted bg vs vibrant CTA button
- * Symmetry:      Centered modal, balanced method cards, symmetric quick amounts
- * ───────────────────────────────────────────────────────────────────────────── */
-
-// ─── Brand Icons ──────────────────────────────────────────────────────────────
-
-function MpesaIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="48" rx="12" fill="#4CAF50" fillOpacity="0.15" />
-      <path d="M24 12c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12z" fill="#4CAF50" fillOpacity="0.2" />
-      <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="#4CAF50" fontSize="11" fontWeight="800" fontFamily="sans-serif">M</text>
-      <path d="M14 34l2-4M34 34l-2-4" stroke="#4CAF50" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function BankIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="48" rx="12" fill="#3b82f6" fillOpacity="0.15" />
-      <path d="M24 14l10 5v2H14v-2l10-5z" fill="#3b82f6" fillOpacity="0.8" />
-      <rect x="16" y="22" width="2.5" height="8" rx="0.5" fill="#3b82f6" fillOpacity="0.6" />
-      <rect x="21" y="22" width="2.5" height="8" rx="0.5" fill="#3b82f6" fillOpacity="0.6" />
-      <rect x="26" y="22" width="2.5" height="8" rx="0.5" fill="#3b82f6" fillOpacity="0.6" />
-      <rect x="31" y="22" width="2.5" height="8" rx="0.5" fill="#3b82f6" fillOpacity="0.6" />
-      <rect x="14" y="31" width="20" height="3" rx="1" fill="#3b82f6" fillOpacity="0.8" />
-    </svg>
-  );
-}
-
-function CardIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="48" rx="12" fill="#8b5cf6" fillOpacity="0.15" />
-      <rect x="12" y="16" width="24" height="16" rx="3" fill="none" stroke="#8b5cf6" strokeWidth="1.5" />
-      <rect x="12" y="20" width="24" height="4" fill="#8b5cf6" fillOpacity="0.3" />
-      <rect x="15" y="27" width="8" height="2" rx="1" fill="#8b5cf6" fillOpacity="0.5" />
-    </svg>
-  );
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+ * Design decisions:
+ * - Modal surface: #161b2e (elevated from page bg #0d0d1a) + border + shadow
+ * - Input fields: #1c2237 with visible borders for clear delineation
+ * - Accent: #22c55e (green) for primary actions
+ * - Method cards: distinct surface lift + brand imagery
+ * - Typography: sharp, high-contrast white on dark with muted labels
+ * - CTA: full-width, high-saturation green, impossible to miss
+ */
 
 interface Props {
   balance: number;
@@ -68,8 +25,6 @@ type Tab = 'deposit' | 'withdraw';
 type Step = 'form' | 'processing' | 'pin' | 'success';
 
 const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000, 10000];
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('deposit');
@@ -89,39 +44,26 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
 
   const parsedAmount = parseFloat(amount) || 0;
 
-  // ─── Handlers ───────────────────────────────────────────────────────────────
-
   const reset = () => {
-    setStep('form');
-    setAmount('');
-    setPhone('');
+    setStep('form'); setAmount(''); setPhone('');
     setCardNumber(''); setCardExpiry(''); setCardCvv(''); setCardName('');
-    setBankAccount(''); setBankName('');
-    setPin('');
-    setError('');
+    setBankAccount(''); setBankName(''); setPin(''); setError('');
   };
 
-  const switchTab = (t: Tab) => {
-    setTab(t);
-    setMethod('mpesa');
-    reset();
-  };
+  const switchTab = (t: Tab) => { setTab(t); setMethod('mpesa'); reset(); };
 
   const formatCard = (val: string) => {
     const clean = val.replace(/\D/g, '').slice(0, 16);
     return clean.replace(/(.{4})/g, '$1 ').trim();
   };
-
   const formatExpiry = (val: string) => {
     const clean = val.replace(/\D/g, '').slice(0, 4);
-    if (clean.length >= 2) return clean.slice(0, 2) + '/' + clean.slice(2);
-    return clean;
+    return clean.length >= 2 ? clean.slice(0, 2) + '/' + clean.slice(2) : clean;
   };
 
   const handleSubmit = async () => {
     setError('');
     if (parsedAmount < 50) { setError('Minimum amount is KSh 50'); return; }
-
     if (tab === 'deposit') {
       if (method === 'mpesa') {
         if (!phone || phone.length < 9) { setError('Enter a valid phone number'); return; }
@@ -131,185 +73,149 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
         return;
       }
       if (method === 'card') {
-        if (!cardNumber || cardNumber.replace(/\s/g, '').length < 16) { setError('Enter a valid card number'); return; }
+        if (!cardNumber || cardNumber.replace(/\s/g, '').length < 16) { setError('Enter valid card number'); return; }
         if (!cardExpiry || cardExpiry.length < 5) { setError('Enter expiry date'); return; }
         if (!cardCvv || cardCvv.length < 3) { setError('Enter CVV'); return; }
-        setLoading(true);
-        setStep('processing');
-        try {
-          await onDeposit(parsedAmount, 'card', { cardNumber, cardExpiry, cardCvv, cardName });
-          setStep('success');
-        } catch (e) {
-          setError(e instanceof Error ? e.message : 'Payment failed');
-          setStep('form');
-        } finally { setLoading(false); }
+        setLoading(true); setStep('processing');
+        try { await onDeposit(parsedAmount, 'card', { cardNumber, cardExpiry, cardCvv, cardName }); setStep('success'); }
+        catch (e) { setError(e instanceof Error ? e.message : 'Payment failed'); setStep('form'); }
+        finally { setLoading(false); }
       }
     } else {
       if (parsedAmount > balance) { setError('Insufficient balance'); return; }
       if (method === 'mpesa' && (!phone || phone.length < 9)) { setError('Enter a valid phone number'); return; }
       if (method === 'bank' && !bankAccount) { setError('Enter account number'); return; }
-      setLoading(true);
-      setStep('processing');
-      try {
-        await onWithdraw(parsedAmount, method as 'mpesa' | 'bank', { phone, bankAccount, bankName });
-        setStep('success');
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Withdrawal failed');
-        setStep('form');
-      } finally { setLoading(false); }
+      setLoading(true); setStep('processing');
+      try { await onWithdraw(parsedAmount, method as 'mpesa' | 'bank', { phone, bankAccount, bankName }); setStep('success'); }
+      catch (e) { setError(e instanceof Error ? e.message : 'Withdrawal failed'); setStep('form'); }
+      finally { setLoading(false); }
     }
   };
 
   const handlePinConfirm = async () => {
     if (pin.length !== 4) { setError('Enter 4-digit PIN'); return; }
-    setLoading(true);
-    setStep('processing');
-    try {
-      await onDeposit(parsedAmount, 'mpesa', { phone });
-      setStep('success');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Payment failed');
-      setStep('form');
-    } finally { setLoading(false); setPin(''); }
+    setLoading(true); setStep('processing');
+    try { await onDeposit(parsedAmount, 'mpesa', { phone }); setStep('success'); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Payment failed'); setStep('form'); }
+    finally { setLoading(false); setPin(''); }
   };
 
-  // ─── Deposit methods available ──────────────────────────────────────────────
-  const depositMethods = [
-    { id: 'mpesa' as const, label: 'M-Pesa', icon: <MpesaIcon size={36} />, accent: '#22c55e' },
-    { id: 'card' as const, label: 'Card', icon: <CardIcon size={36} />, accent: '#8b5cf6' },
-  ];
-
-  const withdrawMethods = [
-    { id: 'mpesa' as const, label: 'M-Pesa', icon: <MpesaIcon size={36} />, accent: '#22c55e' },
-    { id: 'bank' as const, label: 'Bank', icon: <BankIcon size={36} />, accent: '#3b82f6' },
-  ];
-
-  const methods = tab === 'deposit' ? depositMethods : withdrawMethods;
-  const activeAccent = methods.find(m => m.id === method)?.accent ?? '#22c55e';
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  // Shared input style tokens
+  const inputBase = 'w-full bg-[#1c2237] border border-[#2a3150] rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#22c55e]/60 focus:ring-1 focus:ring-[#22c55e]/20 transition-all';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+
+      {/* Modal card — elevated surface with clear separation from page */}
       <div
-        className="bg-[#0a0e1a] border border-white/[0.06] w-full max-w-[420px] shadow-2xl shadow-black/60 overflow-hidden"
-        style={{ borderRadius: '24px' }}
+        className="w-full max-w-[400px] overflow-hidden"
+        style={{
+          background: '#161b2e',
+          borderRadius: '20px',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset',
+        }}
       >
-        {/* ═══════════════ SUCCESS STATE ═══════════════ */}
+
+        {/* ============ SUCCESS ============ */}
         {step === 'success' && (
           <div className="px-8 py-14 text-center">
-            {/* Isolation: icon floats in space */}
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
-              style={{ backgroundColor: `${activeAccent}15` }}
-            >
-              <CheckCircle size={30} style={{ color: activeAccent }} />
+            <div className="w-16 h-16 rounded-full bg-[#22c55e]/10 flex items-center justify-center mx-auto mb-5">
+              <CheckCircle size={28} className="text-[#22c55e]" />
             </div>
-            <h3 className="text-white font-bold text-xl tracking-tight">
+            <h3 className="text-white font-bold text-xl">
               {tab === 'deposit' ? 'Deposit Successful' : 'Withdrawal Sent'}
             </h3>
-            <p className="text-slate-500 text-sm mt-2">
-              {formatCurrency(parsedAmount)} {tab === 'deposit' ? 'added to your wallet' : 'is on its way'}
+            <p className="text-slate-400 text-sm mt-2">
+              {formatCurrency(parsedAmount)} {tab === 'deposit' ? 'added to wallet' : 'on its way'}
             </p>
-            {/* Tension: calm text vs bold CTA */}
             <button
-              onClick={() => { reset(); }}
-              className="mt-8 px-8 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
-              style={{ backgroundColor: activeAccent }}
+              onClick={reset}
+              className="mt-8 px-8 py-3 bg-[#22c55e] hover:bg-[#1eab54] rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.97]"
             >
               Done
             </button>
           </div>
         )}
 
-        {/* ═══════════════ PROCESSING STATE ═══════════════ */}
+        {/* ============ PROCESSING ============ */}
         {step === 'processing' && (
           <div className="px-8 py-16 text-center">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-5 bg-white/[0.04]">
-              <Loader size={22} className="text-slate-400 animate-spin" />
-            </div>
-            <p className="text-white font-medium">Processing</p>
-            <p className="text-slate-600 text-xs mt-1">Please wait...</p>
+            <Loader size={28} className="text-[#22c55e] animate-spin mx-auto mb-5" />
+            <p className="text-white font-medium">Processing…</p>
+            <p className="text-slate-500 text-xs mt-1">This will only take a moment</p>
           </div>
         )}
 
-        {/* ═══════════════ PIN STATE (M-Pesa) ═══════════════ */}
+        {/* ============ PIN (M-Pesa STK) ============ */}
         {step === 'pin' && (
-          <div className="px-8 py-10">
-            {/* Movement: icon → text → input → button (vertical flow) */}
-            <div className="text-center mb-8">
-              <div className="mx-auto mb-4"><MpesaIcon size={48} /></div>
+          <div className="px-7 py-9">
+            <div className="text-center mb-7">
+              <img src="/icons/mpesa-logo.jpg" alt="M-Pesa" className="w-14 h-14 object-contain rounded-xl mx-auto mb-4 border border-white/10" />
               <h3 className="text-white font-bold text-lg">Confirm Payment</h3>
-              <p className="text-slate-500 text-xs mt-1">
-                STK push sent to +254{phone}
-              </p>
+              <p className="text-slate-400 text-xs mt-1">Enter M-Pesa PIN for +254{phone}</p>
             </div>
 
-            {/* Framing: amount summary card */}
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 mb-6">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 text-sm">Amount</span>
-                <span className="text-white font-bold">{formatCurrency(parsedAmount)}</span>
-              </div>
+            {/* Summary */}
+            <div className="bg-[#1c2237] border border-[#2a3150] rounded-xl px-4 py-3 flex justify-between items-center mb-6">
+              <span className="text-slate-400 text-sm">Amount</span>
+              <span className="text-white font-bold text-base">{formatCurrency(parsedAmount)}</span>
             </div>
 
-            {/* Isolation: PIN input centered with space */}
-            <div className="mb-6">
-              <label className="text-[11px] text-slate-500 uppercase tracking-wider block mb-2 text-center">M-Pesa PIN</label>
-              <input
-                type="password"
-                value={pin}
-                onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="• • • •"
-                maxLength={4}
-                autoFocus
-                className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-4 text-white text-center text-2xl tracking-[0.4em] font-mono focus:outline-none focus:border-[#22c55e]/50 transition-colors"
-              />
-            </div>
+            {/* PIN input */}
+            <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 text-center">PIN</label>
+            <input
+              type="password"
+              value={pin}
+              onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="••••"
+              maxLength={4}
+              autoFocus
+              className="w-full bg-[#1c2237] border border-[#2a3150] rounded-xl px-4 py-4 text-white text-center text-2xl tracking-[0.5em] font-mono focus:outline-none focus:border-[#22c55e]/60 focus:ring-1 focus:ring-[#22c55e]/20 transition-all mb-6"
+            />
 
             {error && <p className="text-red-400 text-xs text-center mb-4">{error}</p>}
 
             <button
               onClick={handlePinConfirm}
               disabled={pin.length !== 4}
-              className="w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none"
-              style={{ backgroundColor: '#22c55e' }}
+              className="w-full py-3.5 bg-[#22c55e] hover:bg-[#1eab54] rounded-xl font-semibold text-sm text-white transition-all active:scale-[0.97] disabled:opacity-30 disabled:pointer-events-none"
             >
-              Confirm
+              Confirm Payment
             </button>
           </div>
         )}
 
-        {/* ═══════════════ MAIN FORM ═══════════════ */}
+        {/* ============ MAIN FORM ============ */}
         {step === 'form' && (
           <>
-            {/* ─── Header: Balance + Close ─── */}
-            {/* Symmetry: balance left, close right */}
-            <div className="flex items-center justify-between px-7 pt-7 pb-0">
+            {/* Header */}
+            <div className="flex items-center justify-between px-7 pt-6 pb-1">
               <div>
-                <p className="text-[11px] text-slate-600 uppercase tracking-wider">Balance</p>
-                <p className="text-white font-bold text-lg tabular-nums mt-0.5">{formatCurrency(balance)}</p>
+                <p className="text-[11px] text-slate-500 uppercase tracking-widest">Wallet Balance</p>
+                <p className="text-white font-bold text-xl tabular-nums mt-0.5">
+                  {formatCurrency(balance)}
+                </p>
               </div>
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-slate-500 hover:text-white transition-all"
+                className="w-9 h-9 rounded-full bg-[#1c2237] border border-[#2a3150] flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all"
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             </div>
 
-            {/* ─── Diptych: Deposit | Withdraw tabs ─── */}
-            {/* Tension: active tab = solid, inactive = ghost */}
-            <div className="px-7 pt-6 pb-0">
-              <div className="flex bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 gap-1">
+            {/* Tabs — Diptych */}
+            <div className="px-7 pt-5">
+              <div className="flex bg-[#1c2237] border border-[#2a3150] rounded-xl p-1.5 gap-1">
                 {(['deposit', 'withdraw'] as Tab[]).map(t => (
                   <button
                     key={t}
                     onClick={() => switchTab(t)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                       tab === t
-                        ? 'bg-white/[0.08] text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-300'
+                        ? 'bg-[#22c55e] text-white shadow-lg shadow-[#22c55e]/20'
+                        : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                     }`}
                   >
                     {t === 'deposit' ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
@@ -319,214 +225,247 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
               </div>
             </div>
 
-            {/* ─── Content Area ─── */}
-            <div className="px-7 pt-6 pb-7 space-y-6">
+            {/* Content */}
+            <div className="px-7 pt-6 pb-7 space-y-5">
 
-              {/* ─── Method Selection ─── */}
-              {/* Grouping: methods in a symmetric row */}
-              {/* Golden Ratio: icon area 38% vs text 62% within each card */}
+              {/* Payment method */}
               <div>
-                <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-3">Payment Method</label>
+                <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-3 font-medium">
+                  Payment Method
+                </label>
                 <div className="grid grid-cols-2 gap-3">
-                  {methods.map(m => {
-                    const isActive = method === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => setMethod(m.id)}
-                        className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
-                          isActive
-                            ? 'bg-white/[0.04] shadow-sm'
-                            : 'bg-transparent border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.02]'
-                        }`}
-                        style={{
-                          borderColor: isActive ? `${m.accent}40` : undefined,
-                        }}
-                      >
-                        {/* Accent: active indicator dot */}
-                        {isActive && (
-                          <div
-                            className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full"
-                            style={{ backgroundColor: m.accent }}
-                          />
-                        )}
-                        {m.icon}
-                        <span className={`text-xs font-medium ${isActive ? 'text-white' : 'text-slate-500'}`}>
-                          {m.label}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  {/* M-Pesa */}
+                  <button
+                    onClick={() => setMethod('mpesa')}
+                    className={`relative flex flex-col items-center gap-2.5 p-4 rounded-xl border transition-all ${
+                      method === 'mpesa'
+                        ? 'bg-[#1e2940] border-[#22c55e]/40 shadow-md shadow-[#22c55e]/5'
+                        : 'bg-[#1c2237] border-[#2a3150] hover:border-[#3a4160] hover:bg-[#1e2540]'
+                    }`}
+                  >
+                    {method === 'mpesa' && (
+                      <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#22c55e] shadow-sm shadow-[#22c55e]/50" />
+                    )}
+                    <img
+                      src="/icons/mpesa-logo.jpg"
+                      alt="M-Pesa"
+                      className="w-10 h-10 object-contain rounded-lg"
+                    />
+                    <span className={`text-xs font-semibold ${method === 'mpesa' ? 'text-white' : 'text-slate-400'}`}>
+                      M-Pesa
+                    </span>
+                  </button>
+
+                  {/* Card (deposit) / Bank (withdraw) */}
+                  {tab === 'deposit' ? (
+                    <button
+                      onClick={() => setMethod('card')}
+                      className={`relative flex flex-col items-center gap-2.5 p-4 rounded-xl border transition-all ${
+                        method === 'card'
+                          ? 'bg-[#1e2940] border-[#8b5cf6]/40 shadow-md shadow-[#8b5cf6]/5'
+                          : 'bg-[#1c2237] border-[#2a3150] hover:border-[#3a4160] hover:bg-[#1e2540]'
+                      }`}
+                    >
+                      {method === 'card' && (
+                        <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#8b5cf6] shadow-sm shadow-[#8b5cf6]/50" />
+                      )}
+                      <img
+                        src="/icons/card-logo.png"
+                        alt="Card"
+                        className="w-10 h-10 object-contain"
+                      />
+                      <span className={`text-xs font-semibold ${method === 'card' ? 'text-white' : 'text-slate-400'}`}>
+                        Debit/Credit
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setMethod('bank')}
+                      className={`relative flex flex-col items-center gap-2.5 p-4 rounded-xl border transition-all ${
+                        method === 'bank'
+                          ? 'bg-[#1e2940] border-[#3b82f6]/40 shadow-md shadow-[#3b82f6]/5'
+                          : 'bg-[#1c2237] border-[#2a3150] hover:border-[#3a4160] hover:bg-[#1e2540]'
+                      }`}
+                    >
+                      {method === 'bank' && (
+                        <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#3b82f6] shadow-sm shadow-[#3b82f6]/50" />
+                      )}
+                      <div className="w-10 h-10 rounded-lg bg-[#3b82f6]/10 flex items-center justify-center">
+                        <Building2 size={20} className="text-[#3b82f6]" />
+                      </div>
+                      <span className={`text-xs font-semibold ${method === 'bank' ? 'text-white' : 'text-slate-400'}`}>
+                        Bank Transfer
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* ─── Amount Input ─── */}
-              {/* Isolation: the amount field is the hero — extra space around it */}
+              {/* Amount */}
               <div>
-                <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-3">Amount</label>
+                <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-3 font-medium">Amount</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 text-sm font-medium">KSh</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold">KSh</span>
                   <input
                     type="number"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
                     placeholder="0"
                     min="50"
-                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-12 pr-4 py-4 text-white text-lg font-semibold tabular-nums placeholder:text-slate-700 focus:outline-none focus:border-white/[0.16] transition-colors"
+                    className="w-full bg-[#1c2237] border border-[#2a3150] rounded-xl pl-12 pr-4 py-4 text-white text-xl font-bold tabular-nums placeholder:text-[#2a3150] focus:outline-none focus:border-[#22c55e]/60 focus:ring-1 focus:ring-[#22c55e]/20 transition-all"
                   />
                 </div>
-                {/* Symmetry: quick amounts in balanced grid */}
+                {/* Quick amounts */}
                 <div className="grid grid-cols-6 gap-1.5 mt-3">
-                  {QUICK_AMOUNTS.map(q => (
-                    <button
-                      key={q}
-                      onClick={() => setAmount(String(tab === 'withdraw' ? Math.min(q, balance) : q))}
-                      className={`py-2 rounded-lg text-[11px] font-medium transition-all ${
-                        parseFloat(amount) === q
-                          ? 'bg-white/[0.1] text-white'
-                          : 'bg-white/[0.03] text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'
-                      }`}
-                    >
-                      {q >= 1000 ? `${q / 1000}K` : q}
-                    </button>
-                  ))}
+                  {QUICK_AMOUNTS.map(q => {
+                    const isActive = parseFloat(amount) === q;
+                    const displayQ = tab === 'withdraw' ? Math.min(q, balance) : q;
+                    return (
+                      <button
+                        key={q}
+                        onClick={() => setAmount(String(displayQ))}
+                        className={`py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                          isActive
+                            ? 'bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30'
+                            : 'bg-[#1c2237] border border-[#2a3150] text-slate-400 hover:text-white hover:border-[#3a4160]'
+                        }`}
+                      >
+                        {q >= 1000 ? `${q / 1000}K` : q}
+                      </button>
+                    );
+                  })}
                 </div>
-                {tab === 'withdraw' && (
+                {tab === 'withdraw' && balance > 0 && (
                   <button
                     onClick={() => setAmount(String(Math.floor(balance)))}
-                    className="mt-2 text-[11px] text-slate-600 hover:text-white transition-colors"
+                    className="mt-2 text-[11px] text-[#22c55e] hover:text-[#4ade80] font-medium transition-colors"
                   >
-                    Withdraw all →
+                    Withdraw all ({formatCurrency(balance)})
                   </button>
                 )}
               </div>
 
-              {/* ─── Details Fields ─── */}
-              {/* Framing: fields grouped in a subtle bordered section */}
-              {(method === 'mpesa') && (
+              {/* M-Pesa phone field */}
+              {method === 'mpesa' && (
                 <div>
-                  <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-3">
-                    {tab === 'deposit' ? 'Pay from' : 'Send to'}
+                  <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium">
+                    {tab === 'deposit' ? 'Pay From' : 'Send To'} — Phone Number
                   </label>
                   <div className="flex gap-2">
-                    <div className="flex items-center bg-white/[0.03] border border-white/[0.08] rounded-xl px-3.5">
-                      <span className="text-slate-500 text-sm">+254</span>
+                    <div className="flex items-center bg-[#1c2237] border border-[#2a3150] rounded-xl px-3.5">
+                      <span className="text-slate-300 text-sm font-medium">+254</span>
                     </div>
                     <input
                       type="tel"
                       value={phone}
                       onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
                       placeholder="7XX XXX XXX"
-                      className="flex-1 bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-700 focus:outline-none focus:border-white/[0.16] transition-colors"
+                      className={inputBase + ' flex-1'}
                     />
                   </div>
                 </div>
               )}
 
-              {(method === 'bank' && tab === 'withdraw') && (
+              {/* Bank fields */}
+              {method === 'bank' && tab === 'withdraw' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-2">Bank Name</label>
+                    <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium">Bank Name</label>
                     <input
                       type="text"
                       value={bankName}
                       onChange={e => setBankName(e.target.value)}
                       placeholder="e.g. Equity, KCB, Co-op"
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-700 focus:outline-none focus:border-white/[0.16] transition-colors"
+                      className={inputBase}
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-2">Account Number</label>
+                    <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium">Account Number</label>
                     <input
                       type="text"
                       value={bankAccount}
                       onChange={e => setBankAccount(e.target.value)}
                       placeholder="Enter account number"
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-700 focus:outline-none focus:border-white/[0.16] transition-colors"
+                      className={inputBase}
                     />
                   </div>
                 </div>
               )}
 
-              {(method === 'card' && tab === 'deposit') && (
+              {/* Card fields */}
+              {method === 'card' && tab === 'deposit' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-2">Card Number</label>
+                    <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium">Card Number</label>
                     <input
                       type="text"
                       value={cardNumber}
                       onChange={e => setCardNumber(formatCard(e.target.value))}
                       placeholder="0000 0000 0000 0000"
                       maxLength={19}
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white text-sm tracking-widest font-mono placeholder:text-slate-700 focus:outline-none focus:border-white/[0.16] transition-colors"
+                      className={inputBase + ' tracking-widest font-mono'}
                     />
                   </div>
-                  {/* Symmetry: expiry + CVV side by side */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-2">Expiry</label>
+                      <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium">Expiry</label>
                       <input
                         type="text"
                         value={cardExpiry}
                         onChange={e => setCardExpiry(formatExpiry(e.target.value))}
                         placeholder="MM/YY"
                         maxLength={5}
-                        className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-700 focus:outline-none focus:border-white/[0.16] transition-colors"
+                        className={inputBase}
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-2">CVV</label>
+                      <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium">CVV</label>
                       <input
                         type="password"
                         value={cardCvv}
                         onChange={e => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 3))}
                         placeholder="•••"
                         maxLength={3}
-                        className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-700 focus:outline-none focus:border-white/[0.16] transition-colors"
+                        className={inputBase}
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-600 uppercase tracking-wider block mb-2">Cardholder</label>
+                    <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium">Name on Card</label>
                     <input
                       type="text"
                       value={cardName}
                       onChange={e => setCardName(e.target.value)}
-                      placeholder="Name on card"
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-700 focus:outline-none focus:border-white/[0.16] transition-colors uppercase"
+                      placeholder="JOHN DOE"
+                      className={inputBase + ' uppercase'}
                     />
                   </div>
                 </div>
               )}
 
-              {/* ─── Error ─── */}
+              {/* Error */}
               {error && (
-                <div className="px-4 py-3 rounded-xl bg-red-500/[0.06] border border-red-500/[0.15]">
-                  <p className="text-red-400 text-xs text-center">{error}</p>
+                <div className="px-4 py-3 rounded-xl bg-red-500/[0.08] border border-red-500/20">
+                  <p className="text-red-400 text-xs text-center font-medium">{error}</p>
                 </div>
               )}
 
-              {/* ─── Submit CTA ─── */}
-              {/* Accent + Tension: bold colored button against muted background */}
-              {/* Movement: the eye naturally arrives here last (bottom of flow) */}
+              {/* CTA — unmistakably prominent */}
               <button
                 onClick={handleSubmit}
                 disabled={loading || parsedAmount < 50}
-                className="w-full py-4 rounded-xl font-semibold text-sm text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none"
-                style={{ backgroundColor: activeAccent }}
+                className="w-full py-4 rounded-xl font-bold text-[15px] text-white transition-all hover:brightness-110 active:scale-[0.97] disabled:opacity-25 disabled:pointer-events-none shadow-lg shadow-[#22c55e]/20"
+                style={{ backgroundColor: '#22c55e' }}
               >
                 {tab === 'deposit'
-                  ? `Deposit ${parsedAmount >= 50 ? formatCurrency(parsedAmount) : ''}`
-                  : `Withdraw ${parsedAmount >= 50 ? formatCurrency(parsedAmount) : ''}`
+                  ? `Deposit${parsedAmount >= 50 ? ' ' + formatCurrency(parsedAmount) : ''}`
+                  : `Withdraw${parsedAmount >= 50 ? ' ' + formatCurrency(parsedAmount) : ''}`
                 }
               </button>
 
-              {/* Negative Space: subtle footer text, lots of air above */}
-              <p className="text-[10px] text-slate-700 text-center">
-                {tab === 'deposit'
-                  ? 'Funds are credited instantly'
-                  : 'Processing takes 1-5 minutes'
-                }
+              {/* Footer note */}
+              <p className="text-[10px] text-slate-600 text-center pt-1">
+                {tab === 'deposit' ? 'Funds credited instantly' : 'Processed within 1–5 minutes'}
               </p>
             </div>
           </>
