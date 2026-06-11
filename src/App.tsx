@@ -8,8 +8,10 @@ import { useAuth } from './hooks/useAuth';
 import { useWallet } from './hooks/useWallet';
 import AdminApp from './admin/AdminApp';
 
+type AuthMode = 'signin' | 'signup' | null;
+
 function PlayerApp() {
-  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>(null);
   const [walletOpen, setWalletOpen] = useState(false);
 
   const { user, profile, wallet, loading, signUp, signIn, signOut, refreshWallet } = useAuth();
@@ -27,7 +29,7 @@ function PlayerApp() {
   }
 
   const openDeposit = () => {
-    if (!profile) { setAuthOpen(true); return; }
+    if (!profile) { setAuthMode('signup'); return; }
     setWalletOpen(true);
   };
 
@@ -36,7 +38,8 @@ function PlayerApp() {
       <Header
         profile={profile}
         balance={wallet?.balance ?? 0}
-        onAuthOpen={() => setAuthOpen(true)}
+        onSignInOpen={() => setAuthMode('signin')}
+        onRegisterOpen={() => setAuthMode('signup')}
         onWalletOpen={() => setWalletOpen(true)}
         onSignOut={signOut}
       />
@@ -45,17 +48,18 @@ function PlayerApp() {
         <AviatorGame
           profile={profile}
           wallet={wallet}
-          onAuthRequired={() => setAuthOpen(true)}
+          onAuthRequired={() => setAuthMode('signup')}
           onRefreshWallet={refreshWallet}
           onDepositOpen={openDeposit}
         />
       </main>
 
-      {authOpen && (
+      {authMode && (
         <AuthModal
+          initialMode={authMode}
           onSignUp={signUp}
           onSignIn={signIn}
-          onClose={() => setAuthOpen(false)}
+          onClose={() => setAuthMode(null)}
         />
       )}
 
