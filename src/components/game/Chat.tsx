@@ -33,7 +33,7 @@ class MessageQueue {
   private queue: [string, string, string][] = [];
   next(): ChatMessage {
     if (this.queue.length === 0) this.queue = shuffle(CHAT_MESSAGES);
-    const [username, avatar_color, text] = this.queue.pop()!;
+    const [text, username, avatar_color] = this.queue.pop()!;
     return { id: `bot-${Date.now()}-${Math.random()}`, user_id: null, username, avatar_color, text, created_at: new Date().toISOString() };
   }
 }
