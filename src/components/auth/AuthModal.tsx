@@ -1,15 +1,28 @@
 import { useState } from 'react';
-import { X, Eye, EyeOff, Plane } from 'lucide-react';
+import { X, Eye, EyeOff, Plane, Phone } from 'lucide-react';
 
 interface Props {
-  onSignUp: (email: string, password: string, username: string) => Promise<unknown>;
-  onSignIn: (email: string, password: string) => Promise<unknown>;
+  onSignUp: (phone: string, password: string, username: string) => Promise<unknown>;
+  onSignIn: (phone: string, password: string) => Promise<unknown>;
   onClose: () => void;
+}
+
+/** Normalize Kenyan phone: accepts 07XX, 01XX, +2547XX, 2547XX → returns 2547XXXXXXXX */
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/[^0-9]/g, '');
+  if (digits.startsWith('254') && digits.length === 12) return digits;
+  if (digits.startsWith('0') && digits.length === 10) return '254' + digits.slice(1);
+  return digits;
+}
+
+function isValidKenyanPhone(phone: string): boolean {
+  const normalized = normalizePhone(phone);
+  return /^254(7|1)[0-9]{8}$/.test(normalized);
 }
 
 export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -19,18 +32,34 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!isValidKenyanPhone(phone)) {
+      setError('Enter a valid Kenyan phone number (e.g. 0712345678)');
+      return;
+    }
+
     setLoading(true);
     try {
+      const normalized = normalizePhone(phone);
       if (mode === 'signup') {
-        if (username.length < 3) throw new Error('Username must be at least 3 characters');
+        if (username.trim().length < 3) throw new Error('Username must be at least 3 characters');
         if (password.length < 6) throw new Error('Password must be at least 6 characters');
-        await onSignUp(email, password, username);
+        await onSignUp(normalized, password, username.trim());
       } else {
-        await onSignIn(email, password);
+        await onSignIn(normalized, password);
       }
       onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Authentication failed');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Authentication failed';
+      if (msg.includes('User already registered')) {
+        setError('This phone number is already registered. Sign in instead.');
+      } else if (msg.includes('Invalid login credentials')) {
+        setError('Wrong phone number or password.');
+      } else if (msg.includes('duplicate key') && msg.includes('username')) {
+        setError('This username is already taken. Choose another.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -50,7 +79,7 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
                 {mode === 'signin' ? 'Welcome Back!' : 'Get KSh 500 Free!'}
               </h2>
               <p className="text-slate-400 text-xs">
-                {mode === 'signin' ? 'Sign in and keep winning' : 'New players get KSh 500 bonus — no deposit needed!'}
+                {mode === 'signin' ? 'Sign in and keep winning' : 'New players get KSh 500 bonus \u2014 no deposit needed!'}
               </p>
             </div>
           </div>
@@ -62,13 +91,14 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {mode === 'signup' && (
             <div className="bg-gradient-to-r from-green-900/40 to-emerald-900/40 border border-green-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
-              <div className="text-2xl">🎁</div>
+              <div className="text-2xl">{'\ud83c\udf81'}</div>
               <div>
                 <div className="text-green-400 font-black text-sm">KSh 500 FREE on signup!</div>
-                <div className="text-slate-400 text-[11px]">Start playing immediately — no deposit required</div>
+                <div className="text-slate-400 text-[11px]">Start playing immediately \u2014 no deposit required</div>
               </div>
             </div>
           )}
+
           {mode === 'signup' && (
             <div>
               <label className="text-xs text-slate-400 block mb-1">Username</label>
@@ -80,21 +110,30 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
                 required
                 minLength={3}
                 maxLength={20}
+                autoComplete="username"
                 className="w-full bg-[#071120] border border-[#1e3a5f] rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition"
               />
             </div>
           )}
 
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              className="w-full bg-[#071120] border border-[#1e3a5f] rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition"
-            />
+            <label className="text-xs text-slate-400 block mb-1">Phone Number</label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                <Phone size={16} />
+              </div>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="0712345678"
+                required
+                maxLength={13}
+                autoComplete="tel"
+                inputMode="numeric"
+                className="w-full bg-[#071120] border border-[#1e3a5f] rounded-lg pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition"
+              />
+            </div>
           </div>
 
           <div>
@@ -104,9 +143,10 @@ export default function AuthModal({ onSignUp, onSignIn, onClose }: Props) {
                 type={showPass ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
                 required
                 minLength={6}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 className="w-full bg-[#071120] border border-[#1e3a5f] rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 transition pr-12"
               />
               <button
