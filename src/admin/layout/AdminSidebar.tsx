@@ -29,10 +29,10 @@ export default function AdminSidebar() {
               key={path}
               to={path}
               aria-current={active ? 'page' : undefined}
-              className={'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors ' + (active ? 'bg-white/10 text-white font-medium' : 'text-white/65 hover:text-white hover:bg-white/5')}
+              className={'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors ' + (active ? 'bg-white/10 text-white font-medium' : 'text-white/55 hover:text-white hover:bg-white/[0.06]')}
             >
-              {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-gold" />}
-              <Icon size={16} />{label}
+              {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-gold" />}
+              <Icon size={16} strokeWidth={1.75} />{label}
             </Link>
           );
         })}
