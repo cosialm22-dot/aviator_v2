@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { generateCrashPoint, getMultiplierAtTime, getNextCrashPoint } from '../lib/gameEngine';
+import { getMultiplierAtTime, getNextCrashPoint } from '../lib/gameEngine';
 import { generateBots } from '../lib/botSimulator';
 import type { GameStatus, GameRound, BotPlayer, Profile } from '../types';
 
@@ -50,6 +50,10 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
   const botsRef = useRef<BotPlayer[]>([]);
   const liveBetsRef = useRef<LiveBetEntry[]>([]);
   const lastUiUpdateRef = useRef<number>(0); // throttle UI state updates
+  // Crash-point provenance for the current round: set in startWaiting,
+  // persisted in startFlying. Mirrors the shape returned by getNextCrashPoint().
+  const sourceRef = useRef<'algorithm' | 'queue'>('algorithm');
+  const queueIdRef = useRef<string | null>(null);
 
   gameStatusRef.current = gameStatus;
   crashPointRef.current = crashPoint;
@@ -73,8 +77,13 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
       });
   }, []);
 
-  const startWaiting = useCallback(() => {
-    const cp = generateCrashPoint();
+  const startWaiting = useCallback(async () => {
+    // Resolve the next crash point from the admin queue (when game.queue_enabled)
+    // or the algorithm. Also yields the provenance fields persisted to game_rounds.
+    const { point: cp, source: nextSource, queueId: nextQueueId } =
+      await getNextCrashPoint(supabase);
+    sourceRef.current = nextSource;
+    queueIdRef.current = nextQueueId;
     const newBots = generateBots(cp);
     setCrashPoint(cp);
     crashPointRef.current = cp;
@@ -130,8 +139,8 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
         crash_multiplier: crashPointRef.current,
         status: 'flying',
         started_at: new Date(now).toISOString(),
-        source: source,
-        queue_id: queueId,
+        source: sourceRef.current,
+        queue_id: queueIdRef.current,
       })
       .select()
       .maybeSingle()
