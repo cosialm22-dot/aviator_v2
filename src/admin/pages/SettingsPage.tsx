@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCcw, Shield, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface Setting {
@@ -92,128 +91,97 @@ export default function SettingsPage() {
   const categories = [...new Set(settings.map(s => s.category))];
 
   if (loading) {
-    return <div className="animate-pulse space-y-4">{[...Array(6)].map((_, i) => <div key={i} className="h-14 bg-[#111122] rounded-xl" />)}</div>;
+    return (
+      <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)] space-y-4">
+        {[...Array(6)].map((_, i) => <div key={i} className="h-14 rounded-xl border border-line bg-surface animate-pulse" />)}
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-sm text-slate-500 mt-1">System configuration and audit trail</p>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-[#111122] border border-[#1e1e35] rounded-lg p-1 w-fit">
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'settings' ? 'bg-[#1e1e35] text-white' : 'text-slate-400 hover:text-white'}`}
-        >
-          <span className="flex items-center gap-2"><Shield size={14} /> Settings</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'audit' ? 'bg-[#1e1e35] text-white' : 'text-slate-400 hover:text-white'}`}
-        >
-          <span className="flex items-center gap-2"><Clock size={14} /> Audit Log ({auditLog.length})</span>
-        </button>
-      </div>
-
-      {activeTab === 'settings' && (
-        <div className="space-y-6">
-          {categories.map(category => (
-            <div key={category} className="bg-[#111122] border border-[#1e1e35] rounded-xl overflow-hidden">
-              <div className="px-5 py-3 border-b border-[#1e1e35]">
-                <h3 className="text-sm font-semibold text-white capitalize">{category}</h3>
-              </div>
-              <div className="divide-y divide-[#1e1e35]/50">
-                {settings.filter(s => s.category === category).map(setting => {
-                  const hasChanged = editValues[setting.key] !== (typeof setting.value === 'string' ? setting.value : JSON.stringify(setting.value));
-                  return (
-                    <div key={setting.key} className="px-5 py-4 flex items-center justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm text-white font-medium font-mono">{setting.key}</div>
-                        {setting.description && <div className="text-[11px] text-slate-500 mt-0.5">{setting.description}</div>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={editValues[setting.key] ?? ''}
-                          onChange={e => setEditValues(prev => ({ ...prev, [setting.key]: e.target.value }))}
-                          className={`w-28 px-3 py-1.5 bg-[#0a0a14] border rounded-lg text-sm text-right text-white font-mono focus:outline-none transition ${
-                            hasChanged ? 'border-[#c8001c]/50 ring-1 ring-[#c8001c]/20' : 'border-[#2a2a45]'
-                          }`}
-                        />
-                        {hasChanged && (
-                          <>
-                            <button
-                              onClick={() => saveSetting(setting.key)}
-                              disabled={saving === setting.key}
-                              className="p-1.5 bg-green-500/10 border border-green-500/30 rounded text-green-400 hover:bg-green-500/20 transition disabled:opacity-50"
-                              title="Save"
-                            >
-                              <Save size={12} />
-                            </button>
-                            <button
-                              onClick={() => resetSetting(setting.key)}
-                              className="p-1.5 bg-slate-500/10 border border-slate-500/30 rounded text-slate-400 hover:bg-slate-500/20 transition"
-                              title="Reset"
-                            >
-                              <RotateCcw size={12} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+    <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-[22px] font-semibold text-ink tracking-tight">Settings</h1>
+          <p className="text-[13px] text-muted mt-1">System configuration and audit trail</p>
         </div>
-      )}
 
-      {activeTab === 'audit' && (
-        <div className="bg-[#111122] border border-[#1e1e35] rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-slate-500 text-xs border-b border-[#1e1e35]">
-                  <th className="text-left px-5 py-3 font-medium">Admin</th>
-                  <th className="text-left px-5 py-3 font-medium">Action</th>
-                  <th className="text-left px-5 py-3 font-medium">Target</th>
-                  <th className="text-left px-5 py-3 font-medium">Details</th>
-                  <th className="text-left px-5 py-3 font-medium">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditLog.length === 0 ? (
-                  <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-600">No audit entries yet</td></tr>
-                ) : auditLog.map(entry => (
-                  <tr key={entry.id} className="border-b border-[#1e1e35]/50">
-                    <td className="px-5 py-3 text-white font-medium">
-                      {(entry.profiles as any)?.username ?? 'System'}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className="px-2 py-0.5 bg-[#1a1a2e] rounded text-[10px] font-mono text-slate-300">
-                        {entry.action}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-slate-400 text-xs">
-                      {entry.target_type && `${entry.target_type}: ${entry.target_id?.slice(0, 8) ?? '-'}`}
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 text-xs max-w-[200px] truncate font-mono">
-                      {entry.details ? JSON.stringify(entry.details).slice(0, 60) : '-'}
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 text-xs whitespace-nowrap">
-                      {new Date(entry.created_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Tabs (segmented, text-only) */}
+        <div className="inline-flex gap-1 bg-slate-100 border border-line rounded-lg p-1">
+          <button onClick={() => setActiveTab('settings')} className={'px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (activeTab === 'settings' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>Settings</button>
+          <button onClick={() => setActiveTab('audit')} className={'px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (activeTab === 'audit' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>Audit Log ({auditLog.length})</button>
+        </div>
+
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            {categories.map(category => (
+              <div key={category} className="rounded-xl border border-line bg-surface overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-line">
+                  <h3 className="text-[11px] font-semibold text-muted uppercase tracking-[0.1em] capitalize">{category}</h3>
+                </div>
+                <div className="divide-y divide-line">
+                  {settings.filter(s => s.category === category).map(setting => {
+                    const hasChanged = editValues[setting.key] !== (typeof setting.value === 'string' ? setting.value : JSON.stringify(setting.value));
+                    return (
+                      <div key={setting.key} className="px-5 py-4 flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] text-ink font-medium font-mono">{setting.key}</div>
+                          {setting.description && <div className="text-[11px] text-muted mt-0.5">{setting.description}</div>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editValues[setting.key] ?? ''}
+                            onChange={e => setEditValues(prev => ({ ...prev, [setting.key]: e.target.value }))}
+                            className={'w-28 px-3 py-1.5 bg-surface border rounded-lg text-sm text-right text-ink font-mono focus:outline-none transition ' + (hasChanged ? 'border-brand/50 ring-1 ring-brand/20' : 'border-line')}
+                          />
+                          {hasChanged && (
+                            <>
+                              <button onClick={() => saveSetting(setting.key)} disabled={saving === setting.key} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50">Save</button>
+                              <button onClick={() => resetSetting(setting.key)} className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-line text-muted hover:text-ink transition-colors">Reset</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+
+        {activeTab === 'audit' && (
+          <div className="rounded-xl border border-line bg-surface overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
+                    <th className="text-left px-5 py-3 font-medium">Admin</th>
+                    <th className="text-left px-5 py-3 font-medium">Action</th>
+                    <th className="text-left px-5 py-3 font-medium">Target</th>
+                    <th className="text-left px-5 py-3 font-medium">Details</th>
+                    <th className="text-left px-5 py-3 font-medium">Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {auditLog.length === 0 ? (
+                    <tr><td colSpan={5} className="px-5 py-12 text-center text-faint">No audit entries yet</td></tr>
+                  ) : auditLog.map(entry => (
+                    <tr key={entry.id}>
+                      <td className="px-5 py-3 text-ink font-medium">{(entry.profiles as any)?.username ?? 'System'}</td>
+                      <td className="px-5 py-3"><span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-muted">{entry.action}</span></td>
+                      <td className="px-5 py-3 text-muted text-xs">{entry.target_type && `${entry.target_type}: ${entry.target_id?.slice(0, 8) ?? '—'}`}</td>
+                      <td className="px-5 py-3 text-muted text-xs max-w-[200px] truncate font-mono">{entry.details ? JSON.stringify(entry.details).slice(0, 60) : '—'}</td>
+                      <td className="px-5 py-3 text-muted text-xs whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

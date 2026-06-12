@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type TxType = 'all' | 'deposit' | 'withdrawal' | 'bet' | 'win';
@@ -70,115 +69,98 @@ export default function FinancePage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Finance</h1>
-        <p className="text-sm text-slate-500 mt-1">Transaction history and financial overview</p>
-      </div>
+    <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-[22px] font-semibold text-ink tracking-tight">Finance</h1>
+          <p className="text-[13px] text-muted mt-1">Transaction history and financial overview</p>
+        </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Deposits Today', value: totals.deposits, icon: ArrowDownRight, color: 'text-green-400', bg: 'bg-green-500/10' },
-          { label: 'Withdrawals Today', value: totals.withdrawals, icon: ArrowUpRight, color: 'text-red-400', bg: 'bg-red-500/10' },
-          { label: 'Bets Volume', value: totals.betsVolume, icon: DollarSign, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-          { label: 'Wins Paid', value: totals.wins, icon: DollarSign, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-        ].map(card => {
-          const Icon = card.icon;
-          return (
-            <div key={card.label} className="bg-[#111122] border border-[#1e1e35] rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center`}>
-                  <Icon size={16} className={card.color} />
-                </div>
+        {/* Summary strip */}
+        <div className="rounded-xl border border-line bg-surface overflow-hidden">
+          <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-line">
+            {[
+              { label: 'Deposits Today', value: totals.deposits, tone: 'text-up' },
+              { label: 'Withdrawals Today', value: totals.withdrawals, tone: 'text-down' },
+              { label: 'Bets Volume', value: totals.betsVolume, tone: 'text-ink' },
+              { label: 'Wins Paid', value: totals.wins, tone: 'text-ink' },
+            ].map(card => (
+              <div key={card.label} className="p-5 sm:p-6">
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">{card.label}</div>
+                <div className={'mt-2.5 text-[22px] leading-none font-semibold tabular-nums tracking-tight ' + card.tone}>KSh {card.value.toLocaleString('en-KE')}</div>
               </div>
-              <div className="text-lg font-bold text-white">KSh {card.value.toLocaleString('en-KE')}</div>
-              <div className="text-xs text-slate-500 mt-0.5">{card.label}</div>
-            </div>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+        </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2">
-        <Filter size={14} className="text-slate-500" />
-        {FILTERS.map(f => (
-          <button
-            key={f.value}
-            onClick={() => setTypeFilter(f.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              typeFilter === f.value
-                ? 'bg-[#c8001c]/10 text-[#ff3344] border border-[#c8001c]/20'
-                : 'bg-[#111122] border border-[#1e1e35] text-slate-400 hover:text-white'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {FILTERS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setTypeFilter(f.value)}
+              className={'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ' + (typeFilter === f.value ? 'bg-brand/10 text-brand border-brand/30' : 'bg-surface border-line text-muted hover:text-ink')}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Transactions Table */}
-      <div className="bg-[#111122] border border-[#1e1e35] rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-slate-500 text-xs border-b border-[#1e1e35]">
-                <th className="text-left px-5 py-3 font-medium">Player</th>
-                <th className="text-left px-5 py-3 font-medium">Type</th>
-                <th className="text-right px-5 py-3 font-medium">Amount</th>
-                <th className="text-left px-5 py-3 font-medium">Description</th>
-                <th className="text-left px-5 py-3 font-medium">Status</th>
-                <th className="text-left px-5 py-3 font-medium">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                [...Array(8)].map((_, i) => (
-                  <tr key={i} className="border-b border-[#1e1e35]/50">
-                    <td colSpan={6} className="px-5 py-3"><div className="h-4 bg-[#1a1a2e] rounded animate-pulse" /></td>
-                  </tr>
-                ))
-              ) : transactions.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-600">No transactions found</td></tr>
-              ) : transactions.map(tx => (
-                <tr key={tx.id} className="border-b border-[#1e1e35]/50 hover:bg-[#1a1a2e]/30">
-                  <td className="px-5 py-3 text-white font-medium">
-                    {(tx.profiles as any)?.username ?? 'Unknown'}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                      tx.type === 'deposit' ? 'bg-green-500/10 text-green-400' :
-                      tx.type === 'withdrawal' ? 'bg-red-500/10 text-red-400' :
-                      tx.type === 'win' ? 'bg-blue-500/10 text-blue-400' :
-                      tx.type === 'bet' ? 'bg-amber-500/10 text-amber-400' :
-                      'bg-slate-500/10 text-slate-400'
-                    }`}>
-                      {tx.type}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono">
-                    <span className={Number(tx.amount) >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      {Number(tx.amount) >= 0 ? '+' : ''}KSh {Math.abs(Number(tx.amount)).toLocaleString('en-KE')}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-slate-400 text-xs max-w-[200px] truncate">
-                    {tx.description ?? '-'}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`text-[10px] font-medium ${
-                      tx.status === 'completed' ? 'text-green-400' :
-                      tx.status === 'pending' ? 'text-amber-400' : 'text-slate-400'
-                    }`}>
-                      {tx.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-slate-500 text-xs whitespace-nowrap">
-                    {new Date(tx.created_at).toLocaleString()}
-                  </td>
+        {/* Transactions */}
+        <div className="rounded-xl border border-line bg-surface overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
+                  <th className="text-left px-5 py-3 font-medium">Player</th>
+                  <th className="text-left px-5 py-3 font-medium">Type</th>
+                  <th className="text-right px-5 py-3 font-medium">Amount</th>
+                  <th className="text-left px-5 py-3 font-medium">Description</th>
+                  <th className="text-left px-5 py-3 font-medium">Status</th>
+                  <th className="text-left px-5 py-3 font-medium">Time</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {loading ? (
+                  [...Array(8)].map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={6} className="px-5 py-3"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>
+                    </tr>
+                  ))
+                ) : transactions.length === 0 ? (
+                  <tr><td colSpan={6} className="px-5 py-12 text-center text-faint">No transactions found</td></tr>
+                ) : transactions.map(tx => (
+                  <tr key={tx.id} className="hover:bg-canvas transition-colors">
+                    <td className="px-5 py-3 text-ink font-medium">{(tx.profiles as any)?.username ?? 'Unknown'}</td>
+                    <td className="px-5 py-3">
+                      <span className={'inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ' + (
+                        tx.type === 'deposit' ? 'bg-emerald-50 text-up' :
+                        tx.type === 'withdrawal' ? 'bg-rose-50 text-down' :
+                        tx.type === 'win' ? 'bg-brand/10 text-brand' :
+                        tx.type === 'bet' ? 'bg-amber-50 text-amber-600' :
+                        'bg-slate-100 text-muted'
+                      )}>{tx.type}</span>
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums">
+                      <span className={Number(tx.amount) >= 0 ? 'text-up' : 'text-down'}>
+                        {Number(tx.amount) >= 0 ? '+' : ''}KSh {Math.abs(Number(tx.amount)).toLocaleString('en-KE')}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-muted text-xs max-w-[200px] truncate">{tx.description ?? '—'}</td>
+                    <td className="px-5 py-3">
+                      <span className={'inline-flex items-center gap-1.5 text-[11px] font-medium ' + (
+                        tx.status === 'completed' ? 'text-up' : tx.status === 'pending' ? 'text-amber-600' : 'text-muted'
+                      )}>
+                        <span className={'h-1.5 w-1.5 rounded-full ' + (tx.status === 'completed' ? 'bg-up' : tx.status === 'pending' ? 'bg-amber-500' : 'bg-faint')} />
+                        {tx.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-muted text-xs whitespace-nowrap">{new Date(tx.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
