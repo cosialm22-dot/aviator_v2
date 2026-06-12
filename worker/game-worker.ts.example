@@ -1,0 +1,49 @@
+// ============================================================================
+// AVIATOR V2 — DEDICATED ALWAYS-ON WORKER  [Option A, FUTURE — NOT YET ACTIVE]
+// ============================================================================
+// This is the higher-fidelity driver we will switch to "before production"
+// (per the decision brief). It is intentionally INERT: the active driver today
+// is the Supabase Edge Function in supabase/functions/game-loop/index.ts.
+//
+// Why upgrade later:
+//   - A single long-lived process ticks every 250ms with no cold starts and no
+//     minute-boundary restarts — the most robust option for real money.
+//   - Runs anywhere with the service-role key (Fly.io / Railway / a VM, ~$5/mo).
+//
+// To activate later:
+//   1. Stop the Supabase driver:   select cron.unschedule('aviator-game-loop');
+//   2. Deploy this worker with env SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.
+//   3. Run:  deno run --allow-net --allow-env worker/game-worker.ts
+//
+// The DB contract is identical — both drivers only ever call public.game_tick().
+// ============================================================================
+//
+// import { createClient } from "npm:@supabase/supabase-js@2";
+//
+// const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+// const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// const TICK_MS = 250;
+//
+// const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+//   auth: { persistSession: false, autoRefreshToken: false },
+// });
+// const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+//
+// let consecutiveErrors = 0;
+// console.log("aviator game-worker starting; tick =", TICK_MS, "ms");
+//
+// while (true) {
+//   const t0 = Date.now();
+//   try {
+//     const { error } = await sb.rpc("game_tick");
+//     if (error) throw new Error(error.message);
+//     consecutiveErrors = 0;
+//   } catch (e) {
+//     consecutiveErrors++;
+//     console.error("tick error:", (e as Error).message);
+//     // exponential backoff, capped at 5s, so a DB blip doesn't hot-loop
+//     await sleep(Math.min(5000, 250 * 2 ** Math.min(consecutiveErrors, 5)));
+//   }
+//   const elapsed = Date.now() - t0;
+//   if (elapsed < TICK_MS) await sleep(TICK_MS - elapsed);
+// }
