@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { generateCrashPoint, getMultiplierAtTime } from '../lib/gameEngine';
+import { generateCrashPoint, getMultiplierAtTime, getNextCrashPoint } from '../lib/gameEngine';
 import { generateBots } from '../lib/botSimulator';
 import type { GameStatus, GameRound, BotPlayer, Profile } from '../types';
 
@@ -130,6 +130,8 @@ export function useGame(profile: Profile | null, walletBalance: number, onRefres
         crash_multiplier: crashPointRef.current,
         status: 'flying',
         started_at: new Date(now).toISOString(),
+        source: source,
+        queue_id: queueId,
       })
       .select()
       .maybeSingle()
