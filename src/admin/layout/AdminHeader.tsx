@@ -13,12 +13,18 @@ export default function AdminHeader() {
   }, []);
 
   return (
-    <header className="h-14 flex items-center justify-between px-6 border-b border-[#1e1e35] bg-[#0d0d1a] flex-shrink-0">
-      <div />
+    <header className="h-14 flex items-center justify-end px-6 border-b border-line bg-surface flex-shrink-0">
       <div className="flex items-center gap-3">
-        <div className="w-7 h-7 rounded-full bg-[#c8001c] flex items-center justify-center text-white text-xs font-bold">{name[0]?.toUpperCase()}</div>
-        <span className="text-white text-sm font-medium">{name}</span>
-        <button onClick={() => { supabase.auth.signOut(); window.location.href = '/'; }} className="p-2 text-slate-400 hover:text-red-400"><LogOut size={15} /></button>
+        <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center text-white text-xs font-semibold">{name[0]?.toUpperCase()}</div>
+        <span className="text-ink text-sm font-medium">{name}</span>
+        <button
+          onClick={() => { supabase.auth.signOut(); window.location.href = '/'; }}
+          aria-label="Sign out"
+          title="Sign out"
+          className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors"
+        >
+          <LogOut size={15} />
+        </button>
       </div>
     </header>
   );
