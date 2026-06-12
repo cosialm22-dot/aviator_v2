@@ -41,6 +41,14 @@ BEGIN
 END;
 $$;
 
+-- Retire the Phase-4 Edge Function keepalive driver so this in-DB 250ms driver
+-- is the SOLE round driver. Without this, a fresh `supabase db reset` would
+-- schedule BOTH 'aviator-game-loop' (Phase 4) and 'aviator-drive', producing
+-- competing round drivers. Idempotent: a no-op if it was never scheduled
+-- (the live DB already runs only 'aviator-drive').
+SELECT cron.unschedule('aviator-game-loop')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'aviator-game-loop');
+
 -- Re-schedule idempotently. An 11s burst every 10s gives continuous coverage
 -- with a small, safe overlap (advisory lock dedupes concurrent ticks).
 SELECT cron.unschedule('aviator-drive')
