@@ -42,10 +42,8 @@ export default function UserDetailPage() {
     if (!reason) return;
     const newBal = Number(wallet.balance) + amt;
     if (newBal < 0) { alert('Cannot go below zero'); return; }
-    await supabase.from('wallets').update({ balance: newBal }).eq('user_id', userId!);
-    await supabase.from('transactions').insert({ user_id: userId, type: amt > 0 ? 'deposit' : 'withdrawal', amount: amt, description: `Admin: ${reason}`, status: 'completed' });
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) await supabase.from('admin_audit_log').insert({ admin_id: session.user.id, action: 'balance_adjusted', target_type: 'user', target_id: userId, details: { amount: amt, reason } });
+    const { error } = await supabase.rpc('admin_adjust_balance', { p_user_id: userId, p_delta: amt, p_reason: reason });
+    if (error) { alert(error.message); return; }
     load();
   }
 
