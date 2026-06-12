@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Ban, DollarSign, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 export default function UserDetailPage() {
@@ -50,32 +49,82 @@ export default function UserDetailPage() {
     load();
   }
 
-  if (loading) return <div className="animate-pulse"><div className="h-40 bg-[#111122] rounded-xl" /></div>;
-  if (!profile) return <div className="text-slate-400">Player not found</div>;
+  const SHELL = '-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]';
+
+  if (loading) return <div className={SHELL}><div className="h-40 rounded-xl border border-line bg-surface animate-pulse" /></div>;
+  if (!profile) return <div className={SHELL}><div className="text-muted text-sm">Player not found</div></div>;
+
+  const STATS = [
+    { l: 'Balance', v: `KSh ${Number(wallet?.balance ?? 0).toLocaleString()}` },
+    { l: 'Wagered', v: `KSh ${Number(profile.total_wagered).toLocaleString()}` },
+    { l: 'Bets', v: bets.length },
+    { l: 'Win Rate', v: `${bets.length ? Math.round(bets.filter(b => b.status === 'won').length / bets.length * 100) : 0}%` },
+  ];
 
   return (
-    <div className="space-y-6">
-      <button onClick={() => navigate('/admin/users')} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm"><ArrowLeft size={16} />Back</button>
-      <div className="bg-[#111122] border border-[#1e1e35] rounded-xl p-5 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold" style={{backgroundColor: profile.avatar_color}}>{profile.username[0]?.toUpperCase()}</div>
-          <div><h2 className="text-white text-lg font-bold">{profile.username}</h2><div className="text-xs text-slate-500">Joined {new Date(profile.created_at).toLocaleDateString()}{profile.is_banned && <span className="ml-2 text-red-400 font-semibold">BANNED</span>}</div></div>
+    <div className={SHELL}>
+      <div className="space-y-6">
+        <button onClick={() => navigate('/admin/users')} className="text-[13px] text-muted hover:text-ink transition-colors">&larr; Back</button>
+
+        <div className="rounded-xl border border-line bg-surface p-5 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-semibold" style={{ backgroundColor: profile.avatar_color }}>{profile.username[0]?.toUpperCase()}</div>
+            <div>
+              <h2 className="text-ink text-lg font-semibold">{profile.username}</h2>
+              <div className="text-xs text-muted mt-0.5">
+                Joined {new Date(profile.created_at).toLocaleDateString()}
+                {profile.is_banned && <span className="ml-2 inline-flex items-center gap-1.5 text-down font-semibold"><span className="h-1.5 w-1.5 rounded-full bg-down" />Banned</span>}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={adjustBalance} className="px-3 py-2 rounded-lg border border-line bg-surface text-ink text-xs font-medium hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors">Adjust Balance</button>
+            <button onClick={toggleBan} className={'px-3 py-2 rounded-lg text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 ' + (profile.is_banned ? 'border-brand/30 text-brand hover:bg-brand/5 focus-visible:ring-brand/40' : 'border-rose-200 text-down hover:bg-rose-50 focus-visible:ring-rose-300')}>{profile.is_banned ? 'Unban' : 'Ban'}</button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={adjustBalance} className="px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-xs font-medium flex items-center gap-1"><DollarSign size={12}/>Adjust</button>
-          <button onClick={toggleBan} className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1 ${profile.is_banned ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400' : 'bg-red-500/10 border border-red-500/30 text-red-400'}`}>{profile.is_banned ? <><ShieldCheck size={12}/>Unban</> : <><Ban size={12}/>Ban</>}</button>
+
+        <div className="rounded-xl border border-line bg-surface overflow-hidden">
+          <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-line">
+            {STATS.map(s => (
+              <div key={s.l} className="p-5">
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">{s.l}</div>
+                <div className="mt-2 text-xl font-semibold text-ink tabular-nums">{s.v}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[{l:'Balance',v:`KSh ${Number(wallet?.balance??0).toLocaleString()}`},{l:'Wagered',v:`KSh ${Number(profile.total_wagered).toLocaleString()}`},{l:'Bets',v:bets.length},{l:'Win Rate',v:`${bets.length?Math.round(bets.filter(b=>b.status==='won').length/bets.length*100):0}%`}].map(s=>(
-          <div key={s.l} className="bg-[#111122] border border-[#1e1e35] rounded-xl p-4"><div className="text-xs text-slate-500">{s.l}</div><div className="text-lg font-bold text-white mt-1">{s.v}</div></div>
-        ))}
-      </div>
-      <div className="bg-[#111122] border border-[#1e1e35] rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-[#1e1e35]"><h3 className="text-sm font-semibold text-white">Recent Bets</h3></div>
-        <table className="w-full text-sm"><thead><tr className="text-slate-500 text-xs border-b border-[#1e1e35]"><th className="px-5 py-2 text-left">Time</th><th className="px-5 py-2 text-right">Amount</th><th className="px-5 py-2 text-right">Cashout</th><th className="px-5 py-2 text-right">Won</th><th className="px-5 py-2">Status</th></tr></thead>
-          <tbody>{bets.map(b=>(<tr key={b.id} className="border-b border-[#1e1e35]/50"><td className="px-5 py-2 text-slate-400 text-xs">{new Date(b.created_at).toLocaleString()}</td><td className="px-5 py-2 text-right text-white font-mono">KSh {Number(b.amount).toLocaleString()}</td><td className="px-5 py-2 text-right text-slate-400 font-mono">{b.cashout_multiplier?`${Number(b.cashout_multiplier).toFixed(2)}x`:'-'}</td><td className="px-5 py-2 text-right font-mono">{b.winnings?<span className="text-green-400">+{Number(b.winnings).toLocaleString()}</span>:'-'}</td><td className="px-5 py-2"><span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${b.status==='won'?'bg-green-500/10 text-green-400':b.status==='lost'?'bg-red-500/10 text-red-400':'bg-amber-500/10 text-amber-400'}`}>{b.status}</span></td></tr>))}</tbody>
-        </table>
+
+        <div className="rounded-xl border border-line bg-surface overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-line">
+            <h3 className="text-[11px] font-semibold text-muted uppercase tracking-[0.1em]">Recent Bets</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
+                  <th className="px-5 py-2.5 text-left font-medium">Time</th>
+                  <th className="px-5 py-2.5 text-right font-medium">Amount</th>
+                  <th className="px-5 py-2.5 text-right font-medium">Cashout</th>
+                  <th className="px-5 py-2.5 text-right font-medium">Won</th>
+                  <th className="px-5 py-2.5 text-left font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {bets.length === 0 ? (
+                  <tr><td colSpan={5} className="px-5 py-10 text-center text-faint">No bets</td></tr>
+                ) : bets.map(b => (
+                  <tr key={b.id}>
+                    <td className="px-5 py-2.5 text-muted text-xs">{new Date(b.created_at).toLocaleString()}</td>
+                    <td className="px-5 py-2.5 text-right text-ink tabular-nums">KSh {Number(b.amount).toLocaleString()}</td>
+                    <td className="px-5 py-2.5 text-right text-muted tabular-nums">{b.cashout_multiplier ? `${Number(b.cashout_multiplier).toFixed(2)}x` : '—'}</td>
+                    <td className="px-5 py-2.5 text-right tabular-nums">{b.winnings ? <span className="text-up">+{Number(b.winnings).toLocaleString()}</span> : '—'}</td>
+                    <td className="px-5 py-2.5"><span className={'text-[10px] font-semibold px-1.5 py-0.5 rounded ' + (b.status === 'won' ? 'bg-emerald-50 text-up' : b.status === 'lost' ? 'bg-rose-50 text-down' : 'bg-amber-50 text-amber-600')}>{b.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
