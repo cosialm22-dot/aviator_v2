@@ -197,7 +197,7 @@ export default function DashboardPage() {
                     <span className="text-[11px] text-slate-500 tabular-nums">{b.count} ({b.pct}%)</span>
                   </div>
                   <div className="h-2.5 bg-white/[0.03] rounded-full overflow-hidden">
-                    <div className={'h-full rounded-full transition-all duration-700 ease-out ' + bc} style={{{ width: w }}} />
+                    <div className={'h-full rounded-full transition-all duration-700 ease-out ' + bc} style={{ width: w }} />
                   </div>
                 </div>
               );
