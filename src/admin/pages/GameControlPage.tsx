@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getMultiplierAtTime, formatMultiplier } from '../../lib/gameEngine';
-import { Play, AlertTriangle, Zap, Plus, Trash2, Clock, TrendingUp, Users, RefreshCw, X, Target, CheckCircle, Settings, Loader2, Activity } from 'lucide-react';
+import { Activity, Target, Settings } from 'lucide-react';
 
 interface GameRoundRow { id:string; crash_multiplier:number; status:string; started_at:string|null; crashed_at:string|null; source:string; queue_id:string|null }
 interface CQItem { id:string; crash_point:number; position:number; status:string; created_at:string }
@@ -13,6 +13,9 @@ type Tab='monitor'|'queue'|'params';
 function fmtKES(n:number):string{return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toLocaleString('en-KE')}
 function elapsed(iso:string|null):number{return iso?Math.floor((Date.now()-new Date(iso).getTime())/1e3):0}
 function sc(s:string):string{return s==='flying'?'bg-emerald-500 text-white':s==='crashed'?'bg-red-500 text-white':s==='waiting'?'bg-amber-500 text-black':'bg-slate-600 text-white'}
+
+const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
+function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }
 
 export default function GameControlPage(){
 const[tab,setTab]=useState<Tab>('monitor');
@@ -59,31 +62,121 @@ const isF=round?.status==='flying';const pendingQ=queue.filter(q=>q.status==='pe
 const TABS=[{k:'monitor'as Tab,l:'Live Monitor',i:Activity},{k:'queue'as Tab,l:'Crash Queue',i:Target},{k:'params'as Tab,l:'Settings',i:Settings}];
 
 return(
-<div className="space-y-6 pb-8">
-  <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-white tracking-tight">Game Control</h1><p className="text-[13px] text-slate-500 mt-1">Crash queue, live monitor, settings</p></div><div className="flex items-center gap-3">{err&&<div className="px-3 py-1.5 bg-red-500/[0.06] border border-red-500/15 rounded-xl text-red-400 text-[11px] max-w-[280px] truncate" title={err}>{err}</div>}<button onClick={fetchAll} disabled={loading} className="p-2 bg-white/[0.02] border border-white/[0.05] rounded-xl text-slate-500 hover:text-white transition disabled:opacity-40"><RefreshCw size={15} className={loading?'animate-spin':''}/></button></div></div>
+  <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-[22px] font-semibold text-ink tracking-tight">Game Control</h1>
+          <p className="text-[13px] text-muted mt-1">Crash queue, live monitor, settings</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {err&&<span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[280px] truncate" title={err}>{err}</span>}
+          <button onClick={fetchAll} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-50">{loading&&<Spin />}{loading?'Refreshing':'Refresh'}</button>
+        </div>
+      </div>
 
-  <div className="flex gap-1 bg-[#0a0f14] border border-white/[0.04] rounded-xl p-1 w-fit">{TABS.map(t=>(<button key={t.k} onClick={()=>setTab(t.k)} className={'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all '+((tab===t.k)?'bg-white/[0.05] text-white':'text-slate-500 hover:text-slate-300')}><t.i size={14}/>{t.l}</button>))}</div>
+      <div className="inline-flex gap-1 bg-slate-100 border border-line rounded-lg p-1">
+        {TABS.map(t=>(
+          <button key={t.k} onClick={()=>setTab(t.k)} className={'inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors '+((tab===t.k)?'bg-surface text-ink shadow-sm':'text-muted hover:text-ink')}><t.i size={14} strokeWidth={1.75} />{t.l}</button>
+        ))}
+      </div>
 
-  {tab==='monitor'&&(<div className="space-y-6">
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-      <div className="bg-[#0a0f14] border border-white/[0.04] rounded-2xl p-5"><div className="flex items-center gap-2 mb-3"><div className={'w-2 h-2 rounded-full '+(isF?'bg-emerald-400 animate-pulse':'bg-slate-600')}/><span className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Status</span></div><span className={'inline-flex px-2.5 py-1 rounded-lg text-[11px] font-bold '+(isF?'bg-emerald-500/10 text-emerald-400':round?.status==='crashed'?'bg-red-500/10 text-red-400':'bg-slate-500/10 text-slate-400')}>{round?.status?.toUpperCase()||'—'}</span><div className="text-[10px] text-slate-600 mt-2">Source: <span className="text-slate-400 font-mono">{round?.source||'algorithm'}</span></div></div>
-      <div className="bg-[#0a0f14] border border-white/[0.04] rounded-2xl p-5"><div className="flex items-center gap-2 mb-3"><TrendingUp size={14} className={isF?'text-emerald-400':'text-slate-600'}/><span className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Multiplier</span></div><div className={'text-2xl font-black font-mono tabular-nums '+(isF?'text-emerald-400':'text-slate-300')}>{isF?formatMultiplier(mult):formatMultiplier(Number(round?.crash_multiplier??1))}</div>{isF&&<div className="text-[10px] text-amber-400/80 font-medium mt-1">Crash at {Number(round?.crash_multiplier).toFixed(2)}x</div>}</div>
-      <div className="bg-[#0a0f14] border border-white/[0.04] rounded-2xl p-5"><div className="flex items-center gap-2 mb-3"><Clock size={14} className="text-slate-600"/><span className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Elapsed</span></div><div className="text-2xl font-black text-white tabular-nums">{isF&&round?.started_at?elapsed(round.started_at)+'s':'—'}</div>{round?.crashed_at&&<div className="text-[10px] text-slate-600 mt-1">Crashed {new Date(round.crashed_at).toLocaleTimeString()}</div>}</div>
-      <div className="bg-[#0a0f14] border border-white/[0.04] rounded-2xl p-5"><div className="flex items-center gap-2 mb-3"><Users size={14} className="text-slate-600"/><span className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Exposure</span></div><div className="flex items-baseline gap-1.5"><span className="text-2xl font-black text-white tabular-nums">{isF?bCnt:'—'}</span><span className="text-[11px] text-slate-500">bets</span></div><div className="text-[10px] text-slate-500 font-mono mt-1">{isF?'KSh '+fmtKES(bTot):'—'}</div></div>
+      {tab==='monitor'&&(<div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <div className="flex items-center justify-between"><span className={CAP}>Status</span><span className={'h-2 w-2 rounded-full '+(isF?'bg-up animate-pulse':round?.status==='crashed'?'bg-down':'bg-faint')} /></div>
+            <div className="mt-3"><span className={'inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold '+(isF?'bg-emerald-50 text-up':round?.status==='crashed'?'bg-rose-50 text-down':'bg-slate-100 text-muted')}>{round?.status?.toUpperCase()||'—'}</span></div>
+            <div className="text-[11px] text-muted mt-2">Source: <span className="text-ink font-mono">{round?.source||'algorithm'}</span></div>
+          </div>
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <span className={CAP}>Multiplier</span>
+            <div className={'mt-3 text-2xl font-semibold font-mono tabular-nums '+(isF?'text-up':'text-ink')}>{isF?formatMultiplier(mult):formatMultiplier(Number(round?.crash_multiplier??1))}</div>
+            {isF&&<div className="text-[11px] text-amber-600 font-medium mt-1">Crash at {Number(round?.crash_multiplier).toFixed(2)}x</div>}
+          </div>
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <span className={CAP}>Elapsed</span>
+            <div className="mt-3 text-2xl font-semibold text-ink tabular-nums">{isF&&round?.started_at?elapsed(round.started_at)+'s':'—'}</div>
+            {round?.crashed_at&&<div className="text-[11px] text-muted mt-1">Crashed {new Date(round.crashed_at).toLocaleTimeString()}</div>}
+          </div>
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <span className={CAP}>Exposure</span>
+            <div className="mt-3 flex items-baseline gap-1.5"><span className="text-2xl font-semibold text-ink tabular-nums">{isF?bCnt:'—'}</span><span className="text-[11px] text-muted">bets</span></div>
+            <div className="text-[11px] text-muted mt-1 font-mono">{isF?'KSh '+fmtKES(bTot):'—'}</div>
+          </div>
+        </div>
+        {isF&&(<div className="rounded-xl border border-rose-200 bg-rose-50/40 p-5 flex items-center justify-between gap-4 flex-wrap">
+          <div><div className="text-ink font-semibold text-sm">Emergency: Force Crash</div><p className="text-[12px] text-muted mt-1">Crashes at current multiplier. All active bets lose. Audited.</p></div>
+          <button onClick={()=>setShFC(true)} className="px-4 py-2.5 bg-down hover:brightness-95 text-white font-semibold text-sm rounded-lg transition flex-shrink-0">Force Crash Now</button>
+        </div>)}
+        {!round&&!loading&&(<div className="rounded-xl border border-line bg-surface p-16 text-center"><div className="text-ink font-semibold text-lg">Waiting for game activity</div><div className="text-[13px] text-muted mt-1">Open the game in another tab to start a round</div></div>)}
+        {zCnt>0&&(<div className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3"><span className="h-2 w-2 rounded-full bg-amber-500" /><div><div className="text-ink font-semibold text-sm">{zCnt} zombie round{zCnt!==1?'s':''} detected</div><div className="text-[12px] text-muted">Stuck 2+ minutes. Recover to mark as crashed.</div></div></div>
+          <button onClick={()=>setShRc(true)} className="px-4 py-2.5 rounded-lg border border-amber-300 bg-amber-100 text-amber-700 font-semibold text-sm hover:bg-amber-200 transition-colors">Recover All</button>
+        </div>)}
+      </div>)}
+
+      {tab==='queue'&&(<div className="space-y-6">
+        <div className="rounded-xl border border-line bg-surface p-6 space-y-4">
+          <div className="flex gap-3">
+            <input type="number" value={sVal} onChange={e=>setSVal(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addSingle()} placeholder="1-80" min={MIN_C} max={MAX_C} step="0.01" className="flex-1 px-4 py-3 bg-surface border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
+            <button onClick={addSingle} disabled={lock==='as'||!sVal.trim()} className="inline-flex items-center gap-2 px-5 py-3 bg-brand hover:bg-brand-dark text-white font-semibold text-sm rounded-lg transition-colors disabled:opacity-40 flex-shrink-0">{lock==='as'&&<Spin />}Add</button>
+          </div>
+          <details className="group">
+            <summary className="text-[12px] text-muted cursor-pointer hover:text-ink">Batch add (one per line, comma-separated)</summary>
+            <div className="mt-3 space-y-3">
+              <textarea value={bVal} onChange={e=>setBVal(e.target.value)} placeholder="1.23,4.56,12.00" rows={3} className="w-full px-4 py-3 bg-surface border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 resize-none transition" />
+              <button onClick={addBatch} disabled={lock==='ab'||!bVal.trim()} className="inline-flex items-center gap-2 px-4 py-2.5 border border-line bg-surface hover:border-brand/40 hover:text-brand text-ink font-semibold text-sm rounded-lg transition-colors disabled:opacity-40">{lock==='ab'&&<Spin />}Add {bVal.trim()?bVal.split(/[\n,]+/).filter((l:string)=>l.trim()).length:0} items</button>
+            </div>
+          </details>
+        </div>
+        <div className="rounded-xl border border-line bg-surface overflow-hidden">
+          <div className="overflow-x-auto max-h-[360px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-surface"><tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
+                <th className="text-left px-5 py-3 font-medium w-12">#</th><th className="text-left px-5 py-3 font-medium">Multiplier</th><th className="text-left px-5 py-3 font-medium">Status</th><th className="text-left px-5 py-3 font-medium hidden lg:table-cell">Added</th><th className="text-right px-5 py-3 font-medium w-24" />
+              </tr></thead>
+              <tbody className="divide-y divide-line">
+                {queue.length===0?(<tr><td colSpan={5} className="px-5 py-16 text-center text-faint text-[12px]">Queue empty — crash points come from algorithm</td></tr>):queue.map(q=>(
+                  <tr key={q.id} className="hover:bg-canvas transition-colors">
+                    <td className="px-5 py-3 text-muted font-mono text-xs">{q.position}</td>
+                    <td className="px-5 py-3 text-ink font-mono font-semibold">{Number(q.crash_point).toFixed(2)}x</td>
+                    <td className="px-5 py-3"><span className={'inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold '+(q.status==='pending'?'bg-brand/10 text-brand':q.status==='used'?'bg-emerald-50 text-up':'bg-slate-100 text-muted')}>{q.status}</span></td>
+                    <td className="px-5 py-3 text-muted text-xs hidden lg:table-cell">{new Date(q.created_at).toLocaleTimeString()}</td>
+                    <td className="px-5 py-3 text-right"><button onClick={()=>removeQ(q.id,q.crash_point)} disabled={lock==='rm-'+q.id||q.status!=='pending'} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted hover:text-down disabled:opacity-30 transition-colors">{lock==='rm-'+q.id&&<Spin />}Remove</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {pendingQ.length>0&&(<div className="px-5 py-3 border-t border-line flex items-center justify-between"><span className="text-[11px] text-muted">{pendingQ.length} pending</span><button onClick={()=>setShCl(true)} className="px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-down text-[11px] font-medium hover:bg-rose-100 transition-colors">Clear All</button></div>)}
+        </div>
+      </div>)}
+
+      {tab==='params'&&(<div className="rounded-xl border border-line bg-surface overflow-hidden">{gSet.length===0?(<div className="p-16 text-center text-faint text-[12px]">No game settings found</div>):(<div className="divide-y divide-line">{gSet.map(s=>{const changed=ev[s.key]!==String(s.value);return(
+        <div key={s.key} className="px-6 py-5 flex items-center justify-between gap-6 hover:bg-canvas transition-colors">
+          <div className="min-w-0 flex-1"><div className="text-[13px] text-ink font-mono">{s.key.replace('game.','')}</div>{s.description&&<div className="text-[11px] text-muted mt-1">{s.description}</div>}</div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <input type="text" value={ev[s.key]??String(s.value)} onChange={e=>setEv(prev=>({...prev,[s.key]:e.target.value}))} className={'w-24 px-3 py-2 bg-surface border rounded-lg text-sm text-right text-ink font-mono focus:outline-none transition '+(changed?'border-brand/50 ring-1 ring-brand/20':'border-line')} />
+            {changed&&(<><button onClick={()=>saveS(s.key)} disabled={saving===s.key} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-40">{saving===s.key?'Saving':'Save'}</button><button onClick={()=>setEv(prev=>({...prev,[s.key]:String(s.value)}))} className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-line text-muted hover:text-ink transition-colors">Reset</button></>)}
+          </div>
+        </div>
+      )})}</div>)}</div>)}
+
+      {shFC&&<Modal title="Force Crash" msg={'Crash round at '+formatMultiplier(mult)+'? All active bets will lose. This cannot be undone.'} btn="Force Crash" color="bg-down hover:brightness-95" loading={lock==='fc'} onConfirm={forceCrash} onCancel={()=>setShFC(false)} />}
+      {shRc&&<Modal title="Recover Zombie Rounds" msg={'Mark '+zCnt+' stuck round(s) as crashed? These never completed (browser closed mid-flight).'} btn="Recover All" color="bg-amber-600 hover:bg-amber-700" loading={lock==='rc'} onConfirm={recoverZ} onCancel={()=>setShRc(false)} />}
+      {shCl&&<Modal title="Clear Queue" msg={'Remove all '+pendingQ.length+' pending crash point(s)? This cannot be undone.'} btn="Clear All" color="bg-down hover:brightness-95" loading={lock==='cq'} onConfirm={clearQ} onCancel={()=>setShCl(false)} />}
     </div>
-    {isF&&(<div className="bg-[#0a0f14] border border-red-500/10 rounded-2xl p-5"><div className="flex items-center justify-between"><div><div className="flex items-center gap-2"><Zap size={15} className="text-red-400"/><span className="text-white font-semibold text-sm">Emergency: Force Crash</span></div><p className="text-[11px] text-slate-500 mt-1">Crashes at current multiplier. All active bets lose. Audited.</p></div><button onClick={()=>setShFC(true)} className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition flex items-center gap-2 flex-shrink-0"><Zap size={14}/>Force Crash Now</button></div></div>)}
-    {!round&&!loading&&(<div className="bg-[#0a0f14] border border-white/[0.04] rounded-2xl p-16 text-center"><div className="text-4xl mb-4 opacity-30">👁️</div><div className="text-white font-semibold text-lg">Waiting for game activity</div><div className="text-[13px] text-slate-500 mt-1">Open the game in another tab to start a round</div></div>)}
-    {zCnt>0&&(<div className="bg-amber-500/[0.03] border border-amber-500/10 rounded-2xl p-5 flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center"><AlertTriangle size={16} className="text-amber-400"/></div><div><div className="text-white font-semibold text-sm">{zCnt} zombie round{zCnt!==1?'s':''} detected</div><div className="text-[11px] text-slate-500">Stuck 2+ minutes. Recover to mark as crashed.</div></div></div><button onClick={()=>setShRc(true)} className="px-4 py-2.5 bg-amber-600/20 border border-amber-500/30 rounded-xl text-amber-400 font-semibold text-sm hover:bg-amber-600/30 transition">Recover All</button></div>)}
-  </div>)}
+  </div>);}
 
-  {tab==='queue'&&(<div className="space-y-6"><div className="bg-[#0a0f14] border border-white/[0.04] rounded-2xl p-6 space-y-4"><div className="flex gap-3"><input type="number" value={sVal} onChange={e=>setSVal(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addSingle()} placeholder="1-80" min={MIN_C} max={MAX_C} step="0.01" className="flex-1 px-4 py-3 bg-[#060a0e] border border-white/[0.05] rounded-xl text-sm text-white font-mono placeholder:text-slate-700 focus:outline-none focus:border-[#c8001c]/40 transition"/><button onClick={addSingle} disabled={lock==='as'||!sVal.trim()} className="px-5 py-3 bg-[#c8001c] hover:bg-[#a50018] text-white font-semibold text-sm rounded-xl transition disabled:opacity-40 flex items-center gap-2 flex-shrink-0">{lock==='as'?<Loader2 size={14} className="animate-spin"/>:<Plus size={14}/>}Add</button></div><details className="group"><summary className="text-[12px] text-slate-500 cursor-pointer hover:text-slate-400">Batch add (one per line, comma-separated)</summary><div className="mt-3 space-y-3"><textarea value={bVal} onChange={e=>setBVal(e.target.value)} placeholder="1.23,4.56,12.00" rows={3} className="w-full px-4 py-3 bg-[#060a0e] border border-white/[0.05] rounded-xl text-sm text-white font-mono placeholder:text-slate-700 focus:outline-none focus:border-[#c8001c]/40 resize-none"/><button onClick={addBatch} disabled={lock==='ab'||!bVal.trim()} className="px-4 py-2.5 bg-white/[0.03] border border-white/[0.06] hover:border-[#c8001c]/30 text-white font-semibold text-sm rounded-xl transition disabled:opacity-40 flex items-center gap-2">{lock==='ab'?<Loader2 size={14} className="animate-spin"/>:<Plus size={14}/>}Add {bVal.trim()?bVal.split(/[\n,]+/).filter((l:string)=>l.trim()).length:0} items</button></div></details></div>
-    <div className="bg-[#0a0f14] border border-white/[0.04] rounded-2xl overflow-hidden"><div className="overflow-x-auto max-h-[360px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-[#0a0f14]"><tr className="text-slate-500 text-[11px] border-b border-white/[0.04]"><th className="text-left px-5 py-3 font-medium w-12">#</th><th className="text-left px-5 py-3 font-medium">Multiplier</th><th className="text-left px-5 py-3 font-medium">Status</th><th className="text-left px-5 py-3 font-medium hidden lg:table-cell">Added</th><th className="text-right px-5 py-3 font-medium w-12"/></tr></thead><tbody>{queue.length===0?(<tr><td colSpan={5} className="px-5 py-16 text-center text-slate-600 text-[12px]">Queue empty — crash points come from algorithm</td></tr>):queue.map(q=>(<tr key={q.id} className="border-b border-white/[0.02] hover:bg-white/[0.01]"><td className="px-5 py-3 text-slate-600 font-mono text-xs">{q.position}</td><td className="px-5 py-3 text-white font-mono font-bold">{Number(q.crash_point).toFixed(2)}x</td><td className="px-5 py-3"><span className={'inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold '+(q.status==='pending'?'bg-blue-500/10 text-blue-400':q.status==='used'?'bg-emerald-500/10 text-emerald-400':'bg-slate-500/10 text-slate-500')}>{q.status}</span></td><td className="px-5 py-3 text-slate-600 text-xs hidden lg:table-cell">{new Date(q.created_at).toLocaleTimeString()}</td><td className="px-5 py-3 text-right"><button onClick={()=>removeQ(q.id,q.crash_point)} disabled={lock==='rm-'+q.id||q.status!=='pending'} className="p-1.5 text-slate-700 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition disabled:opacity-20">{lock==='rm-'+q.id?<Loader2 size={13} className="animate-spin"/>:<Trash2 size={13}/>}</button></td></tr>))}</tbody></table></div>{pendingQ.length>0&&(<div className="px-5 py-3 border-t border-white/[0.04] flex items-center justify-between"><span className="text-[11px] text-slate-500">{pendingQ.length} pending</span><button onClick={()=>setShCl(true)} className="px-3 py-1.5 bg-red-500/[0.06] border border-red-500/15 rounded-lg text-red-400 text-[11px] font-medium hover:bg-red-500/15 transition flex items-center gap-1.5"><Trash2 size={11}/>Clear All</button></div>)}</div></div>)}
-
-  {tab==='params'&&(<div className="bg-[#0a0f14] border border-white/[0.04] rounded-2xl overflow-hidden">{gSet.length===0?(<div className="p-16 text-center text-slate-600 text-[12px]">No game settings found</div>):(<div className="divide-y divide-white/[0.03]">{gSet.map(s=>{const changed=ev[s.key]!==String(s.value);return(<div key={s.key} className="px-6 py-5 flex items-center justify-between gap-6 hover:bg-white/[0.01]"><div className="min-w-0 flex-1"><div className="text-sm text-white font-mono">{s.key.replace('game.','')}</div>{s.description&&<div className="text-[11px] text-slate-600 mt-1">{s.description}</div>}</div><div className="flex items-center gap-2 flex-shrink-0"><input type="text" value={ev[s.key]??String(s.value)} onChange={e=>setEv(prev=>({...prev,[s.key]:e.target.value}))} className={'w-20 px-3 py-2 bg-[#060a0e] border rounded-lg text-sm text-right text-white font-mono focus:outline-none transition '+(changed?'border-amber-500/30 ring-1 ring-amber-500/10':'border-white/[0.05]')}/>{changed&&(<><button onClick={()=>saveS(s.key)} disabled={saving===s.key} className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 hover:bg-emerald-500/20 transition disabled:opacity-40">{saving===s.key?<Loader2 size={12} className="animate-spin"/>:<CheckCircle size={12}/>}</button><button onClick={()=>setEv(prev=>({...prev,[s.key]:String(s.value)}))} className="p-2 bg-slate-500/10 border border-slate-500/20 rounded-lg text-slate-500 hover:text-slate-400 transition"><X size={12}/></button></>)}</div></div>)})}</div>)}</div>)}
-
-  {shFC&&<Modal title="Force Crash" msg={'Crash round at '+formatMultiplier(mult)+'? All active bets will lose. This cannot be undone.'} btn="Force Crash" color="bg-red-600 hover:bg-red-700" loading={lock==='fc'} onConfirm={forceCrash} onCancel={()=>setShFC(false)}/>}
-  {shRc&&<Modal title="Recover Zombie Rounds" msg={'Mark '+zCnt+' stuck round(s) as crashed? These never completed (browser closed mid-flight).'} btn="Recover All" color="bg-amber-600 hover:bg-amber-700" loading={lock==='rc'} onConfirm={recoverZ} onCancel={()=>setShRc(false)}/>}
-  {shCl&&<Modal title="Clear Queue" msg={'Remove all '+pendingQ.length+' pending crash point(s)? This cannot be undone.'} btn="Clear All" color="bg-red-600 hover:bg-red-700" loading={lock==='cq'} onConfirm={clearQ} onCancel={()=>setShCl(false)}/>}
-</div>);}
-
-function Modal({title,msg,btn,color,loading,onConfirm,onCancel}:any){return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onCancel}><div className="bg-[#0a0f14] border border-white/[0.06] rounded-2xl p-7 w-full max-w-sm shadow-2xl" onClick={e=>e.stopPropagation()}><h3 className="text-white font-bold text-lg">{title}</h3><p className="text-slate-400 text-[13px] mt-3 leading-relaxed">{msg}</p><div className="flex gap-3 mt-6"><button onClick={onCancel} disabled={loading} className="flex-1 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-slate-400 font-semibold text-sm hover:text-white transition disabled:opacity-40">Cancel</button><button onClick={onConfirm} disabled={loading} className={'flex-1 py-3 rounded-xl text-white font-semibold text-sm transition disabled:opacity-40 flex items-center justify-center gap-2 '+color}>{loading&&<Loader2 size={14} className="animate-spin"/>}{btn}</button></div></div></div>)}
+function Modal({title,msg,btn,color,loading,onConfirm,onCancel}:any){return(
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={onCancel}>
+    <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e=>e.stopPropagation()}>
+      <h3 className="text-ink font-semibold text-lg">{title}</h3>
+      <p className="text-muted text-[13px] mt-3 leading-relaxed">{msg}</p>
+      <div className="flex gap-3 mt-6">
+        <button onClick={onCancel} disabled={loading} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
+        <button onClick={onConfirm} disabled={loading} className={'flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 '+color}>{loading&&<Spin />}{btn}</button>
+      </div>
+    </div>
+  </div>
+);}
