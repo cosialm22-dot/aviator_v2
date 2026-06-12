@@ -40,36 +40,55 @@ class MessageQueue {
 
 const msgQueue = new MessageQueue();
 
+// How close to the bottom (px) still counts as "pinned to newest".
+const STICK_THRESHOLD_PX = 48;
+
 export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput]       = useState('');
   const [sending, setSending]   = useState(false);
-  const endRef   = useRef<HTMLDivElement>(null);
-  const listRef  = useRef<HTMLDivElement>(null);
-  const atBottom = useRef(true);
 
-  const onScroll = () => {
+  const listRef    = useRef<HTMLDivElement>(null);
+  const pinnedRef  = useRef(true);   // is the view currently pinned to the newest message?
+  const forceRef   = useRef(true);   // next auto-scroll must jump instantly (initial load / own send)
+
+  // Track whether the user is pinned to the bottom. When they scroll up to read
+  // history we stop auto-following so we never yank them away.
+  const onScroll = useCallback(() => {
     const el = listRef.current;
     if (!el) return;
-    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-  };
-
-  const scrollToBottom = useCallback((force = false) => {
-    if (force || atBottom.current) endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_THRESHOLD_PX;
   }, []);
 
-  // Load last 50 real messages on mount
+  // SINGLE source of truth for auto-scroll. Runs after every message change.
+  // - forceRef: instant jump (initial load, the user's own message) — no animation.
+  // - otherwise: smooth follow, but only while pinned to the newest message.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const force = forceRef.current;
+    forceRef.current = false;
+    if (!force && !pinnedRef.current) return;
+    const behavior: ScrollBehavior = force ? 'auto' : 'smooth';
+    // rAF: let the new message lay out before measuring scrollHeight.
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior });
+      pinnedRef.current = true;
+    });
+  }, [messages]);
+
+  // Load last 50 real messages on mount (instant jump to newest)
   useEffect(() => {
     supabase
       .from('chat_messages').select('*')
       .order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => {
         if (data) {
+          forceRef.current = true;
           setMessages((data as ChatMessage[]).reverse());
-          setTimeout(() => scrollToBottom(true), 50);
         }
       });
-  }, [scrollToBottom]);
+  }, []);
 
   // Supabase Realtime — new real messages from other signed-in users
   useEffect(() => {
@@ -78,13 +97,12 @@ export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Prop
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
         const msg = payload.new as ChatMessage;
         setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev.slice(-99), msg]);
-        scrollToBottom();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [scrollToBottom]);
+  }, []);
 
-  // Bot messages — seeded then scheduled randomly every 2–5s
+  // Bot messages — seeded then scheduled randomly every ~2–5s
   useEffect(() => {
     // Seed 8 staggered opening messages
     const seed = Array.from({ length: 8 }, () => msgQueue.next());
@@ -92,19 +110,15 @@ export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Prop
 
     let timer: ReturnType<typeof setTimeout>;
     const schedule = () => {
-      // Variable interval: sometimes fast (active feel), sometimes slow
       const delay = 1800 + Math.random() * 3800;
       timer = setTimeout(() => {
         setMessages(prev => [...prev.slice(-120), msgQueue.next()]);
-        scrollToBottom();
         schedule();
       }, delay);
     };
     schedule();
     return () => clearTimeout(timer);
-  }, [scrollToBottom]);
-
-  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
+  }, []);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -112,8 +126,8 @@ export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Prop
     setInput('');
     setSending(true);
     const optimistic: ChatMessage = { id: `opt-${Date.now()}`, user_id: userId, username, avatar_color: avatarColor, text, created_at: new Date().toISOString() };
+    forceRef.current = true; // always follow our own message
     setMessages(prev => [...prev.slice(-120), optimistic]);
-    scrollToBottom(true);
     await supabase.from('chat_messages').insert({ user_id: userId, username, avatar_color: avatarColor, text });
     setSending(false);
   };
@@ -154,7 +168,6 @@ export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Prop
             </div>
           </div>
         ))}
-        <div ref={endRef} />
       </div>
 
       {/* Input */}
