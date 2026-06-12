@@ -63,7 +63,7 @@ export default function DashboardPage() {
       const pending = wR.data ?? [];
       setS({
         revenue, players: pR.count ?? 0, bets: bets.length,
-        houseEdge: Math.round(wagered > 0 ? (revenue / wagered) * 1000) / 10,
+        houseEdge: Math.round(wagered > 0 ? revenue / wagered * 1000 : 0) / 10,
         pendingCount: pending.length,
         pendingAmount: pending.reduce((x: number, p: any) => x + Number(p.amount), 0),
         zombies: zR.count ?? 0,
