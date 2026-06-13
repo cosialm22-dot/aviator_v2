@@ -1,19 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useAdmin } from '../roleContext';
 import type { AdminCommissionOverview, AdminCommissionPayoutRow } from '../../types/marketing';
 
 // ============================================================================
-// CommissionsPage - admin review of marketer commission payouts.
+// CommissionsPage - admin review & settlement of marketer commission payouts.
+// Rendered as the "Commissions" tab of the Marketing hub (embedded), so it omits
+// its own page header. Program settings (commission rate, qualifying deposit) are
+// owned by the Overview tab - this page is strictly the payout queue.
 // Data path (all authorisation + audit server-side, SECURITY DEFINER):
 //   • overview -> admin_commission_overview()                 [_is_admin]
 //   • list     -> admin_list_commission_payouts(status,limit,offset)
 //   • approve  -> admin_review_commission_payout(id,true,note)  pending -> approved
 //   • reject   -> admin_review_commission_payout(id,false,reason) pending -> rejected
 //   • record   -> admin_record_commission_payout(id,receipt)   approved -> paid
-//   • set rate -> admin_set_commission_rate(rate)             [_is_super_admin]
-// Approve only authorises; the actual M-Pesa B2C disbursement is performed
-// out-of-band, then its receipt is recorded here to move the row to 'paid'.
+// Approve only authorises; the actual M-Pesa B2C disbursement happens out-of-band,
+// then its receipt is recorded here to move the row to 'paid'.
 // ============================================================================
 
 type StatusTab = 'pending' | 'approved' | 'paid' | 'rejected' | 'all';
@@ -41,7 +42,6 @@ function friendly(code: string): string {
     NOT_APPROVED: 'This payout is not in the approved state. Refresh the queue.',
     REASON_REQUIRED: 'A rejection reason is required.',
     RECEIPT_REQUIRED: 'An M-Pesa receipt is required.',
-    INVALID_RATE: 'Rate must be between 0% and 100%.',
     network: 'Connection error. Check your internet and try again.',
   };
   for (const k of Object.keys(map)) if (code.includes(k)) return map[k];
@@ -67,8 +67,7 @@ function payoutBadge(s: string): string {
   }
 }
 
-export default function CommissionsPage() {
-  const { isSuperAdmin } = useAdmin();
+export default function CommissionsPage({ embedded = false }: { embedded?: boolean }) {
   const [tab, setTab] = useState<StatusTab>('pending');
   const [rows, setRows] = useState<AdminCommissionPayoutRow[]>([]);
   const [overview, setOverview] = useState<AdminCommissionOverview | null>(null);
@@ -83,10 +82,6 @@ export default function CommissionsPage() {
   const [recordRow, setRecordRow] = useState<AdminCommissionPayoutRow | null>(null);
   const [receipt, setReceipt] = useState('');
 
-  // rate editor
-  const [ratePct, setRatePct] = useState('');
-  const [savingRate, setSavingRate] = useState(false);
-
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setErr(null);
@@ -95,11 +90,7 @@ export default function CommissionsPage() {
       supabase.rpc('admin_list_commission_payouts', { p_status: tab === 'all' ? null : tab, p_limit: 200, p_offset: 0 }),
     ]);
     if (ovRes.error) setErr(friendly(ovRes.error.message));
-    else {
-      const ov = ovRes.data as AdminCommissionOverview;
-      setOverview(ov);
-      setRatePct(String(+(ov.commission_rate * 100).toFixed(2)));
-    }
+    else setOverview(ovRes.data as AdminCommissionOverview);
     if (listRes.error) { setErr(friendly(listRes.error.message)); setRows([]); }
     else setRows((listRes.data ?? []) as AdminCommissionPayoutRow[]);
     setLoading(false);
@@ -139,26 +130,12 @@ export default function CommissionsPage() {
     } catch (e) { setErr(errMsg(e, 'Could not record receipt.')); } finally { setBusyId(null); }
   }
 
-  async function saveRate(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null); setNotice(null);
-    const pct = Number(ratePct);
-    if (!Number.isFinite(pct) || pct < 0 || pct > 100) { setErr('Rate must be between 0% and 100%.'); return; }
-    setSavingRate(true);
-    try {
-      const { error } = await supabase.rpc('admin_set_commission_rate', { p_rate: pct / 100 });
-      if (error) throw new Error(friendly(error.message));
-      setNotice(`Commission rate updated to ${pct}%.`);
-      await fetchAll();
-    } catch (e2) { setErr(errMsg(e2, 'Could not update rate.')); } finally { setSavingRate(false); }
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-[22px] font-semibold text-ink tracking-tight">Commissions</h1>
+          {!embedded && <h1 className="text-[22px] font-semibold text-ink tracking-tight">Commissions</h1>}
           <p className="text-[13px] text-muted mt-1">Review and settle marketer affiliate payouts</p>
         </div>
         <div className="flex items-center gap-3">
@@ -184,33 +161,6 @@ export default function CommissionsPage() {
           <div className={HEAD}>Total Paid</div>
           <div className="mt-2 text-2xl font-semibold text-ink tabular-nums">{fmtKsh(overview?.paid_total ?? 0)}</div>
         </div>
-      </div>
-
-      {/* Commission rate (super_admin only) */}
-      <div className="rounded-xl border border-line bg-surface p-5">
-        <div className={HEAD}>Commission Rate (revenue share of referred players' GGR)</div>
-        {isSuperAdmin ? (
-          <form onSubmit={saveRate} className="mt-3 flex items-end gap-3">
-            <div>
-              <div className="relative">
-                <input
-                  type="number" min={0} max={100} step="0.01" value={ratePct}
-                  onChange={e => setRatePct(e.target.value)}
-                  className="w-32 px-3 py-2.5 pr-8 bg-surface border border-line rounded-lg text-sm text-ink text-right tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
-              </div>
-            </div>
-            <button type="submit" disabled={savingRate} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[13px] font-semibold transition-colors disabled:opacity-50">
-              {savingRate && <Spin />}Save rate
-            </button>
-          </form>
-        ) : (
-          <div className="mt-2 text-2xl font-semibold text-ink tabular-nums">
-            {((overview?.commission_rate ?? 0) * 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}%
-            <span className="ml-2 text-[12px] font-normal text-faint">set by a super admin</span>
-          </div>
-        )}
       </div>
 
       {/* Status tabs */}

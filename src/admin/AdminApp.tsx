@@ -10,7 +10,7 @@ import WithdrawalsPage from './pages/WithdrawalsPage';
 import FinancePage from './pages/FinancePage';
 import SettingsPage from './pages/SettingsPage';
 import MarketingPage from './pages/MarketingPage';
-import CommissionsPage from './pages/CommissionsPage';
+import MarketingAdminPage from './pages/MarketingAdminPage';
 import { useAdmin, canAccess, type Section } from './roleContext';
 
 // Route-level authorisation (defence in depth alongside the hidden nav items):
@@ -29,6 +29,14 @@ function Landing() {
   return <DashboardPage />;
 }
 
+// The /admin/marketing route is shared: marketers see their own affiliate
+// dashboard; operators see the Marketing management hub. One nav item, one
+// route, role-appropriate content (mirrors the Landing dispatch above).
+function MarketingRouter() {
+  const { role } = useAdmin();
+  return role === 'marketer' ? <MarketingPage /> : <MarketingAdminPage />;
+}
+
 export default function AdminApp() {
   return (
     <AdminGuard>
@@ -36,8 +44,9 @@ export default function AdminApp() {
         <Routes>
           <Route index element={<Landing />} />
           <Route path="dashboard" element={<RequireSection section="dashboard"><DashboardPage /></RequireSection>} />
-          <Route path="marketing" element={<RequireSection section="marketing"><MarketingPage /></RequireSection>} />
-          <Route path="commissions" element={<RequireSection section="commissions"><CommissionsPage /></RequireSection>} />
+          <Route path="marketing" element={<RequireSection section="marketing"><MarketingRouter /></RequireSection>} />
+          {/* Commissions folded into the Marketing hub; keep the old path as a deep link. */}
+          <Route path="commissions" element={<Navigate to="/admin/marketing?tab=commissions" replace />} />
           <Route path="users" element={<RequireSection section="users"><UsersPage /></RequireSection>} />
           <Route path="users/:userId" element={<RequireSection section="users"><UserDetailPage /></RequireSection>} />
           <Route path="game" element={<RequireSection section="game"><GameControlPage /></RequireSection>} />

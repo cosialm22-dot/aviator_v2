@@ -27,8 +27,11 @@ const ACCESS: Record<Section, Role[]> = {
   finance:     ['super_admin', 'admin'],
   settings:    ['super_admin'],
   staff:       ['super_admin'],
-  marketing:   ['marketer'],                 // the marketer's own affiliate dashboard
-  commissions: ['super_admin', 'admin'],     // commission payout review (rate edits: super_admin)
+  // Shared route: marketers get their own dashboard, operators get the admin
+  // Marketing hub (affiliates + promotions + commissions). Content is dispatched
+  // by role in AdminApp; this only governs who may open /admin/marketing.
+  marketing:   ['super_admin', 'admin', 'marketer'],
+  commissions: ['super_admin', 'admin'],     // legacy section; route now redirects into the hub
 };
 
 export function canAccess(role: Role | null | undefined, section: Section): boolean {
