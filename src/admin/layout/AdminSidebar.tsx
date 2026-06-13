@@ -1,19 +1,27 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, Coins } from 'lucide-react';
-import { useAdmin, canAccess, type Section } from '../roleContext';
+import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone } from 'lucide-react';
+import { useAdmin, canAccess, type Role, type Section } from '../roleContext';
 
+// `marketing` is one nav item that resolves to a marketer's own dashboard or the
+// admin Marketing hub depending on role (see AdminApp.MarketingRouter), so its
+// label is role-aware. Commissions is no longer a top-level item - it is a tab
+// inside the Marketing hub.
 const NAV: { icon: typeof LayoutDashboard; label: string; path: string; section: Section }[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', section: 'dashboard' },
-  { icon: Megaphone, label: 'My Marketing', path: '/admin/marketing', section: 'marketing' },
+  { icon: Megaphone, label: 'Marketing', path: '/admin/marketing', section: 'marketing' },
   { icon: Users, label: 'Players', path: '/admin/users', section: 'users' },
   { icon: Gamepad2, label: 'Game Control', path: '/admin/game', section: 'game' },
   { icon: Banknote, label: 'Withdrawals', path: '/admin/withdrawals', section: 'withdrawals' },
-  { icon: Coins, label: 'Commissions', path: '/admin/commissions', section: 'commissions' },
   { icon: Wallet, label: 'Finance', path: '/admin/finance', section: 'finance' },
   { icon: Settings, label: 'Settings', path: '/admin/settings', section: 'settings' },
 ];
+
+function navLabel(label: string, role: Role): string {
+  if (label === 'Marketing' && role === 'marketer') return 'My Marketing';
+  return label;
+}
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Super Admin',
@@ -75,7 +83,7 @@ export default function AdminSidebar() {
               className={'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors ' + (active ? 'bg-white/10 text-white font-medium' : 'text-white/55 hover:text-white hover:bg-white/[0.06]')}
             >
               {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-gold" />}
-              <Icon size={16} strokeWidth={1.75} />{label}
+              <Icon size={16} strokeWidth={1.75} />{navLabel(label, role)}
               {badge && (
                 <span
                   aria-label={`${pending} pending withdrawals`}
