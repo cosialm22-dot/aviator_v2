@@ -86,6 +86,16 @@ export function useAuth() {
     if (wal) setWallet(wal as Wallet);
   }, []);
 
+  // Capture an affiliate referral code from the landing URL (?ref=CODE) and
+  // persist it so it survives navigation before the user actually signs up.
+  // Consumed (and cleared) by signUp; threaded to the DB via signup metadata.
+  useEffect(() => {
+    try {
+      const ref = new URLSearchParams(window.location.search).get('ref');
+      if (ref && ref.trim()) localStorage.setItem('aviator_ref', ref.trim());
+    } catch { /* localStorage/URL unavailable - referral simply not captured */ }
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -116,11 +126,15 @@ export function useAuth() {
     const colors = ['#ef4444', '#f97316', '#22c55e', '#06b6d4', '#3b82f6', '#ec4899', '#f59e0b', '#a855f7', '#14b8a6'];
     const avatar_color = colors[Math.floor(Math.random() * colors.length)];
 
+    // Optional affiliate referral code captured from ?ref= on a prior page load.
+    let referral_code: string | undefined;
+    try { referral_code = localStorage.getItem('aviator_ref') || undefined; } catch { /* ignore */ }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { phone, username, avatar_color },
+        data: { phone, username, avatar_color, ...(referral_code ? { referral_code } : {}) },
       },
     });
 
@@ -136,6 +150,9 @@ export function useAuth() {
       console.error('[Auth] No session returned. Email confirmation likely still enabled.');
       throw new Error('Signup is temporarily unavailable. Please try again later.');
     }
+
+    // Signup succeeded; the referral (if any) is now attributed server-side.
+    try { localStorage.removeItem('aviator_ref'); } catch { /* ignore */ }
   };
 
   const signIn = async (phone: string, password: string) => {

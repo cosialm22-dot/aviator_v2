@@ -14,16 +14,21 @@ import { createContext, useContext } from 'react';
 export type Role = 'player' | 'admin' | 'super_admin' | 'marketer';
 
 export type Section =
-  | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'finance' | 'settings' | 'staff';
+  | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'finance' | 'settings' | 'staff'
+  | 'marketing' | 'commissions';
 
 const ACCESS: Record<Section, Role[]> = {
-  dashboard:   ['super_admin', 'admin', 'marketer'],
+  // Operations analytics is for operators only; marketers see their own
+  // affiliate data under 'marketing', never system-wide revenue.
+  dashboard:   ['super_admin', 'admin'],
   users:       ['super_admin', 'admin'],
   game:        ['super_admin', 'admin'],
   withdrawals: ['super_admin', 'admin'],
   finance:     ['super_admin', 'admin'],
   settings:    ['super_admin'],
   staff:       ['super_admin'],
+  marketing:   ['marketer'],                 // the marketer's own affiliate dashboard
+  commissions: ['super_admin', 'admin'],     // commission payout review (rate edits: super_admin)
 };
 
 export function canAccess(role: Role | null | undefined, section: Section): boolean {

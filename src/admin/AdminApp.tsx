@@ -9,14 +9,24 @@ import GameControlPage from './pages/GameControlPage';
 import WithdrawalsPage from './pages/WithdrawalsPage';
 import FinancePage from './pages/FinancePage';
 import SettingsPage from './pages/SettingsPage';
+import MarketingPage from './pages/MarketingPage';
+import CommissionsPage from './pages/CommissionsPage';
 import { useAdmin, canAccess, type Section } from './roleContext';
 
 // Route-level authorisation (defence in depth alongside the hidden nav items):
-// a user who types a forbidden path is redirected to the Dashboard, which every
-// staff role can see. The server RPCs remain the real gate.
+// a user who types a forbidden path is redirected to their landing page. The
+// server RPCs remain the real gate.
 function RequireSection({ section, children }: { section: Section; children: ReactNode }) {
   const { role } = useAdmin();
   return canAccess(role, section) ? <>{children}</> : <Navigate to="/admin" replace />;
+}
+
+// Role-aware landing: operators see the analytics Dashboard; marketers (who have
+// no analytics access) land on their own affiliate dashboard instead.
+function Landing() {
+  const { role } = useAdmin();
+  if (role === 'marketer') return <Navigate to="/admin/marketing" replace />;
+  return <DashboardPage />;
 }
 
 export default function AdminApp() {
@@ -24,8 +34,10 @@ export default function AdminApp() {
     <AdminGuard>
       <AdminLayout>
         <Routes>
-          <Route index element={<DashboardPage />} />
-          <Route path="dashboard" element={<DashboardPage />} />
+          <Route index element={<Landing />} />
+          <Route path="dashboard" element={<RequireSection section="dashboard"><DashboardPage /></RequireSection>} />
+          <Route path="marketing" element={<RequireSection section="marketing"><MarketingPage /></RequireSection>} />
+          <Route path="commissions" element={<RequireSection section="commissions"><CommissionsPage /></RequireSection>} />
           <Route path="users" element={<RequireSection section="users"><UsersPage /></RequireSection>} />
           <Route path="users/:userId" element={<RequireSection section="users"><UserDetailPage /></RequireSection>} />
           <Route path="game" element={<RequireSection section="game"><GameControlPage /></RequireSection>} />

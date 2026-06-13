@@ -1,14 +1,16 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, Coins } from 'lucide-react';
 import { useAdmin, canAccess, type Section } from '../roleContext';
 
 const NAV: { icon: typeof LayoutDashboard; label: string; path: string; section: Section }[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', section: 'dashboard' },
+  { icon: Megaphone, label: 'My Marketing', path: '/admin/marketing', section: 'marketing' },
   { icon: Users, label: 'Players', path: '/admin/users', section: 'users' },
   { icon: Gamepad2, label: 'Game Control', path: '/admin/game', section: 'game' },
   { icon: Banknote, label: 'Withdrawals', path: '/admin/withdrawals', section: 'withdrawals' },
+  { icon: Coins, label: 'Commissions', path: '/admin/commissions', section: 'commissions' },
   { icon: Wallet, label: 'Finance', path: '/admin/finance', section: 'finance' },
   { icon: Settings, label: 'Settings', path: '/admin/settings', section: 'settings' },
 ];
