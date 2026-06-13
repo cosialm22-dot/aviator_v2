@@ -43,7 +43,7 @@ interface UserDetail {
   is_self: boolean;
 }
 
-const ROLES = ['player', 'admin', 'super_admin'] as const;
+const ROLES = ['player', 'marketer', 'admin', 'super_admin'] as const;
 const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
 const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
 
@@ -58,6 +58,7 @@ function friendly(code: string): string {
     CANNOT_TARGET_SELF: 'You cannot perform this action on your own account.',
     REASON_REQUIRED: 'A reason is required.',
     INVALID_ROLE: 'Invalid role.',
+    LAST_SUPER_ADMIN: 'At least one super admin must remain.',
     INVALID_DELTA: 'Enter a non-zero amount.',
     NEGATIVE_BALANCE: 'That adjustment would make the balance negative.',
     NO_WALLET: 'This player has no wallet.',
@@ -70,6 +71,7 @@ function friendly(code: string): string {
 function roleBadge(role: string): string {
   return role === 'super_admin' ? 'bg-rose-50 text-down border-rose-200'
     : role === 'admin' ? 'bg-brand/10 text-brand border-brand/20'
+    : role === 'marketer' ? 'bg-violet-50 text-violet-700 border-violet-200'
     : 'bg-slate-100 text-muted border-line';
 }
 function txnBadge(type: string): string {

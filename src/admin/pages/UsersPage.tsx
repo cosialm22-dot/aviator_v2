@@ -59,6 +59,7 @@ export default function UsersPage() {
   const roleBadge = (role: string) =>
     role === 'super_admin' ? 'bg-rose-50 text-down' :
     role === 'admin' ? 'bg-brand/10 text-brand' :
+    role === 'marketer' ? 'bg-violet-50 text-violet-700' :
     'bg-slate-100 text-muted';
 
   return (
