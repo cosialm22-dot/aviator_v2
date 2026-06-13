@@ -492,18 +492,22 @@ BEGIN
          round(v_rate * coalesce(g.ggr, 0), 2) AS commission_earned,
          coalesce(c.paid, 0), coalesce(c.pending, 0), coalesce(c.approved, 0),
          greatest(round(v_rate * coalesce(g.ggr, 0), 2) - coalesce(c.committed, 0), 0) AS commission_available
+  -- NOTE: the RETURNS TABLE column `marketer_id` is an in-scope OUT variable, so any
+  -- UNqualified `marketer_id` inside the body collides with the table column of the
+  -- same name -> "column reference marketer_id is ambiguous". Every column referenced
+  -- in these LATERAL subqueries is therefore table-qualified (rf./cp.).
   FROM profiles m
   LEFT JOIN LATERAL (
-    SELECT count(*) AS referred_count, count(*) FILTER (WHERE status = 'qualified') AS qualified_count
-    FROM referrals WHERE marketer_id = m.id
+    SELECT count(*) AS referred_count, count(*) FILTER (WHERE rf.status = 'qualified') AS qualified_count
+    FROM referrals rf WHERE rf.marketer_id = m.id
   ) r ON true
   LEFT JOIN LATERAL (SELECT _marketer_ggr(m.id) AS ggr) g ON true
   LEFT JOIN LATERAL (
-    SELECT coalesce(sum(amount) FILTER (WHERE status = 'paid'), 0) AS paid,
-           coalesce(sum(amount) FILTER (WHERE status = 'pending'), 0) AS pending,
-           coalesce(sum(amount) FILTER (WHERE status = 'approved'), 0) AS approved,
-           coalesce(sum(amount) FILTER (WHERE status IN ('pending','approved','paid')), 0) AS committed
-    FROM commission_payouts WHERE marketer_id = m.id
+    SELECT coalesce(sum(cp.amount) FILTER (WHERE cp.status = 'paid'), 0) AS paid,
+           coalesce(sum(cp.amount) FILTER (WHERE cp.status = 'pending'), 0) AS pending,
+           coalesce(sum(cp.amount) FILTER (WHERE cp.status = 'approved'), 0) AS approved,
+           coalesce(sum(cp.amount) FILTER (WHERE cp.status IN ('pending','approved','paid')), 0) AS committed
+    FROM commission_payouts cp WHERE cp.marketer_id = m.id
   ) c ON true
   WHERE m.role = 'marketer'
   ORDER BY commission_available DESC, m.username ASC;

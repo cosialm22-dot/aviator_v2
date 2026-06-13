@@ -177,9 +177,13 @@ BEGIN
   IF v_txn IS NULL THEN RAISE EXCEPTION 'NOT_FOUND'; END IF;
 
   IF v_ref IS NOT NULL AND v_type = 'deposit' THEN
+    -- Live mpesa_stk_requests stores the result description as `result_description`
+    -- (not `result_desc`) and has NO `callback_payload` column. Alias to the key the
+    -- client reads (d.result_desc) and omit the absent payload; the UI guards
+    -- `callback_payload != null`, so the raw-payload panel is simply hidden for STK.
     SELECT to_jsonb(s) INTO v_detail FROM (
       SELECT id, user_id, phone_number, amount, checkout_request_id, merchant_request_id,
-             mpesa_receipt_number, result_code, result_desc, status, callback_payload,
+             mpesa_receipt_number, result_code, result_description AS result_desc, status,
              created_at, completed_at
       FROM mpesa_stk_requests
       WHERE mpesa_receipt_number = v_ref
