@@ -1,10 +1,11 @@
 import { useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Gamepad2, Wallet, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings } from 'lucide-react';
 
 const NAV = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
   { icon: Users, label: 'Players', path: '/admin/users' },
   { icon: Gamepad2, label: 'Game Control', path: '/admin/game' },
+  { icon: Banknote, label: 'Withdrawals', path: '/admin/withdrawals' },
   { icon: Wallet, label: 'Finance', path: '/admin/finance' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
 ];
