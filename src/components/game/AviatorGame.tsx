@@ -19,7 +19,7 @@ interface Props {
 
 const LOW_BALANCE_NUDGES = [
   { title: 'Your comeback is ONE bet away!', sub: 'Top up KSh 500 and turn the game around.' },
-  { title: 'Big winners always reload fast!', sub: 'Don\'t miss the next big multiplier — deposit now.' },
+  { title: 'Big winners always reload fast!', sub: 'Don\'t miss the next big multiplier - deposit now.' },
   { title: 'The next round could be 50x!', sub: 'Deposit KSh 200 and stay in the game.' },
   { title: 'Every pilot crashes. The greats fly again.', sub: 'Reload and take back the skies!' },
   { title: '87% of players win on their comeback bet!', sub: 'Don\'t quit when you\'re this close.' },
@@ -138,7 +138,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
         {/* ── Center: Canvas + Betting ───────────────────────────────── */}
         <div className="flex flex-col flex-1 min-w-0">
 
-          {/* Canvas — takes most vertical space */}
+          {/* Canvas - takes most vertical space */}
           <div className="relative flex-1 min-h-0 bg-[#111118] overflow-hidden">
             <GameCanvas
               status={gameStatus}
@@ -184,7 +184,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                   </div>
                   {activeBet && (
                     <div className="mt-2 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
-                      Bet in — ready!
+                      Bet in - ready!
                     </div>
                   )}
                 </div>
@@ -287,7 +287,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             </button>
           </div>
 
-          {/* Mobile panel — 220px high */}
+          {/* Mobile panel - 220px high */}
           <div className="lg:hidden flex-shrink-0 bg-[#0d0d1a]" style={{ height: '200px' }}>
             {mobileTab === 'bets' ? (
               <div className="h-full overflow-y-auto scrollbar-thin">

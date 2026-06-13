@@ -137,8 +137,8 @@ export default function UserDetailPage() {
                   <tr key={b.id}>
                     <td className="px-5 py-2.5 text-muted text-xs">{new Date(b.created_at).toLocaleString()}</td>
                     <td className="px-5 py-2.5 text-right text-ink tabular-nums">KSh {Number(b.amount).toLocaleString()}</td>
-                    <td className="px-5 py-2.5 text-right text-muted tabular-nums">{b.cashout_multiplier ? `${Number(b.cashout_multiplier).toFixed(2)}x` : '—'}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">{b.winnings ? <span className="text-up">+{Number(b.winnings).toLocaleString()}</span> : '—'}</td>
+                    <td className="px-5 py-2.5 text-right text-muted tabular-nums">{b.cashout_multiplier ? `${Number(b.cashout_multiplier).toFixed(2)}x` : '-'}</td>
+                    <td className="px-5 py-2.5 text-right tabular-nums">{b.winnings ? <span className="text-up">+{Number(b.winnings).toLocaleString()}</span> : '-'}</td>
                     <td className="px-5 py-2.5"><span className={'text-[10px] font-semibold px-1.5 py-0.5 rounded ' + (b.status === 'won' ? 'bg-emerald-50 text-up' : b.status === 'lost' ? 'bg-rose-50 text-down' : 'bg-amber-50 text-amber-600')}>{b.status}</span></td>
                   </tr>
                 ))}

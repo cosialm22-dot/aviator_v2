@@ -1,11 +1,11 @@
 -- ============================================================================
--- AVIATOR V2 — PHASE 1: SECURITY LOCKDOWN  (APPLY LAST, AT CUTOVER)
+-- AVIATOR V2 - PHASE 1: SECURITY LOCKDOWN  (APPLY LAST, AT CUTOVER)
 -- ============================================================================
 -- ⚠️  Apply ONLY after the Phase 5 frontend (RPC-based useGame + M-Pesa-based
 --     useWallet) and the Phase 4 driver are deployed. This makes the money and
 --     game tables READ-ONLY for clients; all writes then flow exclusively
 --     through the SECURITY DEFINER RPCs (place_bet, cash_out, game_tick,
---     handle_new_user) and the service-role M-Pesa edge functions — all of
+--     handle_new_user) and the service-role M-Pesa edge functions - all of
 --     which bypass RLS and are unaffected.
 --
 -- After this migration a logged-in user CANNOT:

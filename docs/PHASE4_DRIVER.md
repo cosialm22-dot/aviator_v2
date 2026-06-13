@@ -1,15 +1,15 @@
-# Phase 4 — Game-loop driver (Supabase-only)
+# Phase 4 - Game-loop driver (Supabase-only)
 
 The server advances the single shared round by calling `public.game_tick()` on a
 fast cadence. `game_tick()` is idempotent and transaction-advisory-locked, so it
 is safe to call concurrently or more often than needed.
 
 ## Components
-- `supabase/functions/game-loop/index.ts` — **active** Edge Function. Runs a
+- `supabase/functions/game-loop/index.ts` - **active** Edge Function. Runs a
   250 ms tick loop for ~58 s per invocation.
-- `supabase/migrations/20260612122000_phase4_driver_pgcron.sql` — schedules a
+- `supabase/migrations/20260612122000_phase4_driver_pgcron.sql` - schedules a
   per-minute `pg_cron` keepalive that invokes the function. **Apply at cutover only.**
-- `worker/game-worker.ts.example` — the future always-on worker (Option A), inert.
+- `worker/game-worker.ts.example` - the future always-on worker (Option A), inert.
 
 ## Deploy order (cutover)
 1. **Deploy frontend (Phase 5) first** so the legacy client stops creating rounds.
@@ -39,6 +39,6 @@ is safe to call concurrently or more often than needed.
 select cron.unschedule('aviator-game-loop');
 ```
 
-## Tuning (no redeploy — all live in system_settings)
+## Tuning (no redeploy - all live in system_settings)
 `game.betting_ms`, `game.post_crash_ms`, `game.house_edge_percent`,
 `game.max_payout`, `game.bots_min`, `game.bots_max`, `game.max_crash_point`.

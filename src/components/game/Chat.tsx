@@ -18,7 +18,7 @@ interface Props {
   avatarColor?: string;
 }
 
-// Fisher-Yates shuffle — returns a new shuffled copy
+// Fisher-Yates shuffle - returns a new shuffled copy
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -47,7 +47,7 @@ const MAX_MESSAGES = 120;
 
 // Merge incoming messages into the existing list with three guarantees:
 //   1. De-duplication by id (Realtime can re-deliver an INSERT).
-//   2. Optimistic reconciliation — when the server echo for a message we
+//   2. Optimistic reconciliation - when the server echo for a message we
 //      already rendered optimistically (id "opt-…") arrives, the placeholder
 //      is replaced in place instead of producing a visible duplicate.
 //   3. Stable chronological order (oldest → newest) and a bounded length,
@@ -94,7 +94,7 @@ export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Prop
   }, []);
 
   // SINGLE source of truth for auto-scroll. Runs after every message change.
-  // - forceRef: instant jump (initial load, the user's own message) — no animation.
+  // - forceRef: instant jump (initial load, the user's own message) - no animation.
   // - otherwise: smooth follow, but only while pinned to the newest message.
   // Frames are coalesced (cancel + reschedule) so a burst of messages produces
   // exactly one scroll to the final bottom rather than stacked animations.
@@ -117,7 +117,7 @@ export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Prop
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
   // Load last 50 real messages on mount, then jump to newest. We MERGE rather
-  // than replace so seeded/bot messages already on screen are never wiped — an
+  // than replace so seeded/bot messages already on screen are never wiped - an
   // empty table (typical for logged-out spectators) leaves the chat untouched
   // instead of flickering to blank.
   useEffect(() => {
@@ -132,7 +132,7 @@ export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Prop
       });
   }, []);
 
-  // Supabase Realtime — new real messages from other signed-in users.
+  // Supabase Realtime - new real messages from other signed-in users.
   useEffect(() => {
     const channel = supabase
       .channel('chat_messages_live')
@@ -143,7 +143,7 @@ export default function Chat({ userId, username, avatarColor = '#3b82f6' }: Prop
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Bot messages — seeded then scheduled randomly every ~2–5s.
+  // Bot messages - seeded then scheduled randomly every ~2-5s.
   useEffect(() => {
     const seed = Array.from({ length: 8 }, () => msgQueue.next());
     setMessages(prev => mergeMessages(prev, seed));

@@ -307,7 +307,6 @@ async function updateWithdrawalRequestStatus(
       .from("withdrawal_requests")
       .update({
         status,
-        created_at: new Date().toISOString(),
       })
       .eq("id", withdrawalRequestId);
 
@@ -451,6 +450,36 @@ serve(async (req: Request) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    // ---- Authorisation gate ------------------------------------------------
+    // This function uses the service-role key internally and must NOT be
+    // callable by arbitrary users. Allow either (a) a trusted server process
+    // presenting the service-role key (e.g. an auto-approve job), or (b) an
+    // authenticated admin / super_admin. Anything else is rejected before any
+    // money movement. (The admin dashboard's approve action forwards the
+    // signed-in admin's JWT via supabase.functions.invoke.)
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const callerToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (callerToken !== supabaseServiceRoleKey) {
+      const { data: userData, error: userErr } = await supabase.auth.getUser(callerToken);
+      if (userErr || !userData?.user) {
+        log("WARN", "Unauthorised B2C caller (invalid or missing token)");
+        return new Response(
+          JSON.stringify({ success: false, error: "UNAUTHORIZED", message: "Authentication required" }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      const { data: profile } = await supabase
+        .from("profiles").select("role").eq("id", userData.user.id).maybeSingle();
+      const role = (profile as { role?: string } | null)?.role;
+      if (role !== "admin" && role !== "super_admin") {
+        log("WARN", "Forbidden B2C caller (not an admin)", { userId: userData.user.id });
+        return new Response(
+          JSON.stringify({ success: false, error: "FORBIDDEN", message: "Admin privileges required" }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // Get withdrawal request
     const { data: withdrawalRequest, error: withdrawalError } = await supabase

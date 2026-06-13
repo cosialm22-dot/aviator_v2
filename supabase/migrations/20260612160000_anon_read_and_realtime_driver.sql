@@ -1,12 +1,12 @@
 -- ============================================================================
--- AVIATOR V2 — Public spectator reads + in-DB 250ms game driver
+-- AVIATOR V2 - Public spectator reads + in-DB 250ms game driver
 -- ----------------------------------------------------------------------------
 -- 1. Allow logged-out (anon) clients to READ the live round + bet board so the
 --    plane and live bets render before sign-in. Writes remain RPC-only; the
 --    hidden crash point (round_secrets) stays locked and crash_multiplier is
 --    NULL until reveal, so provable fairness is unaffected.
 -- 2. Drive the server-authoritative round lifecycle (game_tick) at a 250ms
---    cadence entirely in-database via pg_cron — no Edge Function / pg_net
+--    cadence entirely in-database via pg_cron - no Edge Function / pg_net
 --    dependency. game_tick() is idempotent (advisory xact lock), so the small
 --    overlap between consecutive burst runs is safe.
 -- ============================================================================

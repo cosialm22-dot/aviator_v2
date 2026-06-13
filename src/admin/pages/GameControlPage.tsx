@@ -88,7 +88,7 @@ return(
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-xl border border-line bg-surface p-5">
             <div className="flex items-center justify-between"><span className={CAP}>Status</span><span className={'h-2 w-2 rounded-full '+(isF?'bg-up animate-pulse':round?.status==='crashed'?'bg-down':'bg-faint')} /></div>
-            <div className="mt-3"><span className={'inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold '+(isF?'bg-emerald-50 text-up':round?.status==='crashed'?'bg-rose-50 text-down':'bg-slate-100 text-muted')}>{round?.status?.toUpperCase()||'—'}</span></div>
+            <div className="mt-3"><span className={'inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold '+(isF?'bg-emerald-50 text-up':round?.status==='crashed'?'bg-rose-50 text-down':'bg-slate-100 text-muted')}>{round?.status?.toUpperCase()||'-'}</span></div>
             <div className="text-[11px] text-muted mt-2">Source: <span className="text-ink font-mono">{round?.source||'algorithm'}</span></div>
           </div>
           <div className="rounded-xl border border-line bg-surface p-5">
@@ -98,13 +98,13 @@ return(
           </div>
           <div className="rounded-xl border border-line bg-surface p-5">
             <span className={CAP}>Elapsed</span>
-            <div className="mt-3 text-2xl font-semibold text-ink tabular-nums">{isF&&round?.started_at?elapsed(round.started_at)+'s':'—'}</div>
+            <div className="mt-3 text-2xl font-semibold text-ink tabular-nums">{isF&&round?.started_at?elapsed(round.started_at)+'s':'-'}</div>
             {round?.crashed_at&&<div className="text-[11px] text-muted mt-1">Crashed {new Date(round.crashed_at).toLocaleTimeString()}</div>}
           </div>
           <div className="rounded-xl border border-line bg-surface p-5">
             <span className={CAP}>Exposure</span>
-            <div className="mt-3 flex items-baseline gap-1.5"><span className="text-2xl font-semibold text-ink tabular-nums">{isF?bCnt:'—'}</span><span className="text-[11px] text-muted">bets</span></div>
-            <div className="text-[11px] text-muted mt-1 font-mono">{isF?'KSh '+fmtKES(bTot):'—'}</div>
+            <div className="mt-3 flex items-baseline gap-1.5"><span className="text-2xl font-semibold text-ink tabular-nums">{isF?bCnt:'-'}</span><span className="text-[11px] text-muted">bets</span></div>
+            <div className="text-[11px] text-muted mt-1 font-mono">{isF?'KSh '+fmtKES(bTot):'-'}</div>
           </div>
         </div>
         {isF&&(<div className="rounded-xl border border-rose-200 bg-rose-50/40 p-5 flex items-center justify-between gap-4 flex-wrap">
@@ -139,7 +139,7 @@ return(
                 <th className="text-left px-5 py-3 font-medium w-12">#</th><th className="text-left px-5 py-3 font-medium">Multiplier</th><th className="text-left px-5 py-3 font-medium">Status</th><th className="text-left px-5 py-3 font-medium hidden lg:table-cell">Added</th><th className="text-right px-5 py-3 font-medium w-24" />
               </tr></thead>
               <tbody className="divide-y divide-line">
-                {queue.length===0?(<tr><td colSpan={5} className="px-5 py-16 text-center text-faint text-[12px]">Queue empty — crash points come from algorithm</td></tr>):queue.map(q=>(
+                {queue.length===0?(<tr><td colSpan={5} className="px-5 py-16 text-center text-faint text-[12px]">Queue empty - crash points come from algorithm</td></tr>):queue.map(q=>(
                   <tr key={q.id} className="hover:bg-canvas transition-colors">
                     <td className="px-5 py-3 text-muted font-mono text-xs">{q.position}</td>
                     <td className="px-5 py-3 text-ink font-mono font-semibold">{Number(q.crash_point).toFixed(2)}x</td>

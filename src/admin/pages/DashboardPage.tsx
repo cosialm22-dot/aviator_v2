@@ -161,7 +161,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Performance KPIs — unified hairline-divided strip; numbers are the hero */}
+        {/* Performance KPIs - unified hairline-divided strip; numbers are the hero */}
         <section>
           <h2 className={HEAD}>Performance</h2>
           <div className="mt-3 rounded-xl border border-line bg-surface overflow-hidden">
@@ -176,7 +176,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* System health — status-dot led; visual urgency only when needed */}
+        {/* System health - status-dot led; visual urgency only when needed */}
         <section>
           <h2 className={HEAD}>System Health</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">

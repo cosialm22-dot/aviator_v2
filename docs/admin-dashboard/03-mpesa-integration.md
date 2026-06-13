@@ -2,11 +2,11 @@
 
 ## Overview
 Replace the simulated deposit/withdrawal system with real Safaricom Daraja API integration for:
-- **STK Push** — Player deposits (Lipa Na M-Pesa Online)
-- **B2C** — Player withdrawals (Business to Customer)
-- **C2B** — Paybill direct payments (fallback)
-- **Transaction Status** — Query pending transactions
-- **Reversal** — Correct erroneous payments
+- **STK Push** - Player deposits (Lipa Na M-Pesa Online)
+- **B2C** - Player withdrawals (Business to Customer)
+- **C2B** - Paybill direct payments (fallback)
+- **Transaction Status** - Query pending transactions
+- **Reversal** - Correct erroneous payments
 
 ---
 
@@ -178,7 +178,7 @@ function encryptB2CCredential(password: string, certPath: string): string {
 
 ---
 
-## 3.4 Admin Dashboard — M-Pesa Management Panel
+## 3.4 Admin Dashboard - M-Pesa Management Panel
 
 ### 3.4.1 Transaction Monitor
 ```
@@ -311,13 +311,13 @@ ALTER TABLE mpesa_config ADD COLUMN IF NOT EXISTS
 
 ## 3.7 Security Best Practices
 
-1. **TLS Only** — All callback URLs must be HTTPS
-2. **IP Whitelist** — Only accept callbacks from Safaricom IPs: `196.201.214.200-208`
-3. **Idempotency** — Check CheckoutRequestID/MpesaReceiptNumber before processing
-4. **Credential Encryption** — Store all secrets in Supabase Vault or environment variables
-5. **Request Signing** — Validate callback authenticity before crediting
-6. **Rate Limiting** — Max 5 STK Push requests per phone per minute
-7. **Audit Logging** — Log every M-Pesa interaction with timestamps
-8. **Timeout Handling** — Auto-query status after 60s if no callback received
-9. **Float Monitoring** — Alert admin when B2C balance drops below threshold
-10. **Reconciliation** — Daily automated check against Safaricom statement
+1. **TLS Only** - All callback URLs must be HTTPS
+2. **IP Whitelist** - Only accept callbacks from Safaricom IPs: `196.201.214.200-208`
+3. **Idempotency** - Check CheckoutRequestID/MpesaReceiptNumber before processing
+4. **Credential Encryption** - Store all secrets in Supabase Vault or environment variables
+5. **Request Signing** - Validate callback authenticity before crediting
+6. **Rate Limiting** - Max 5 STK Push requests per phone per minute
+7. **Audit Logging** - Log every M-Pesa interaction with timestamps
+8. **Timeout Handling** - Auto-query status after 60s if no callback received
+9. **Float Monitoring** - Alert admin when B2C balance drops below threshold
+10. **Reconciliation** - Daily automated check against Safaricom statement

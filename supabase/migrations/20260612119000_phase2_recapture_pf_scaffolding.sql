@@ -1,5 +1,5 @@
 -- ============================================================================
--- AVIATOR V2 — PHASE 2 (PRE): RE-CAPTURE OF DRIFTED PROVABLY-FAIR SCAFFOLDING
+-- AVIATOR V2 - PHASE 2 (PRE): RE-CAPTURE OF DRIFTED PROVABLY-FAIR SCAFFOLDING
 -- ============================================================================
 -- These objects already exist in the live database but were applied directly
 -- (not via a committed migration). This file re-captures them IDEMPOTENTLY so

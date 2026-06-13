@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 // ============================================================================
-// useWallet — SERVER-AUTHORITATIVE CASHIER (Phase 5b)
+// useWallet - SERVER-AUTHORITATIVE CASHIER (Phase 5b)
 // ----------------------------------------------------------------------------
 // No direct writes to wallets/transactions (those are READ-ONLY for clients
 // after the security lockdown). Money moves only through the deployed M-Pesa
@@ -39,7 +39,7 @@ function friendly(code: string, op: 'deposit' | 'withdrawal'): string {
     INSUFFICIENT_BALANCE: 'Insufficient balance.',
     NO_WALLET: 'Wallet error. Please refresh and try again.',
     WITHDRAWAL_PENDING: 'You already have a withdrawal being processed.',
-    RATE_LIMIT: 'Too many attempts — please wait a minute and try again.',
+    RATE_LIMIT: 'Too many attempts - please wait a minute and try again.',
     network: 'Connection error. Check your internet and try again.',
   };
   for (const k of Object.keys(map)) if (code.includes(k)) return map[k];

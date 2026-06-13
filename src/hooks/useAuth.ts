@@ -34,7 +34,7 @@ function sanitizeAuthError(error: { message?: string } | null, context: 'signup'
       return 'Username is taken. Try another.';
     }
     if (msg.includes('email') && msg.includes('disabled')) {
-      // "Email signups are disabled" — config issue, but user doesn't need to know why
+      // "Email signups are disabled" - config issue, but user doesn't need to know why
       return 'Signup is temporarily unavailable. Please try again later.';
     }
     if (msg.includes('password') && (msg.includes('short') || msg.includes('weak') || msg.includes('length'))) {

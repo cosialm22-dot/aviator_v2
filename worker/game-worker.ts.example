@@ -1,5 +1,5 @@
 // ============================================================================
-// AVIATOR V2 — DEDICATED ALWAYS-ON WORKER  [Option A, FUTURE — NOT YET ACTIVE]
+// AVIATOR V2 - DEDICATED ALWAYS-ON WORKER  [Option A, FUTURE - NOT YET ACTIVE]
 // ============================================================================
 // This is the higher-fidelity driver we will switch to "before production"
 // (per the decision brief). It is intentionally INERT: the active driver today
@@ -7,7 +7,7 @@
 //
 // Why upgrade later:
 //   - A single long-lived process ticks every 250ms with no cold starts and no
-//     minute-boundary restarts — the most robust option for real money.
+//     minute-boundary restarts - the most robust option for real money.
 //   - Runs anywhere with the service-role key (Fly.io / Railway / a VM, ~$5/mo).
 //
 // To activate later:
@@ -15,7 +15,7 @@
 //   2. Deploy this worker with env SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.
 //   3. Run:  deno run --allow-net --allow-env worker/game-worker.ts
 //
-// The DB contract is identical — both drivers only ever call public.game_tick().
+// The DB contract is identical - both drivers only ever call public.game_tick().
 // ============================================================================
 //
 // import { createClient } from "npm:@supabase/supabase-js@2";

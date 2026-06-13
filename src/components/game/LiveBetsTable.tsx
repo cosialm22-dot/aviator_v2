@@ -65,7 +65,7 @@ export default function LiveBetsTable({ bets, status }: Props) {
             ) : bet.status === 'active' && status === 'flying' ? (
               <span className="text-amber-400 animate-pulse">…</span>
             ) : (
-              <span className="text-slate-600">—</span>
+              <span className="text-slate-600">-</span>
             )}
           </div>
 
@@ -74,7 +74,7 @@ export default function LiveBetsTable({ bets, status }: Props) {
             {bet.status === 'won' && bet.winnings !== null ? (
               <span className="text-[#22c55e] font-bold">{bet.winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}</span>
             ) : (
-              <span className="text-slate-600">—</span>
+              <span className="text-slate-600">-</span>
             )}
           </div>
         </div>

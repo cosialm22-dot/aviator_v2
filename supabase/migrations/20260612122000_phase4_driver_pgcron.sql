@@ -1,5 +1,5 @@
 -- ============================================================================
--- AVIATOR V2 — PHASE 4: GAME-LOOP DRIVER SCHEDULING (pg_cron + pg_net)
+-- AVIATOR V2 - PHASE 4: GAME-LOOP DRIVER SCHEDULING (pg_cron + pg_net)
 -- ============================================================================
 -- ⚠️  DO NOT APPLY DURING STAGING. Apply ONLY at cutover, AFTER the rewritten
 --     frontend (Phase 5) is deployed. Enabling this starts the server creating

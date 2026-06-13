@@ -1,5 +1,5 @@
 -- ============================================================================
--- AVIATOR V2 — PHASE 3: REALTIME PUBLICATION FOR THE SHARED GAME
+-- AVIATOR V2 - PHASE 3: REALTIME PUBLICATION FOR THE SHARED GAME
 -- ============================================================================
 -- Publishes game_rounds (round lifecycle the client renders) and bets (live
 -- board). Idempotent. round_secrets is intentionally NOT published (hidden).

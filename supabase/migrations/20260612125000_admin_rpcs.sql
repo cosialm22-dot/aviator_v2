@@ -1,13 +1,13 @@
 -- ============================================================================
--- AVIATOR V2 — PHASE 2 (ADDENDUM): ADMIN RPCs
+-- AVIATOR V2 - PHASE 2 (ADDENDUM): ADMIN RPCs
 -- ============================================================================
 -- After the lockdown, admins (who are 'authenticated') also lose direct write
 -- access to the money/game tables. These SECURITY DEFINER RPCs are the
 -- sanctioned admin write paths; each verifies the caller is an admin.
---   • admin_adjust_balance  — manual wallet credit/debit (logged as 'adjustment')
---   • admin_force_crash     — end the current flying round NOW (reuses crash_round
+--   • admin_adjust_balance  - manual wallet credit/debit (logged as 'adjustment')
+--   • admin_force_crash     - end the current flying round NOW (reuses crash_round
 --                             => fair: crashes at committed point, reveals seed)
---   • admin_recover_zombies — crash any stuck flying rounds (safety net)
+--   • admin_recover_zombies - crash any stuck flying rounds (safety net)
 -- Additive & dormant; safe to apply during staging.
 -- ============================================================================
 

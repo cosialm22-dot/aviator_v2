@@ -34,13 +34,13 @@ Expand current basic player list into a full CRM-style management system.
 ## 5.2 Player Detail Page (Enhanced)
 
 ### Tabs
-1. **Overview** — Profile, balance, key stats, quick actions
-2. **Transactions** — Full deposit/withdrawal history
-3. **Betting History** — All bets with round details
-4. **Risk Profile** — Risk score breakdown, flags, behavior analysis
-5. **Communications** — Sent notifications, support tickets
-6. **Activity Log** — Login times, IP addresses, devices used
-7. **Referrals** — If they came from an affiliate, show chain
+1. **Overview** - Profile, balance, key stats, quick actions
+2. **Transactions** - Full deposit/withdrawal history
+3. **Betting History** - All bets with round details
+4. **Risk Profile** - Risk score breakdown, flags, behavior analysis
+5. **Communications** - Sent notifications, support tickets
+6. **Activity Log** - Login times, IP addresses, devices used
+7. **Referrals** - If they came from an affiliate, show chain
 
 ### Quick Actions
 - Adjust balance (credit/debit with reason)

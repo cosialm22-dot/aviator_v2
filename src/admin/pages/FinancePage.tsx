@@ -148,7 +148,7 @@ export default function FinancePage() {
                         {Number(tx.amount) >= 0 ? '+' : ''}KSh {Math.abs(Number(tx.amount)).toLocaleString('en-KE')}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-muted text-xs max-w-[200px] truncate">{tx.description ?? '—'}</td>
+                    <td className="px-5 py-3 text-muted text-xs max-w-[200px] truncate">{tx.description ?? '-'}</td>
                     <td className="px-5 py-3">
                       <span className={'inline-flex items-center gap-1.5 text-[11px] font-medium ' + (
                         tx.status === 'completed' ? 'text-up' : tx.status === 'pending' ? 'text-amber-600' : 'text-muted'

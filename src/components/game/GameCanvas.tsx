@@ -113,7 +113,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint }: Props)
       // ── Background ────────────────────────────────────────────────────
       drawBackground(ctx, W, H);
 
-      // Animate speed based on multiplier — higher mult = faster stars/clouds
+      // Animate speed based on multiplier - higher mult = faster stars/clouds
       const speedMult = status === 'flying' ? Math.min(4, 1 + multiplier * 0.15) : 1;
 
       // Stars
@@ -270,7 +270,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint }: Props)
           ctx.fillStyle   = '#ffffff';
           ctx.fillText('FLEW AWAY!', W / 2, H / 2 - fontSize * 0.65);
 
-          // Crash multiplier — larger, bolder
+          // Crash multiplier - larger, bolder
           const subSize = fontSize * 0.72;
           ctx.font       = `900 ${subSize}px 'Arial Black', Arial, sans-serif`;
           ctx.shadowBlur  = 24;

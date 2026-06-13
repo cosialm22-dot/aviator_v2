@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // ============================================================================
-// WithdrawalsPage — admin cashier queue (Milestone 1)
+// WithdrawalsPage - admin cashier queue (Milestone 1)
 // ----------------------------------------------------------------------------
 // Data path (all authorisation + audit lives server-side):
 //   • list    -> admin_list_withdrawals(p_status,p_limit,p_offset)  [SECURITY DEFINER]
@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabase';
 //                `mpesa-b2c` edge fn (it requires 'pending', debits the wallet,
 //                and transitions the row to 'processing'). No double-debit.
 //   • reject  -> admin_reject_withdrawal(p_id,p_reason): 'pending' -> 'rejected'.
-//                No refund — request_withdrawal never debited.
+//                No refund - request_withdrawal never debited.
 // ============================================================================
 
 interface WithdrawalRow {
@@ -74,7 +74,7 @@ function relTime(iso: string): string {
 function friendly(code: string): string {
   const map: Record<string, string> = {
     FORBIDDEN: 'You do not have admin privileges.',
-    NOT_FOUND: 'Withdrawal not found — it may have just changed state.',
+    NOT_FOUND: 'Withdrawal not found - it may have just changed state.',
     NOT_PENDING: 'This withdrawal is no longer pending. Refresh the queue.',
     REASON_REQUIRED: 'A rejection reason is required.',
     INVALID_STATUS: 'This withdrawal is no longer pending. Refresh the queue.',
@@ -154,6 +154,26 @@ export default function WithdrawalsPage() {
   }, [tab]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Live updates: refresh the current view whenever a withdrawal changes, and
+  // surface a notice when a new request arrives. A ref keeps the subscription
+  // pointed at the latest fetchAll without re-subscribing on every tab change.
+  const fetchRef = useRef(fetchAll);
+  useEffect(() => { fetchRef.current = fetchAll; }, [fetchAll]);
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-withdrawals-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'withdrawal_requests' }, (payload) => {
+        const amt = Number((payload.new as { amount?: number })?.amount ?? 0);
+        setNotice('New withdrawal request received' + (amt ? ': ' + fmtKES(amt) : '') + '.');
+        fetchRef.current();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'withdrawal_requests' }, () => {
+        fetchRef.current();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const pendingCount = rows.filter(r => r.status === 'pending').length;
   const pendingTotal = rows.filter(r => r.status === 'pending').reduce((s, r) => s + Number(r.amount), 0);
@@ -289,7 +309,7 @@ export default function WithdrawalsPage() {
                     <td className="px-5 py-3 text-right text-ink font-semibold tabular-nums">{fmtKES(Number(r.amount))}</td>
                     <td className="px-5 py-3 text-muted font-mono text-[13px] hidden md:table-cell">{r.phone_number}</td>
                     <td className="px-5 py-3 text-right tabular-nums hidden lg:table-cell">
-                      <span className={insufficient ? 'text-down font-medium' : 'text-muted'}>{r.wallet_balance != null ? fmtKES(Number(r.wallet_balance)) : '—'}</span>
+                      <span className={insufficient ? 'text-down font-medium' : 'text-muted'}>{r.wallet_balance != null ? fmtKES(Number(r.wallet_balance)) : '-'}</span>
                       {insufficient && <div className="text-[11px] text-down">below requested</div>}
                     </td>
                     <td className="px-5 py-3 hidden sm:table-cell">
@@ -322,7 +342,7 @@ export default function WithdrawalsPage() {
                         </div>
                       ) : (
                         <span className="text-faint text-[12px]">
-                          {r.reviewer_username ? 'by ' + r.reviewer_username : '—'}
+                          {r.reviewer_username ? 'by ' + r.reviewer_username : '-'}
                         </span>
                       )}
                     </td>

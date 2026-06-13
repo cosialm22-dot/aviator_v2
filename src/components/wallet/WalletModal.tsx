@@ -3,7 +3,7 @@ import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone } from 
 import { formatCurrency } from '../../lib/formatters';
 
 /*
- * WALLET MODAL — M-Pesa cashier (server-authoritative).
+ * WALLET MODAL - M-Pesa cashier (server-authoritative).
  *
  * Deposits go through the mpesa-stk-push Edge Function; the PIN is entered on
  * the user's PHONE (never in this app). Withdrawals create a pending request
@@ -70,10 +70,10 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
   };
 
   const successTitle = tab === 'withdraw'
-    ? 'Withdrawal Requested'
+    ? 'Processing Withdrawal'
     : depositConfirmed ? 'Deposit Confirmed' : 'STK Push Sent';
   const successBody = tab === 'withdraw'
-    ? `${formatCurrency(parsedAmount)} to +254${phone} — pending approval. You'll receive it shortly.`
+    ? `${formatCurrency(parsedAmount)} to +254${phone} is being processed. You will receive the money shortly.`
     : depositConfirmed
       ? `${formatCurrency(parsedAmount)} added to your wallet.`
       : `Approve the M-Pesa prompt on +254${phone} to add ${formatCurrency(parsedAmount)}. Your balance updates automatically once confirmed.`;
@@ -157,7 +157,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
             </div>
 
             <div className="px-7 pt-6 pb-7 space-y-5">
-              {/* Method — M-Pesa only */}
+              {/* Method - M-Pesa only */}
               <div className="flex items-center gap-3 bg-[#1e2940] border border-[#22c55e]/30 rounded-xl px-4 py-3">
                 <div className="w-9 h-9 rounded-lg bg-[#22c55e]/15 flex items-center justify-center">
                   <Smartphone size={18} className="text-[#22c55e]" />
@@ -217,7 +217,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
               {/* Phone */}
               <div>
                 <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium">
-                  {tab === 'deposit' ? 'Pay From' : 'Send To'} — Phone Number
+                  {tab === 'deposit' ? 'Pay From' : 'Send To'} - Phone Number
                 </label>
                 <div className="flex gap-2">
                   <div className="flex items-center bg-[#1c2237] border border-[#2a3150] rounded-xl px-3.5">

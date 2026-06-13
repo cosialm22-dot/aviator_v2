@@ -1,4 +1,4 @@
-# 🎛️ Aviator V2 — Comprehensive Admin Dashboard
+# 🎛️ Aviator V2 - Comprehensive Admin Dashboard
 ## Master Implementation Guide
 
 > **Purpose**: This document serves as the complete specification and implementation roadmap for transforming the current basic admin dashboard into a full-featured platform management system.
@@ -25,7 +25,7 @@
 | Dashboard | ✅ Basic | Revenue today, player count, bets today, pending withdrawals, recent rounds |
 | Users | ✅ Basic | List players, search, view detail, ban/unban, adjust balance |
 | Finance | ✅ Basic | Transaction list with filters, daily totals |
-| Game Control | ❌ Placeholder | "Coming in Sprint 3" — no functionality |
+| Game Control | ❌ Placeholder | "Coming in Sprint 3" - no functionality |
 | Settings | ✅ Basic | System settings editor, audit log viewer |
 
 ### What's Missing (Critical Gaps)

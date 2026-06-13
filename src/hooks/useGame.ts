@@ -4,7 +4,7 @@ import { getMultiplierAtTime } from '../lib/gameEngine';
 import type { GameStatus, GameRound, Profile } from '../types';
 
 // ============================================================================
-// useGame — SERVER-AUTHORITATIVE (Phase 5)
+// useGame - SERVER-AUTHORITATIVE (Phase 5)
 // ----------------------------------------------------------------------------
 // The single shared round lives in `game_rounds` and is advanced by the
 // server-side driver (game_tick). This hook is a pure CONSUMER:
@@ -68,7 +68,7 @@ function friendlyError(message: string): string {
   const map: Record<string, string> = {
     AUTH_REQUIRED: 'Please sign in to bet.',
     BETTING_CLOSED: 'Betting is closed for this round.',
-    ROUND_NOT_FOUND: 'Round not found — please wait for the next one.',
+    ROUND_NOT_FOUND: 'Round not found - please wait for the next one.',
     ALREADY_BET: 'You already have a bet this round.',
     INSUFFICIENT_BALANCE: 'Insufficient balance.',
     BET_OUT_OF_RANGE: 'Bet amount is outside the allowed limits.',
@@ -77,7 +77,7 @@ function friendlyError(message: string): string {
     INVALID_AUTO_CASHOUT: 'Auto-cashout must be greater than 1.00x.',
     NO_ACTIVE_BET: 'No active bet to cash out.',
     ROUND_NOT_FLYING: 'Round is not in flight.',
-    ROUND_CRASHED: 'Too late — the round already crashed.',
+    ROUND_CRASHED: 'Too late - the round already crashed.',
     BET_NOT_ACTIVE: 'This bet is no longer active.',
   };
   for (const key of Object.keys(map)) if (message.includes(key)) return map[key];
@@ -163,7 +163,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
       setActiveBet((ab) => (ab && ab.status === 'active' ? { ...ab, status: 'lost' } : ab));
       // prepend to history
       setHistory((h) => [row as GameRound, ...h.filter((x) => x.id !== row.id)].slice(0, 50));
-      // server may have auto-cashed us — reconcile wallet
+      // server may have auto-cashed us - reconcile wallet
       void onRefreshWallet();
     }
   }, [animate, onRefreshWallet]);

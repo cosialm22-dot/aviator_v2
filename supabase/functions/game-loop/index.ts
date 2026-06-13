@@ -1,5 +1,5 @@
 // ============================================================================
-// AVIATOR V2 — GAME-LOOP DRIVER (Supabase Edge Function)  [Option B, ACTIVE]
+// AVIATOR V2 - GAME-LOOP DRIVER (Supabase Edge Function)  [Option B, ACTIVE]
 // ============================================================================
 // Advances the single shared round by calling the SECURITY DEFINER RPC
 // public.game_tick() on a fast cadence. game_tick() is idempotent and protected
@@ -25,7 +25,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const TICK_MS = 250;     // tick cadence — fine enough for fair auto-cashout timing
+const TICK_MS = 250;     // tick cadence - fine enough for fair auto-cashout timing
 const RUN_MS = 58_000;   // run just under the cron minute; next minute restarts us
 const MAX_CONSECUTIVE_ERRORS = 20;
 
@@ -52,7 +52,7 @@ Deno.serve(async (_req: Request) => {
       console.error(`game_tick error: ${error.message}`);
       // Back off if the DB is unhappy; bail out if it persists (cron will retry).
       if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-        console.error("Too many consecutive errors — exiting; cron will restart.");
+        console.error("Too many consecutive errors - exiting; cron will restart.");
         break;
       }
       await sleep(Math.min(2000, TICK_MS * consecutiveErrors));

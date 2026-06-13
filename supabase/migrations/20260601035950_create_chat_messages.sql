@@ -4,7 +4,7 @@
   1. New Tables
     - `chat_messages`
       - `id` (uuid, primary key)
-      - `user_id` (uuid, nullable — bots have no user_id)
+      - `user_id` (uuid, nullable - bots have no user_id)
       - `username` (text)
       - `avatar_color` (text)
       - `text` (text, max 200 chars enforced via check)

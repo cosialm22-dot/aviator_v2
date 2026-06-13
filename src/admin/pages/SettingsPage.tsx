@@ -171,8 +171,8 @@ export default function SettingsPage() {
                     <tr key={entry.id}>
                       <td className="px-5 py-3 text-ink font-medium">{entry.profiles?.username ?? 'System'}</td>
                       <td className="px-5 py-3"><span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-muted">{entry.action}</span></td>
-                      <td className="px-5 py-3 text-muted text-xs">{entry.target_type && `${entry.target_type}: ${entry.target_id?.slice(0, 8) ?? '—'}`}</td>
-                      <td className="px-5 py-3 text-muted text-xs max-w-[200px] truncate font-mono">{entry.details ? JSON.stringify(entry.details).slice(0, 60) : '—'}</td>
+                      <td className="px-5 py-3 text-muted text-xs">{entry.target_type && `${entry.target_type}: ${entry.target_id?.slice(0, 8) ?? '-'}`}</td>
+                      <td className="px-5 py-3 text-muted text-xs max-w-[200px] truncate font-mono">{entry.details ? JSON.stringify(entry.details).slice(0, 60) : '-'}</td>
                       <td className="px-5 py-3 text-muted text-xs whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</td>
                     </tr>
                   ))}

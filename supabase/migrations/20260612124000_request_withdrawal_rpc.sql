@@ -1,5 +1,5 @@
 -- ============================================================================
--- AVIATOR V2 — PHASE 2 (ADDENDUM): request_withdrawal RPC
+-- AVIATOR V2 - PHASE 2 (ADDENDUM): request_withdrawal RPC
 -- ============================================================================
 -- The missing link for the cashier under lockdown. The deployed mpesa-b2c
 -- function requires a pre-existing 'pending' withdrawal_requests row, but
@@ -7,7 +7,7 @@
 -- only sanctioned way for a player to request a withdrawal.
 --
 -- Design (explicit, consistent with the deployed mpesa-b2c):
---   • Does NOT debit the wallet — mpesa-b2c debits at payout time, so debiting
+--   • Does NOT debit the wallet - mpesa-b2c debits at payout time, so debiting
 --     here would double-debit. (A future hold-on-request model would require a
 --     coordinated change to mpesa-b2c.)
 --   • One pending request per user at a time (prevents stacked requests).

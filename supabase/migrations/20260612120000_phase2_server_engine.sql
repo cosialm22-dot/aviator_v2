@@ -1,5 +1,5 @@
 -- ============================================================================
--- AVIATOR V2 — PHASE 2: SERVER-AUTHORITATIVE ENGINE
+-- AVIATOR V2 - PHASE 2: SERVER-AUTHORITATIVE ENGINE
 -- ============================================================================
 -- Adds the money RPCs, round lifecycle, provably-fair reveal, server-side bots,
 -- and integrity invariants. ALL OBJECTS ARE ADDITIVE AND DORMANT: nothing here
@@ -15,7 +15,7 @@
 BEGIN;
 
 -- ----------------------------------------------------------------------------
--- 0. ROUND NUMBERING — assign a monotonic round_number (was NULL on all rows)
+-- 0. ROUND NUMBERING - assign a monotonic round_number (was NULL on all rows)
 -- ----------------------------------------------------------------------------
 WITH ordered AS (
   SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
@@ -40,7 +40,7 @@ ALTER TABLE game_rounds ALTER COLUMN round_number SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS game_rounds_round_number_key ON game_rounds(round_number);
 
 -- ----------------------------------------------------------------------------
--- 1. RELAX crash_multiplier — must be HIDDEN during flight (provably-fair).
+-- 1. RELAX crash_multiplier - must be HIDDEN during flight (provably-fair).
 --    Populated only at crash time by crash_round(); NULL while waiting/flying.
 -- ----------------------------------------------------------------------------
 ALTER TABLE game_rounds ALTER COLUMN crash_multiplier DROP NOT NULL;
@@ -101,7 +101,7 @@ RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
 $$;
 
 -- ----------------------------------------------------------------------------
--- 4. _seed_bots — server-side bot liquidity for a round.
+-- 4. _seed_bots - server-side bot liquidity for a round.
 --    Mirrors botSimulator.ts distributions; count from game.bots_min/max.
 --    Bots never touch wallets/transactions (is_bot=true, user_id=NULL).
 -- ----------------------------------------------------------------------------
@@ -150,7 +150,7 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 5. open_round — create the next shared round in 'waiting'.
+-- 5. open_round - create the next shared round in 'waiting'.
 --    Generates server_seed, commits seed_hash, stores hidden crash_point.
 --    Honours game.queue_enabled (admin preset crashes) else parametric PF.
 --    Idempotent guard: never opens if a live round already exists.
@@ -196,7 +196,7 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 6. start_round — waiting -> flying; pins started_at and computes crashes_at.
+-- 6. start_round - waiting -> flying; pins started_at and computes crashes_at.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.start_round(p_round_id uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, pg_temp AS $$
@@ -213,7 +213,7 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 7. _settle_flight — auto-cashouts during flight (real players + bots).
+-- 7. _settle_flight - auto-cashouts during flight (real players + bots).
 --    Executes AT the auto_cashout target (fair, tick-rate independent), only
 --    when target <= current multiplier AND target < crash_point.
 -- ----------------------------------------------------------------------------
@@ -244,7 +244,7 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 8. crash_round — reveal seed, settle losers, write totals.
+-- 8. crash_round - reveal seed, settle losers, write totals.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.crash_round(p_round_id uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, pg_temp AS $$
@@ -263,7 +263,7 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 9. game_tick — single orchestration step. Driver calls this every ~250ms.
+-- 9. game_tick - single orchestration step. Driver calls this every ~250ms.
 --    Idempotent; xact advisory lock prevents overlapping ticks.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.game_tick()
@@ -309,7 +309,7 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 10. place_bet — the ONLY way a player stakes money. Atomic, locked wallet.
+-- 10. place_bet - the ONLY way a player stakes money. Atomic, locked wallet.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.place_bet(p_round_id uuid, p_amount numeric, p_auto_cashout numeric DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, pg_temp AS $$
@@ -355,7 +355,7 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 11. cash_out — manual cashout. Server clock + crash_point are authoritative.
+-- 11. cash_out - manual cashout. Server clock + crash_point are authoritative.
 --     Idempotent: a second call after a win returns the recorded result.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.cash_out(p_round_id uuid)
@@ -397,7 +397,7 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 12. EXECUTE GRANTS — least privilege.
+-- 12. EXECUTE GRANTS - least privilege.
 --     Players may only call place_bet / cash_out. Lifecycle + tick are
 --     service_role only (driver). Helper math stays callable (no secret leak).
 -- ----------------------------------------------------------------------------

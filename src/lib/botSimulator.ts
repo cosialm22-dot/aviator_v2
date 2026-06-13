@@ -42,7 +42,7 @@ const AVATAR_COLORS = [
 ];
 
 function randomBetAmount(): number {
-  // KShs amounts — min 50
+  // KShs amounts - min 50
   const amounts = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
   const weights = [20, 25, 20, 15, 10,  5,    4,    1  ];
   const total = weights.reduce((a, b) => a + b, 0);
@@ -56,17 +56,17 @@ function randomBetAmount(): number {
 
 function randomCashoutMultiplier(): number | null {
   const r = Math.random();
-  // 10% lose (no cashout) — visible losses build sympathy not fear
+  // 10% lose (no cashout) - visible losses build sympathy not fear
   if (r < 0.10) return null;
-  // 28% cash out 1.2x–1.6x — "safe" bots that always win small
+  // 28% cash out 1.2x-1.6x - "safe" bots that always win small
   if (r < 0.38) return 1.20 + Math.random() * 0.40;
-  // 30% cash out 1.6x–2.2x — the majority, reinforces "2x is easy" belief
+  // 30% cash out 1.6x-2.2x - the majority, reinforces "2x is easy" belief
   if (r < 0.68) return 1.60 + Math.random() * 0.60;
-  // 16% cash out 2.2x–4x — moderate wins that look great in the bets table
+  // 16% cash out 2.2x-4x - moderate wins that look great in the bets table
   if (r < 0.84) return 2.20 + Math.random() * 1.80;
-  // 10% cash out 4x–12x — exciting wins, bets table lights up green
+  // 10% cash out 4x-12x - exciting wins, bets table lights up green
   if (r < 0.94) return 4.0  + Math.random() * 8.0;
-  // 6% hold for 12x–40x — rare whales that generate table FOMO
+  // 6% hold for 12x-40x - rare whales that generate table FOMO
   return 12.0 + Math.random() * 28.0;
 }
 
@@ -76,7 +76,7 @@ function pickName(used: Set<string>): string {
   for (const base of shuffled) {
     if (!used.has(base)) { used.add(base); return base; }
   }
-  // All 100+ taken — append number
+  // All 100+ taken - append number
   const base = NAMES[Math.floor(Math.random() * NAMES.length)];
   const n = `${base}_${Math.floor(Math.random() * 999)}`;
   used.add(n);
@@ -84,7 +84,7 @@ function pickName(used: Set<string>): string {
 }
 
 export function generateBots(crashPoint: number): BotPlayer[] {
-  // 60–100 bots per round for a busy, realistic lobby
+  // 60-100 bots per round for a busy, realistic lobby
   const count = 60 + Math.floor(Math.random() * 41);
   const used = new Set<string>();
   const bots: BotPlayer[] = [];

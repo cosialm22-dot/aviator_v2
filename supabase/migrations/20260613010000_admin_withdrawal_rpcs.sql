@@ -1,5 +1,5 @@
 -- ============================================================================
--- AVIATOR V2 — MILESTONE 1: ADMIN WITHDRAWAL RPCs
+-- AVIATOR V2 - MILESTONE 1: ADMIN WITHDRAWAL RPCs
 -- ============================================================================
 -- Completes the cashier's admin side. Under the Phase-1 security lockdown,
 -- admins (role 'authenticated') have an `admin_full_access` RLS policy on
@@ -7,12 +7,12 @@
 -- wallet). These SECURITY DEFINER RPCs are the sanctioned admin paths and
 -- centralise authorisation + audit in one place.
 --
--- LIFECYCLE (authoritative — derived from the deployed rails, do not diverge):
+-- LIFECYCLE (authoritative - derived from the deployed rails, do not diverge):
 --   request_withdrawal      : INSERT row status='pending'  (NO wallet debit)
 --   mpesa-b2c (edge fn)      : requires status='pending' -> debits wallet,
 --                              inserts 'withdrawal' txn, sets status='processing'
 --   mpesa-b2c-callback       : ResultCode 0 -> 'completed'; else 'failed' + reversal
---   admin_reject_withdrawal  : 'pending' -> 'rejected' (NO refund — never debited)
+--   admin_reject_withdrawal  : 'pending' -> 'rejected' (NO refund - never debited)
 --
 -- DESIGN DECISIONS (explicit, defensible):
 --   • admin_approve_withdrawal does NOT debit and does NOT change status. It
