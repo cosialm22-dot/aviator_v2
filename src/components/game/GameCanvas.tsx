@@ -286,7 +286,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint }: Props)
 
     rafRef.current = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(rafRef.current);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
 }

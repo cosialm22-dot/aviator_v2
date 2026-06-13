@@ -2,13 +2,14 @@ import { useState, useRef } from 'react';
 import { Minus, Plus, Zap, Clock } from 'lucide-react';
 import type { GameStatus } from '../../types';
 import { formatMultiplier } from '../../lib/gameEngine';
+import type { ActiveBet } from '../../hooks/useGame';
 
 interface Props {
   panelIndex: number;
   status: GameStatus;
   multiplier: number;
   balance: number;
-  activeBet: { amount: number; cashedOut: boolean; winnings: number | null; cashout_multiplier?: number; cashoutAt: number | null } | null;
+  activeBet: ActiveBet | null;
   queuedBet: number | null; // NEW: queued bet amount for next round
   onPlaceBet: (amount: number, autoCashoutAt: number | null) => Promise<void>;
   onQueueBet: (amount: number) => void; // NEW: queue bet for next round
@@ -67,11 +68,11 @@ export default function BettingPanel({
     setRawAmount(String(Math.max(MIN_BET, Math.floor(n))));
   };
 
-  const winnings = activeBet && !activeBet.cashedOut
+  const winnings = activeBet && activeBet.status === 'active'
     ? Math.floor(activeBet.amount * multiplier * 100) / 100
     : activeBet?.winnings ?? 0;
 
-  const isCashable = status === 'flying' && activeBet && !activeBet.cashedOut && panelIndex === 0;
+  const isCashable = status === 'flying' && activeBet?.status === 'active' && panelIndex === 0;
 
   // Determine button state and label
   const getButtonConfig = () => {
@@ -88,7 +89,7 @@ export default function BettingPanel({
     }
 
     // Active bet flying: show in-flight status
-    if (activeBet && !activeBet.cashedOut && status === 'flying' && panelIndex === 0) {
+    if (activeBet?.status === 'active' && status === 'flying' && panelIndex === 0) {
       return {
         label: 'Flying...',
         sublabel: `KSh ${activeBet.amount.toLocaleString('en-KE')}`,
@@ -99,7 +100,7 @@ export default function BettingPanel({
     }
 
     // Cashed out: show result
-    if (activeBet?.cashedOut && panelIndex === 0) {
+    if (activeBet?.status === 'won' && panelIndex === 0) {
       return {
         label: 'Cashed Out!',
         sublabel: `+KSh ${(activeBet.winnings ?? 0).toLocaleString('en-KE')}`,
@@ -258,7 +259,7 @@ export default function BettingPanel({
       )}
 
       {/* Cashout confirmation row */}
-      {activeBet?.cashedOut && panelIndex === 0 && (
+      {activeBet?.status === 'won' && panelIndex === 0 && (
         <div className="px-3 pb-2 text-center text-green-400 text-[11px] font-semibold">
           +KSh {(activeBet.winnings ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })} @ {formatMultiplier(activeBet.cashout_multiplier ?? multiplier)}
         </div>

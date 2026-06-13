@@ -9,6 +9,16 @@ interface Stats {
 
 interface Bucket { label: string; count: number; pct: number }
 
+interface FeedRow {
+  id: string;
+  username: string;
+  amount: number;
+  cashout_multiplier: number | null;
+  winnings: number | null;
+  status: string;
+  created_at: string;
+}
+
 const POLL_MS = 5000;
 
 // One typographic style for every section/card title (consistency, no icons).
@@ -25,7 +35,7 @@ function fmtKES(n: number): string {
 export default function DashboardPage() {
   const [s, setS] = useState<Stats | null>(null);
   const [buckets, setBuckets] = useState<Bucket[]>([]);
-  const [feed, setFeed] = useState<any[]>([]);
+  const [feed, setFeed] = useState<FeedRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -40,11 +50,11 @@ export default function DashboardPage() {
         supabase.from('withdrawal_requests').select('amount').eq('status', 'pending'),
         supabase.from('game_rounds').select('id', { count: 'exact', head: true }).eq('status', 'flying').lt('started_at', zc),
         supabase.from('game_rounds').select('started_at').eq('status', 'flying').order('started_at', { ascending: true }).limit(1),
-        supabase.from('bets').select('username,amount,cashout_multiplier,winnings,status,created_at').order('created_at', { ascending: false }).limit(15),
+        supabase.from('bets').select('id,username,amount,cashout_multiplier,winnings,status,created_at').order('created_at', { ascending: false }).limit(15),
       ]);
       const bets = bR.data ?? [];
-      const wagered = bets.reduce((x: number, b: any) => x + Math.abs(Number(b.amount)), 0);
-      const wins = bets.filter((b: any) => b.status === 'won').reduce((x: number, b: any) => x + Number(b.winnings ?? 0), 0);
+      const wagered = bets.reduce((x: number, b) => x + Math.abs(Number(b.amount)), 0);
+      const wins = bets.filter((b) => b.status === 'won').reduce((x: number, b) => x + Number(b.winnings ?? 0), 0);
       const revenue = wagered - wins;
       const rounds = rR.data ?? [];
       const bm: Record<string, number> = {
@@ -69,14 +79,14 @@ export default function DashboardPage() {
         revenue, players: pR.count ?? 0, bets: bets.length,
         houseEdge: Math.round(wagered > 0 ? revenue / wagered * 1000 : 0) / 10,
         pendingCount: pending.length,
-        pendingAmount: pending.reduce((x: number, p: any) => x + Number(p.amount), 0),
+        pendingAmount: pending.reduce((x: number, p) => x + Number(p.amount), 0),
         zombies: zR.count ?? 0,
         activeSince: aR.data?.[0]?.started_at ?? null,
       });
       setBuckets(bl);
       setFeed(fR.data ?? []);
       setErr(null);
-    } catch (e: any) { setErr(e?.message || 'Failed to load'); }
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Failed to load'); }
     finally { setLoading(false); }
   }, []);
 
@@ -220,8 +230,8 @@ export default function DashboardPage() {
               <div className="py-10 text-center text-faint text-[13px]">No activity yet</div>
             ) : (
               <div className="divide-y divide-line">
-                {feed.map((a, i) => (
-                  <div key={a.id || i} className="grid grid-cols-[minmax(0,1fr)_64px_104px] gap-3 py-2.5 items-center">
+                {feed.map((a) => (
+                  <div key={a.id} className="grid grid-cols-[minmax(0,1fr)_64px_104px] gap-3 py-2.5 items-center">
                     <span className="truncate text-[13px] text-ink font-medium">{a.username}</span>
                     <span className={'text-right text-[12px] font-medium tabular-nums ' + (a.status === 'won' ? 'text-up' : a.status === 'lost' ? 'text-down' : 'text-muted')}>
                       {a.status === 'won' ? (a.cashout_multiplier ? Number(a.cashout_multiplier).toFixed(2) + 'x' : '\u2014') : a.status === 'lost' ? 'Lost' : '\u2014'}

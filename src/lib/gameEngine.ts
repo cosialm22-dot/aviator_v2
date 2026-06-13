@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 /**
  * Crash point generator with elevated house edge (~18-20%).
  *
@@ -95,7 +97,7 @@ export function getCrashColor(value: number): string {
  * Gets the next crash point from the crash_queue if enabled, otherwise generates randomly.
  * Reads game.queue_enabled from system_settings. Consumes queue items (marks them used).
  */
-export async function getNextCrashPoint(supabase: any): Promise<{
+export async function getNextCrashPoint(supabase: SupabaseClient): Promise<{
   point: number;
   source: 'algorithm' | 'queue';
   queueId: string | null;

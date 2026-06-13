@@ -33,7 +33,9 @@ export default function FinancePage() {
     }
 
     const { data } = await query;
-    setTransactions((data ?? []) as Transaction[]);
+    // supabase-js types the to-one `profiles` embed as an array, but at runtime
+    // it is a single object; cast through unknown to our row shape.
+    setTransactions((data ?? []) as unknown as Transaction[]);
     setLoading(false);
   }, [typeFilter]);
 
@@ -131,7 +133,7 @@ export default function FinancePage() {
                   <tr><td colSpan={6} className="px-5 py-12 text-center text-faint">No transactions found</td></tr>
                 ) : transactions.map(tx => (
                   <tr key={tx.id} className="hover:bg-canvas transition-colors">
-                    <td className="px-5 py-3 text-ink font-medium">{(tx.profiles as any)?.username ?? 'Unknown'}</td>
+                    <td className="px-5 py-3 text-ink font-medium">{tx.profiles?.username ?? 'Unknown'}</td>
                     <td className="px-5 py-3">
                       <span className={'inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ' + (
                         tx.type === 'deposit' ? 'bg-emerald-50 text-up' :

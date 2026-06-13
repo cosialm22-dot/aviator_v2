@@ -67,7 +67,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
     if (gameStatus === 'waiting' && queuedBet && !activeBet) {
       placeBet(queuedBet, null).then(() => setQueuedBet(null));
     }
-  }, [gameStatus]);
+  }, [gameStatus, queuedBet, activeBet, placeBet]);
 
   const handleQueueBet = (amount: number) => {
     setQueuedBet(amount);
@@ -163,7 +163,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                   >
                     {formatMultiplier(currentMultiplier)}
                   </div>
-                  {activeBet && !activeBet.cashedOut && (
+                  {activeBet && activeBet.status === 'active' && (
                     <div className="text-green-400 text-sm mt-2 font-black animate-pulse tracking-wide">
                       CASH OUT NOW!
                     </div>
@@ -192,7 +192,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             </div>
 
             {/* Cashout toast */}
-            {activeBet?.cashedOut && (
+            {activeBet?.status === 'won' && (
               <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-green-500 text-white font-bold px-4 py-2 rounded-full text-sm shadow-lg shadow-green-500/40 z-20 whitespace-nowrap">
                 +KSh {(activeBet.winnings ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} @ {(activeBet.cashout_multiplier ?? currentMultiplier).toFixed(2)}×
               </div>

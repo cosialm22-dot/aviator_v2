@@ -1,26 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+
+interface PlayerProfile {
+  id: string;
+  username: string;
+  avatar_color: string;
+  role: string;
+  is_banned: boolean;
+  ban_reason: string | null;
+  total_wagered: number;
+  created_at: string;
+}
+
+interface UserBetRow {
+  id: string;
+  amount: number;
+  cashout_multiplier: number | null;
+  winnings: number | null;
+  status: string;
+  created_at: string;
+}
 
 export default function UserDetailPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
-  const [wallet, setWallet] = useState<any>(null);
-  const [bets, setBets] = useState<any[]>([]);
+  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  const [wallet, setWallet] = useState<{ balance: number } | null>(null);
+  const [bets, setBets] = useState<UserBetRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { if (userId) load(); }, [userId]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const [p, w, b] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId!).maybeSingle(),
       supabase.from('wallets').select('balance').eq('user_id', userId!).maybeSingle(),
       supabase.from('bets').select('id,amount,cashout_multiplier,winnings,status,created_at').eq('user_id', userId!).eq('is_bot', false).order('created_at', { ascending: false }).limit(30),
     ]);
-    setProfile(p.data); setWallet(w.data); setBets(b.data ?? []); setLoading(false);
-  }
+    setProfile(p.data as PlayerProfile | null);
+    setWallet(w.data as { balance: number } | null);
+    setBets((b.data ?? []) as UserBetRow[]);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { if (userId) void load(); }, [userId, load]);
 
   async function toggleBan() {
     if (!profile) return;

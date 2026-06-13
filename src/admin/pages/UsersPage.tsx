@@ -1,24 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
+interface PlayerRow {
+  id: string;
+  username: string;
+  avatar_color: string;
+  role: string;
+  is_banned: boolean;
+  total_wagered: number;
+  created_at: string;
+}
+
 export default function UsersPage() {
-  const [players, setPlayers] = useState<any[]>([]);
+  const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => { fetchPlayers(); }, []);
-
-  async function fetchPlayers() {
+  const runSearch = useCallback(async (term: string) => {
     setLoading(true);
     let q = supabase.from('profiles').select('id, username, avatar_color, role, is_banned, total_wagered, created_at').order('created_at', { ascending: false }).limit(100);
-    if (search.trim()) q = q.ilike('username', `%${search.trim()}%`);
+    if (term.trim()) q = q.ilike('username', `%${term.trim()}%`);
     const { data } = await q;
-    setPlayers(data ?? []);
+    setPlayers((data ?? []) as PlayerRow[]);
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => { void runSearch(''); }, [runSearch]);
 
   const roleBadge = (role: string) =>
     role === 'super_admin' ? 'bg-rose-50 text-down' :
@@ -38,7 +48,7 @@ export default function UsersPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && fetchPlayers()}
+            onKeyDown={e => e.key === 'Enter' && runSearch(search)}
             placeholder="Search username..."
             className="w-full pl-9 pr-4 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition-colors"
           />

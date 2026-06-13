@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 
 interface Setting {
   key: string;
-  value: any;
+  value: unknown;
   category: string;
   description: string | null;
   updated_at: string;
@@ -14,7 +14,7 @@ interface AuditEntry {
   action: string;
   target_type: string | null;
   target_id: string | null;
-  details: any;
+  details: unknown;
   created_at: string;
   profiles?: { username: string } | null;
 }
@@ -42,7 +42,7 @@ export default function SettingsPage() {
     const s = (settingsRes.data ?? []) as Setting[];
     setSettings(s);
     setEditValues(Object.fromEntries(s.map(x => [x.key, typeof x.value === 'string' ? x.value : JSON.stringify(x.value)])));
-    setAuditLog((auditRes.data ?? []) as AuditEntry[]);
+    setAuditLog((auditRes.data ?? []) as unknown as AuditEntry[]);
     setLoading(false);
   }
 
@@ -55,7 +55,7 @@ export default function SettingsPage() {
     const { data: { session } } = await supabase.auth.getSession();
 
     // Parse value - try as number first, then boolean, then string
-    let parsedValue: any = newValue;
+    let parsedValue: string | number | boolean = newValue;
     if (newValue === 'true') parsedValue = true;
     else if (newValue === 'false') parsedValue = false;
     else if (!isNaN(Number(newValue)) && newValue.trim() !== '') parsedValue = Number(newValue);
@@ -169,7 +169,7 @@ export default function SettingsPage() {
                     <tr><td colSpan={5} className="px-5 py-12 text-center text-faint">No audit entries yet</td></tr>
                   ) : auditLog.map(entry => (
                     <tr key={entry.id}>
-                      <td className="px-5 py-3 text-ink font-medium">{(entry.profiles as any)?.username ?? 'System'}</td>
+                      <td className="px-5 py-3 text-ink font-medium">{entry.profiles?.username ?? 'System'}</td>
                       <td className="px-5 py-3"><span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-muted">{entry.action}</span></td>
                       <td className="px-5 py-3 text-muted text-xs">{entry.target_type && `${entry.target_type}: ${entry.target_id?.slice(0, 8) ?? '—'}`}</td>
                       <td className="px-5 py-3 text-muted text-xs max-w-[200px] truncate font-mono">{entry.details ? JSON.stringify(entry.details).slice(0, 60) : '—'}</td>

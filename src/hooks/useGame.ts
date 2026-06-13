@@ -29,7 +29,7 @@ type RoundRow = GameRound & {
   server_seed: string | null;
 };
 
-interface ActiveBet {
+export interface ActiveBet {
   id: string;
   amount: number;
   autoCashout: number | null;
@@ -48,6 +48,21 @@ interface LiveBetEntry {
   status: 'active' | 'won' | 'lost';
   is_bot: boolean;
 }
+
+// Row shape from the `bets` table (only the columns this hook reads). The
+// realtime payload and the hydrate query both conform to this subset.
+type BetRow = {
+  id: string;
+  user_id: string | null;
+  username: string;
+  avatar_color: string;
+  amount: number;
+  auto_cashout: number | null;
+  cashout_multiplier: number | null;
+  winnings: number | null;
+  status: 'active' | 'won' | 'lost';
+  is_bot: boolean;
+};
 
 function friendlyError(message: string): string {
   const map: Record<string, string> = {
@@ -189,11 +204,11 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
       const { data } = await supabase
         .from('bets').select('*').eq('round_id', roundId).order('created_at', { ascending: false });
       if (data) {
-        setLiveBets(data.map((b: any) => ({
+        setLiveBets(data.map((b: BetRow) => ({
           id: b.id, username: b.username, avatar_color: b.avatar_color, amount: Number(b.amount),
           cashout_multiplier: b.cashout_multiplier, winnings: b.winnings, status: b.status, is_bot: b.is_bot,
         })));
-        const mine = data.find((b: any) => b.user_id && b.user_id === profileRef.current?.id);
+        const mine = data.find((b: BetRow) => b.user_id && b.user_id === profileRef.current?.id);
         if (mine) setActiveBet({
           id: mine.id, amount: Number(mine.amount), autoCashout: mine.auto_cashout,
           status: mine.status, cashout_multiplier: mine.cashout_multiplier, winnings: mine.winnings,
@@ -201,7 +216,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
       }
     })();
 
-    const upsert = (b: any) => {
+    const upsert = (b: BetRow) => {
       const entry: LiveBetEntry = {
         id: b.id, username: b.username, avatar_color: b.avatar_color, amount: Number(b.amount),
         cashout_multiplier: b.cashout_multiplier, winnings: b.winnings, status: b.status, is_bot: b.is_bot,
@@ -223,7 +238,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
     const ch = supabase
       .channel(`rt-bets-${roundId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bets', filter: `round_id=eq.${roundId}` },
-        (payload) => { if (payload.new) upsert(payload.new); })
+        (payload) => { if (payload.new) upsert(payload.new as BetRow); })
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
   }, [roundId, onRefreshWallet]);

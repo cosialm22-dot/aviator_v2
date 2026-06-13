@@ -5,14 +5,17 @@ import { Activity, Target, Settings } from 'lucide-react';
 
 interface GameRoundRow { id:string; crash_multiplier:number; status:string; started_at:string|null; crashed_at:string|null; source:string; queue_id:string|null }
 interface CQItem { id:string; crash_point:number; position:number; status:string; created_at:string }
-interface GSetting { key:string; value:any; description:string|null }
+interface GSetting { key:string; value:unknown; description:string|null }
 
 const POLL_MS=3000; const TICK_MS=150; const ZOMBIE_MS=12e4; const MIN_C=1; const MAX_C=80;
 type Tab='monitor'|'queue'|'params';
 
 function fmtKES(n:number):string{return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toLocaleString('en-KE')}
 function elapsed(iso:string|null):number{return iso?Math.floor((Date.now()-new Date(iso).getTime())/1e3):0}
-function sc(s:string):string{return s==='flying'?'bg-emerald-500 text-white':s==='crashed'?'bg-red-500 text-white':s==='waiting'?'bg-amber-500 text-black':'bg-slate-600 text-white'}
+
+function errMsg(e: unknown, fallback = 'Something went wrong'): string {
+  return e instanceof Error ? e.message : fallback;
+}
 
 const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
 function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }
@@ -36,27 +39,27 @@ const pRef=useRef<ReturnType<typeof setInterval>>();
 const tRef=useRef<ReturnType<typeof setInterval>>();
 const aRef=useRef<AbortController|null>(null);
 
-const fetchAll=useCallback(async()=>{try{aRef.current?.abort();const ac=new AbortController();aRef.current=ac;const s=ac.signal;const[rr,ar,qr,sr,zr]=await Promise.all([supabase.from('game_rounds').select('*').order('created_at',{ascending:false}).limit(1).maybeSingle().abortSignal(s),supabase.from('game_rounds').select('id').eq('status','flying').limit(1).maybeSingle().abortSignal(s),supabase.from('crash_queue').select('*').order('position',{ascending:true}).limit(100).abortSignal(s),supabase.from('system_settings').select('*').eq('category','game').order('key').abortSignal(s),supabase.from('game_rounds').select('id',{count:'exact',head:true}).eq('status','flying').lt('started_at',new Date(Date.now()-ZOMBIE_MS).toISOString()).abortSignal(s)]);if(s.aborted)return;let active=(rr.data??null)as GameRoundRow|null;if(ar.data&&active?.status!=='flying'){const fr=await supabase.from('game_rounds').select('*').eq('id',ar.data.id).maybeSingle().abortSignal(s);if(!s.aborted&&fr.data)active=fr.data as GameRoundRow}setRound(active);if(active?.status==='flying'){const br=await supabase.from('bets').select('amount',{count:'exact'}).eq('round_id',active.id).eq('status','active').abortSignal(s);if(!s.aborted&&br.data){setBCnt(br.count??0);setBTot(br.data.reduce((sm:number,b:any)=>sm+Number(b.amount),0))}}else{setBCnt(0);setBTot(0)}setQueue((qr.data??[])as CQItem[]);setGSet((sr.data??[])as GSetting[]);setZCnt(zr.count??0);setEv(prev=>{const nxt={...prev};for(const sx of(sr.data??[])as GSetting[]){if(!(sx.key in nxt))nxt[sx.key]=String(sx.value)}return nxt});setErr(null)}catch(e:any){if(e?.name==='AbortError')return;setErr(e?.message||'Fetch failed')}finally{setLoading(false)}},[]);
+const fetchAll=useCallback(async()=>{try{aRef.current?.abort();const ac=new AbortController();aRef.current=ac;const s=ac.signal;const[rr,ar,qr,sr,zr]=await Promise.all([supabase.from('game_rounds').select('*').order('created_at',{ascending:false}).limit(1).abortSignal(s).maybeSingle(),supabase.from('game_rounds').select('id').eq('status','flying').limit(1).abortSignal(s).maybeSingle(),supabase.from('crash_queue').select('*').order('position',{ascending:true}).limit(100).abortSignal(s),supabase.from('system_settings').select('*').eq('category','game').order('key').abortSignal(s),supabase.from('game_rounds').select('id',{count:'exact',head:true}).eq('status','flying').lt('started_at',new Date(Date.now()-ZOMBIE_MS).toISOString()).abortSignal(s)]);if(s.aborted)return;let active=(rr.data??null)as GameRoundRow|null;if(ar.data&&active?.status!=='flying'){const fr=await supabase.from('game_rounds').select('*').eq('id',ar.data.id).abortSignal(s).maybeSingle();if(!s.aborted&&fr.data)active=fr.data as GameRoundRow}setRound(active);if(active?.status==='flying'){const br=await supabase.from('bets').select('amount',{count:'exact'}).eq('round_id',active.id).eq('status','active').abortSignal(s);if(!s.aborted&&br.data){setBCnt(br.count??0);setBTot(br.data.reduce((sm:number,b:{amount:number})=>sm+Number(b.amount),0))}}else{setBCnt(0);setBTot(0)}setQueue((qr.data??[])as CQItem[]);setGSet((sr.data??[])as GSetting[]);setZCnt(zr.count??0);setEv(prev=>{const nxt={...prev};for(const sx of(sr.data??[])as GSetting[]){if(!(sx.key in nxt))nxt[sx.key]=String(sx.value)}return nxt});setErr(null)}catch(e){if(e instanceof Error&&e.name==='AbortError')return;setErr(errMsg(e,'Fetch failed'))}finally{setLoading(false)}},[]);
 
 useEffect(()=>{if(round?.status!=='flying'||!round.started_at){setMult(1);return}const st=new Date(round.started_at).getTime();const tick=()=>{const m=getMultiplierAtTime(Date.now()-st);setMult(m>=Number(round.crash_multiplier)?Number(round.crash_multiplier):m)};tick();tRef.current=setInterval(tick,TICK_MS);return()=>clearInterval(tRef.current)},[round?.status,round?.started_at,round?.crash_multiplier]);
 
 useEffect(()=>{fetchAll();pRef.current=setInterval(fetchAll,POLL_MS);return()=>{clearInterval(pRef.current);clearInterval(tRef.current);aRef.current?.abort()}},[fetchAll]);
 
-const audit=useCallback(async(action:string,tid?:string,dt?:any)=>{try{const{data:{session}}=await supabase.auth.getSession();if(!session?.user?.id)return;await supabase.from('admin_audit_log').insert({admin_id:session.user.id,action,target_type:'game',target_id:tid||null,details:dt||null})}catch{}},[]);
+const audit=useCallback(async(action:string,tid?:string|null,dt?:Record<string,unknown>)=>{try{const{data:{session}}=await supabase.auth.getSession();if(!session?.user?.id)return;await supabase.from('admin_audit_log').insert({admin_id:session.user.id,action,target_type:'game',target_id:tid||null,details:dt||null})}catch{ /* best-effort: never block the action on audit failure */ }},[]);
 
-const forceCrash=async()=>{if(!round||round.status!=='flying'||lock)return;setLock('fc');try{const{error:fcErr}=await supabase.rpc('admin_force_crash',{p_round_id:round.id});if(fcErr)throw fcErr;setShFC(false);fetchAll()}catch(e:any){setErr(e?.message||'Failed')}finally{setLock(null)}};
+const forceCrash=async()=>{if(!round||round.status!=='flying'||lock)return;setLock('fc');try{const{error:fcErr}=await supabase.rpc('admin_force_crash',{p_round_id:round.id});if(fcErr)throw fcErr;setShFC(false);fetchAll()}catch(e){setErr(errMsg(e,'Failed'))}finally{setLock(null)}};
 
-const recoverZ=async()=>{if(lock)return;setLock('rc');try{const{error:rzErr}=await supabase.rpc('admin_recover_zombies',{p_older_than_seconds:Math.round(ZOMBIE_MS/1000)});if(rzErr)throw rzErr;setShRc(false);fetchAll()}catch(e:any){setErr(e?.message||'Failed')}finally{setLock(null)}};
+const recoverZ=async()=>{if(lock)return;setLock('rc');try{const{error:rzErr}=await supabase.rpc('admin_recover_zombies',{p_older_than_seconds:Math.round(ZOMBIE_MS/1000)});if(rzErr)throw rzErr;setShRc(false);fetchAll()}catch(e){setErr(errMsg(e,'Failed'))}finally{setLock(null)}};
 
-const addSingle=async()=>{if(lock)return;const v=parseFloat(sVal);if(isNaN(v)||v<MIN_C||v>MAX_C){setErr('Must be '+MIN_C+'-'+MAX_C);return}setLock('as');try{const pos=queue.length>0?Math.max(...queue.map(q=>q.position))+1:1;await supabase.from('crash_queue').insert({crash_point:v,position:pos,status:'pending',created_at:new Date().toISOString()});await audit('queue_add',null,{crash_point:v,position:pos});setSVal('');setErr(null);fetchAll()}catch(e:any){setErr(e?.message||'Add failed')}finally{setLock(null)}};
+const addSingle=async()=>{if(lock)return;const v=parseFloat(sVal);if(isNaN(v)||v<MIN_C||v>MAX_C){setErr('Must be '+MIN_C+'-'+MAX_C);return}setLock('as');try{const pos=queue.length>0?Math.max(...queue.map(q=>q.position))+1:1;await supabase.from('crash_queue').insert({crash_point:v,position:pos,status:'pending',created_at:new Date().toISOString()});await audit('queue_add',null,{crash_point:v,position:pos});setSVal('');setErr(null);fetchAll()}catch(e){setErr(errMsg(e,'Add failed'))}finally{setLock(null)}};
 
-const addBatch=async()=>{if(lock)return;const lines=bVal.split(/[\n,]+/).map((l:string)=>l.trim()).filter((l:string)=>l);const vals:number[]=[];const errs:string[]=[];for(const l of lines){const v=parseFloat(l);if(isNaN(v)||v<MIN_C||v>MAX_C)errs.push('Invalid: '+l);else vals.push(v)}if(errs.length){setErr(errs.join('; '));return}if(!vals.length)return;setLock('ab');try{const bp=queue.length>0?Math.max(...queue.map(q=>q.position))+1:1;const rows=vals.map((v,i)=>({crash_point:v,position:bp+i,status:'pending',created_at:new Date().toISOString()}));await supabase.from('crash_queue').insert(rows);await audit('queue_batch_add',null,{count:vals.length});setBVal('');setErr(null);fetchAll()}catch(e:any){setErr(e?.message||'Batch failed')}finally{setLock(null)}};
+const addBatch=async()=>{if(lock)return;const lines=bVal.split(/[\n,]+/).map((l:string)=>l.trim()).filter((l:string)=>l);const vals:number[]=[];const errs:string[]=[];for(const l of lines){const v=parseFloat(l);if(isNaN(v)||v<MIN_C||v>MAX_C)errs.push('Invalid: '+l);else vals.push(v)}if(errs.length){setErr(errs.join('; '));return}if(!vals.length)return;setLock('ab');try{const bp=queue.length>0?Math.max(...queue.map(q=>q.position))+1:1;const rows=vals.map((v,i)=>({crash_point:v,position:bp+i,status:'pending',created_at:new Date().toISOString()}));await supabase.from('crash_queue').insert(rows);await audit('queue_batch_add',null,{count:vals.length});setBVal('');setErr(null);fetchAll()}catch(e){setErr(errMsg(e,'Batch failed'))}finally{setLock(null)}};
 
-const removeQ=async(id:string,cp:number)=>{if(lock)return;setLock('rm-'+id);try{await supabase.from('crash_queue').delete().eq('id',id);await audit('queue_remove',id,{crash_point:cp});fetchAll()}catch(e:any){setErr(e?.message||'Remove failed')}finally{setLock(null)}};
+const removeQ=async(id:string,cp:number)=>{if(lock)return;setLock('rm-'+id);try{await supabase.from('crash_queue').delete().eq('id',id);await audit('queue_remove',id,{crash_point:cp});fetchAll()}catch(e){setErr(errMsg(e,'Remove failed'))}finally{setLock(null)}};
 
-const clearQ=async()=>{if(lock)return;setLock('cq');try{const ids=queue.filter(q=>q.status==='pending').map(q=>q.id);for(const id of ids)await supabase.from('crash_queue').delete().eq('id',id);await audit('queue_clear',null,{count:ids.length});setShCl(false);fetchAll()}catch(e:any){setErr(e?.message||'Clear failed')}finally{setLock(null)}};
+const clearQ=async()=>{if(lock)return;setLock('cq');try{const ids=queue.filter(q=>q.status==='pending').map(q=>q.id);for(const id of ids)await supabase.from('crash_queue').delete().eq('id',id);await audit('queue_clear',null,{count:ids.length});setShCl(false);fetchAll()}catch(e){setErr(errMsg(e,'Clear failed'))}finally{setLock(null)}};
 
-const saveS=async(key:string)=>{if(lock)return;const raw=ev[key];const orig=gSet.find(sx=>sx.key===key);if(!orig||String(orig.value)===raw)return;let parsed:any=raw;if(raw==='true')parsed=true;else if(raw==='false')parsed=false;else if(!isNaN(Number(raw))&&raw.trim()!=='')parsed=Number(raw);setSaving(key);try{await supabase.from('system_settings').update({value:parsed,updated_at:new Date().toISOString()}).eq('key',key);await audit('setting_updated',key,{old:orig.value,new:parsed});fetchAll()}catch(e:any){setErr(e?.message||'Save failed')}finally{setSaving(null)}};
+const saveS=async(key:string)=>{if(lock)return;const raw=ev[key];const orig=gSet.find(sx=>sx.key===key);if(!orig||String(orig.value)===raw)return;let parsed:string|number|boolean=raw;if(raw==='true')parsed=true;else if(raw==='false')parsed=false;else if(!isNaN(Number(raw))&&raw.trim()!=='')parsed=Number(raw);setSaving(key);try{await supabase.from('system_settings').update({value:parsed,updated_at:new Date().toISOString()}).eq('key',key);await audit('setting_updated',key,{old:orig.value,new:parsed});fetchAll()}catch(e){setErr(errMsg(e,'Save failed'))}finally{setSaving(null)}};
 
 const isF=round?.status==='flying';const pendingQ=queue.filter(q=>q.status==='pending');
 const TABS=[{k:'monitor'as Tab,l:'Live Monitor',i:Activity},{k:'queue'as Tab,l:'Crash Queue',i:Target},{k:'params'as Tab,l:'Settings',i:Settings}];
@@ -168,7 +171,8 @@ return(
     </div>
   </div>);}
 
-function Modal({title,msg,btn,color,loading,onConfirm,onCancel}:any){return(
+interface ModalProps { title: string; msg: string; btn: string; color: string; loading: boolean; onConfirm: () => void; onCancel: () => void }
+function Modal({title,msg,btn,color,loading,onConfirm,onCancel}:ModalProps){return(
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={onCancel}>
     <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e=>e.stopPropagation()}>
       <h3 className="text-ink font-semibold text-lg">{title}</h3>
