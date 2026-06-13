@@ -1,18 +1,19 @@
 -- ============================================================================
--- AVIATOR V2 - RBAC: canonical four-role model + staff/player separation
+-- AVIATOR V2 - RBAC: canonical four-role model + operator/player separation
 -- ============================================================================
 -- Establishes ONE authoritative role set and the authorisation rules around it,
 -- consolidating the (never-implemented) 8-role design in docs/11-rbac.md down to
 -- four roles by explicit product decision:
 --
---   player       - the customer; the only role that may place bets.
---   marketer     - growth/affiliate staff; analytics visibility only for now
---                  (affiliate/bonus modules are not built yet, so no operational
---                   powers are granted - none are fabricated here).
+--   player       - customer; plays the game.
+--   marketer     - growth/affiliate staff. Has admin-panel (analytics) access
+--                  AND may play the game as a normal player (a marketer dashboard
+--                  with operational powers is a separate, later change).
 --   admin        - operations staff; manages players, game, withdrawals, finance.
---   super_admin  - platform owner; everything admin can do PLUS system settings
---                  and role/staff management. Cannot act on its own account for
---                  ban (self-lockout guard) and cannot be the last one demoted.
+--                  An operator, NOT a player: may not place bets.
+--   super_admin  - everything admin can do PLUS system settings and role/staff
+--                  management. Cannot ban its own account (self-lockout guard)
+--                  and cannot be the last super_admin demoted. Also an operator.
 --
 -- Why a DB-level model (not just UI): the Phase-1 lockdown already centralises
 -- every privileged write in _is_admin()/_is_super_admin()-gated SECURITY DEFINER
@@ -51,18 +52,7 @@ ALTER TABLE public.profiles
 
 COMMIT;
 
--- ---- 3. Role predicates (single source of truth for the RPC layer) ----------
--- _is_admin() and _is_super_admin() already exist (admin_rpcs / admin_user_mgmt).
--- _is_staff() recognises any non-player role; used by the no-bet guard below and
--- available to future staff-scoped reads (e.g. marketer analytics).
-CREATE OR REPLACE FUNCTION public._is_staff()
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
-  SELECT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin','marketer'));
-$$;
-REVOKE ALL ON FUNCTION public._is_staff() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public._is_staff() TO authenticated, service_role;
-
--- ---- 4. admin_set_role: accept the four roles + protect the super_admin floor
+-- ---- 3. admin_set_role: accept the four roles + protect the super_admin floor
 -- Super_admin only (role management is exclusively theirs). Cannot target self
 -- (prevents self-demotion lockout). Refuses to demote the LAST super_admin so the
 -- platform can never be left without an owner. No-op (changed=false) when equal.
@@ -92,10 +82,10 @@ BEGIN
   RETURN jsonb_build_object('user_id', p_user_id, 'role', p_role, 'changed', true);
 END $$;
 
--- ---- 5. admin_set_ban: staff (any non-player) are super_admin-protected ------
+-- ---- 4. admin_set_ban: staff (any non-player) are super_admin-protected ------
 -- Unchanged semantics except the protected set now includes 'marketer': only a
--- super_admin may ban/unban another staff member; admins may still ban players.
--- Self-ban remains blocked for everyone (no self-lockout).
+-- super_admin may ban/unban another staff member (admin, super_admin, marketer);
+-- admins may still ban players. Self-ban remains blocked for everyone.
 CREATE OR REPLACE FUNCTION public.admin_set_ban(p_user_id uuid, p_ban boolean, p_reason text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_role text;
@@ -122,27 +112,27 @@ BEGIN
   RETURN jsonb_build_object('user_id', p_user_id, 'is_banned', p_ban);
 END $$;
 
--- ---- 6. Staff are not players: block staff from placing human bets ----------
--- Root-cause enforcement of "admins/super_admins/marketers are not players and
--- must not accrue betting history". A single BEFORE INSERT guard on `bets` is
--- used (rather than editing place_bet) so it is path-independent (defends every
--- write path) and leaves the large, audited place_bet body untouched. Bot rows
--- (is_bot = true, user_id NULL) and all non-human inserts are unaffected. Fully
--- reversible: DROP TRIGGER trg_block_staff_bets ON public.bets;
-CREATE OR REPLACE FUNCTION public.block_staff_bets()
+-- ---- 5. Operators are not players: block admin/super_admin from betting ------
+-- Operators (admin, super_admin) manage the platform and must not place real
+-- bets or accrue betting history. Marketers and players are unaffected and may
+-- play normally. A single BEFORE INSERT guard on `bets` is used (rather than
+-- editing the large, audited place_bet body) so it is path-independent and
+-- defends every write path. Bot rows (is_bot = true, user_id NULL) are exempt.
+-- Fully reversible: DROP TRIGGER trg_block_operator_bets ON public.bets;
+CREATE OR REPLACE FUNCTION public.block_operator_bets()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   IF NEW.is_bot = false AND NEW.user_id IS NOT NULL
-     AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.user_id AND role IN ('admin','super_admin','marketer')) THEN
-    RAISE EXCEPTION 'STAFF_CANNOT_BET';
+     AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.user_id AND role IN ('admin','super_admin')) THEN
+    RAISE EXCEPTION 'OPERATORS_CANNOT_BET';
   END IF;
   RETURN NEW;
 END $$;
 
-DROP TRIGGER IF EXISTS trg_block_staff_bets ON public.bets;
-CREATE TRIGGER trg_block_staff_bets
+DROP TRIGGER IF EXISTS trg_block_operator_bets ON public.bets;
+CREATE TRIGGER trg_block_operator_bets
   BEFORE INSERT ON public.bets
-  FOR EACH ROW EXECUTE FUNCTION public.block_staff_bets();
+  FOR EACH ROW EXECUTE FUNCTION public.block_operator_bets();
 
 -- ---- grants ----------------------------------------------------------------
 REVOKE ALL ON FUNCTION public.admin_set_role(uuid,text)        FROM PUBLIC;
