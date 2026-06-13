@@ -1,186 +1,128 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { SlidersHorizontal, Gamepad2, Wallet, Megaphone, Users, ScrollText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import SystemSettingsTab, { type SettingRecord } from './settings/SystemSettingsTab';
+import { type SettingsTabId } from './settings/registry';
+import MarketingSettingsTab from './settings/MarketingSettingsTab';
+import StaffTab from './settings/StaffTab';
+import AuditTab from './settings/AuditTab';
+import { friendly } from './settings/shared';
 
-interface Setting {
-  key: string;
-  value: unknown;
-  category: string;
-  description: string | null;
-  updated_at: string;
-}
+// ============================================================================
+// SettingsPage - the comprehensive, super_admin-only configuration hub. Six
+// deep-linkable tabs (?tab=) cover every manageable surface:
+//   General   - system availability (maintenance mode)
+//   Game      - round timing, bet limits, RTP, crash distribution, engine, bots
+//   Finance   - withdrawal thresholds
+//   Marketing - affiliate commission program (rate + qualifying deposit)
+//   Staff     - role/RBAC management
+//   Audit     - the append-only admin action log
+//
+// system_settings rows (General/Game/Finance) are read here once and edited
+// through SystemSettingsTab; persistence + audit live in saveSetting. Marketing,
+// Staff and Audit own their own data via their RPCs/queries. The route is
+// already gated to super_admin (roleContext ACCESS); the RPCs are the real gate.
+// ============================================================================
 
-interface AuditEntry {
-  id: string;
-  action: string;
-  target_type: string | null;
-  target_id: string | null;
-  details: unknown;
-  created_at: string;
-  profiles?: { username: string } | null;
-}
+const TABS = [
+  { k: 'general', label: 'General', icon: SlidersHorizontal },
+  { k: 'game', label: 'Game', icon: Gamepad2 },
+  { k: 'finance', label: 'Finance', icon: Wallet },
+  { k: 'marketing', label: 'Marketing', icon: Megaphone },
+  { k: 'staff', label: 'Staff & Roles', icon: Users },
+  { k: 'audit', label: 'Audit Log', icon: ScrollText },
+] as const;
+
+type TabKey = (typeof TABS)[number]['k'];
+const TAB_KEYS = TABS.map(t => t.k) as readonly string[];
+const SYSTEM_TABS: TabKey[] = ['general', 'game', 'finance'];
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<Setting[]>([]);
-  const [editValues, setEditValues] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState<string | null>(null);
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
-  const [activeTab, setActiveTab] = useState<'settings' | 'audit'>('settings');
-  const [loading, setLoading] = useState(true);
+  const [params, setParams] = useSearchParams();
+  const raw = params.get('tab') ?? 'general';
+  const tab: TabKey = (TAB_KEYS.includes(raw) ? raw : 'general') as TabKey;
 
-  useEffect(() => {
-    fetchData();
+  const setTab = (k: TabKey) => setParams(prev => {
+    const next = new URLSearchParams(prev);
+    next.set('tab', k);
+    return next;
+  }, { replace: true });
+
+  const [rows, setRows] = useState<SettingRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true);
+    setLoadErr(null);
+    const { data, error } = await supabase.from('system_settings').select('key, value, category, description, updated_at').order('key');
+    if (error) { setLoadErr(friendly(error.message)); setRows([]); }
+    else setRows((data ?? []) as SettingRecord[]);
+    setLoading(false);
   }, []);
 
-  async function fetchData() {
-    const [settingsRes, auditRes] = await Promise.all([
-      supabase.from('system_settings').select('*').order('key'),
-      supabase.from('admin_audit_log')
-        .select('id, action, target_type, target_id, details, created_at, profiles:admin_id(username)')
-        .order('created_at', { ascending: false })
-        .limit(50),
-    ]);
-    const s = (settingsRes.data ?? []) as Setting[];
-    setSettings(s);
-    setEditValues(Object.fromEntries(s.map(x => [x.key, typeof x.value === 'string' ? x.value : JSON.stringify(x.value)])));
-    setAuditLog((auditRes.data ?? []) as unknown as AuditEntry[]);
-    setLoading(false);
-  }
+  useEffect(() => { void loadSettings(); }, [loadSettings]);
 
-  async function saveSetting(key: string) {
-    const newValue = editValues[key];
-    const original = settings.find(s => s.key === key);
-    if (!original || String(original.value) === newValue) return;
-
-    setSaving(key);
+  // Persist a single system_settings value (jsonb) and record it in the audit
+  // log. Returns a structured result so the field renderer can show inline state.
+  const saveSetting = useCallback(async (key: string, value: string | number | boolean): Promise<{ ok: boolean; error?: string }> => {
+    const original = rows.find(r => r.key === key);
     const { data: { session } } = await supabase.auth.getSession();
-
-    // Parse value - try as number first, then boolean, then string
-    let parsedValue: string | number | boolean = newValue;
-    if (newValue === 'true') parsedValue = true;
-    else if (newValue === 'false') parsedValue = false;
-    else if (!isNaN(Number(newValue)) && newValue.trim() !== '') parsedValue = Number(newValue);
-
-    await supabase.from('system_settings').update({
-      value: parsedValue,
-      updated_by: session?.user.id,
-      updated_at: new Date().toISOString(),
-    }).eq('key', key);
-
-    // Audit log
+    const { error } = await supabase
+      .from('system_settings')
+      .update({ value, updated_by: session?.user.id ?? null, updated_at: new Date().toISOString() })
+      .eq('key', key);
+    if (error) return { ok: false, error: friendly(error.message) };
     if (session) {
+      // Best-effort audit; never fail the save if the log insert is rejected.
       await supabase.from('admin_audit_log').insert({
-        admin_id: session.user.id,
-        action: 'setting_updated',
-        target_type: 'setting',
-        target_id: key,
-        details: { old_value: original.value, new_value: parsedValue },
+        admin_id: session.user.id, action: 'setting_updated', target_type: 'setting', target_id: key,
+        details: { old: original?.value ?? null, new: value },
       });
     }
+    setRows(rs => rs.map(r => (r.key === key ? { ...r, value, updated_at: new Date().toISOString() } : r)));
+    return { ok: true };
+  }, [rows]);
 
-    setSaving(null);
-    fetchData();
-  }
-
-  function resetSetting(key: string) {
-    const original = settings.find(s => s.key === key);
-    if (original) {
-      setEditValues(prev => ({ ...prev, [key]: typeof original.value === 'string' ? original.value : JSON.stringify(original.value) }));
-    }
-  }
-
-  const categories = [...new Set(settings.map(s => s.category))];
-
-  if (loading) {
-    return (
-      <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)] space-y-4">
-        {[...Array(6)].map((_, i) => <div key={i} className="h-14 rounded-xl border border-line bg-surface animate-pulse" />)}
-      </div>
-    );
-  }
+  const isSystemTab = SYSTEM_TABS.includes(tab);
 
   return (
     <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
       <div className="space-y-6">
         <div>
           <h1 className="text-[22px] font-semibold text-ink tracking-tight">Settings</h1>
-          <p className="text-[13px] text-muted mt-1">System configuration and audit trail</p>
+          <p className="text-[13px] text-muted mt-1">System configuration, marketing program, staff roles, and the audit trail</p>
         </div>
 
-        {/* Tabs (segmented, text-only) */}
-        <div className="inline-flex gap-1 bg-slate-100 border border-line rounded-lg p-1">
-          <button onClick={() => setActiveTab('settings')} className={'px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (activeTab === 'settings' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>Settings</button>
-          <button onClick={() => setActiveTab('audit')} className={'px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (activeTab === 'audit' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>Audit Log ({auditLog.length})</button>
+        <div className="border-b border-line">
+          <nav className="flex gap-1 -mb-px overflow-x-auto" role="tablist" aria-label="Settings sections">
+            {TABS.map(({ k, label, icon: Icon }) => {
+              const active = tab === k;
+              return (
+                <button key={k} role="tab" aria-selected={active} onClick={() => setTab(k)}
+                  className={'inline-flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium border-b-2 whitespace-nowrap transition-colors ' +
+                    (active ? 'border-brand text-ink' : 'border-transparent text-muted hover:text-ink')}>
+                  <Icon size={15} strokeWidth={1.75} />{label}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {activeTab === 'settings' && (
-          <div className="space-y-6">
-            {categories.map(category => (
-              <div key={category} className="rounded-xl border border-line bg-surface overflow-hidden">
-                <div className="px-5 py-3.5 border-b border-line">
-                  <h3 className="text-[11px] font-semibold text-muted uppercase tracking-[0.1em] capitalize">{category}</h3>
-                </div>
-                <div className="divide-y divide-line">
-                  {settings.filter(s => s.category === category).map(setting => {
-                    const hasChanged = editValues[setting.key] !== (typeof setting.value === 'string' ? setting.value : JSON.stringify(setting.value));
-                    return (
-                      <div key={setting.key} className="px-5 py-4 flex items-center justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] text-ink font-medium font-mono">{setting.key}</div>
-                          {setting.description && <div className="text-[11px] text-muted mt-0.5">{setting.description}</div>}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={editValues[setting.key] ?? ''}
-                            onChange={e => setEditValues(prev => ({ ...prev, [setting.key]: e.target.value }))}
-                            className={'w-28 px-3 py-1.5 bg-surface border rounded-lg text-sm text-right text-ink font-mono focus:outline-none transition ' + (hasChanged ? 'border-brand/50 ring-1 ring-brand/20' : 'border-line')}
-                          />
-                          {hasChanged && (
-                            <>
-                              <button onClick={() => saveSetting(setting.key)} disabled={saving === setting.key} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50">Save</button>
-                              <button onClick={() => resetSetting(setting.key)} className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-line text-muted hover:text-ink transition-colors">Reset</button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
+        {isSystemTab && loadErr && (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-down text-sm">{loadErr}</div>
         )}
 
-        {activeTab === 'audit' && (
-          <div className="rounded-xl border border-line bg-surface overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
-                    <th className="text-left px-5 py-3 font-medium">Admin</th>
-                    <th className="text-left px-5 py-3 font-medium">Action</th>
-                    <th className="text-left px-5 py-3 font-medium">Target</th>
-                    <th className="text-left px-5 py-3 font-medium">Details</th>
-                    <th className="text-left px-5 py-3 font-medium">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {auditLog.length === 0 ? (
-                    <tr><td colSpan={5} className="px-5 py-12 text-center text-faint">No audit entries yet</td></tr>
-                  ) : auditLog.map(entry => (
-                    <tr key={entry.id}>
-                      <td className="px-5 py-3 text-ink font-medium">{entry.profiles?.username ?? 'System'}</td>
-                      <td className="px-5 py-3"><span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-muted">{entry.action}</span></td>
-                      <td className="px-5 py-3 text-muted text-xs">{entry.target_type && `${entry.target_type}: ${entry.target_id?.slice(0, 8) ?? '-'}`}</td>
-                      <td className="px-5 py-3 text-muted text-xs max-w-[200px] truncate font-mono">{entry.details ? JSON.stringify(entry.details).slice(0, 60) : '-'}</td>
-                      <td className="px-5 py-3 text-muted text-xs whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        {isSystemTab && !loadErr && (
+          loading
+            ? <div className="space-y-4">{[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl border border-line bg-surface animate-pulse" />)}</div>
+            : <SystemSettingsTab tab={tab as SettingsTabId} rows={rows} onSave={saveSetting} />
         )}
+
+        {tab === 'marketing' && <MarketingSettingsTab />}
+        {tab === 'staff' && <StaffTab />}
+        {tab === 'audit' && <AuditTab />}
       </div>
     </div>
   );

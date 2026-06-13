@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Copy, Check, UserPlus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAdmin } from '../../roleContext';
 import type { AffiliateRow, AffiliateReferralRow } from '../../../types/marketing';
 import { HEAD, fmtKsh, fmtInt, errMsg, friendly, statusBadge, fmtDateTime } from './shared';
 import { Spin } from './components';
+import PromoteMarketer from './PromoteMarketer';
 
 // Affiliates tab - admin view of every marketer with their referral & commission
 // stats; expand a row to inspect that marketer's referred players. Super admins
@@ -22,9 +23,6 @@ export default function AffiliatesTab() {
   const [refs, setRefs] = useState<Record<string, AffiliateReferralRow[]>>({});
   const [refLoading, setRefLoading] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-
-  const [promoteName, setPromoteName] = useState('');
-  const [promoting, setPromoting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,21 +52,6 @@ export default function AffiliatesTab() {
     catch { /* clipboard blocked - operator can select manually */ }
   }
 
-  async function promote(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null); setNotice(null);
-    const name = promoteName.trim();
-    if (!name) { setErr('Enter a username to promote.'); return; }
-    setPromoting(true);
-    try {
-      const { error } = await supabase.rpc('admin_promote_to_marketer', { p_username: name });
-      if (error) throw new Error(friendly(error.message));
-      setNotice(`${name} is now a marketer.`);
-      setPromoteName('');
-      await load();
-    } catch (e2) { setErr(errMsg(e2, 'Could not promote that user.')); } finally { setPromoting(false); }
-  }
-
   async function demote(row: AffiliateRow) {
     setBusyId(row.marketer_id); setErr(null); setNotice(null);
     try {
@@ -90,22 +73,9 @@ export default function AffiliatesTab() {
         </button>
       </div>
 
-      {/* Promote (super admin only) */}
+      {/* Promote a player to marketer (super admin only) */}
       {isSuperAdmin && (
-        <form onSubmit={promote} className="rounded-xl border border-line bg-surface p-5">
-          <div className={HEAD}>Add a marketer</div>
-          <div className="mt-3 flex flex-col sm:flex-row gap-3 sm:items-end">
-            <div className="flex-1">
-              <label className="text-[11px] font-medium text-muted block mb-1.5">Player username</label>
-              <input value={promoteName} onChange={e => setPromoteName(e.target.value)} placeholder="e.g. janedoe"
-                className="w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
-            </div>
-            <button type="submit" disabled={promoting} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[13px] font-semibold transition-colors disabled:opacity-50">
-              {promoting ? <Spin /> : <UserPlus size={15} />}Promote to marketer
-            </button>
-          </div>
-          <p className="text-[12px] text-faint mt-2.5">Promotes an existing player; a unique referral code is generated automatically. Admins and super admins cannot be made marketers.</p>
-        </form>
+        <PromoteMarketer onPromoted={msg => { setErr(null); setNotice(msg); void load(); }} />
       )}
 
       {/* Affiliate table */}
