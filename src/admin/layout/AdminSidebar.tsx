@@ -2,26 +2,38 @@ import { useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings } from 'lucide-react';
+import { useAdmin, canAccess, type Section } from '../roleContext';
 
-const NAV = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
-  { icon: Users, label: 'Players', path: '/admin/users' },
-  { icon: Gamepad2, label: 'Game Control', path: '/admin/game' },
-  { icon: Banknote, label: 'Withdrawals', path: '/admin/withdrawals' },
-  { icon: Wallet, label: 'Finance', path: '/admin/finance' },
-  { icon: Settings, label: 'Settings', path: '/admin/settings' },
+const NAV: { icon: typeof LayoutDashboard; label: string; path: string; section: Section }[] = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', section: 'dashboard' },
+  { icon: Users, label: 'Players', path: '/admin/users', section: 'users' },
+  { icon: Gamepad2, label: 'Game Control', path: '/admin/game', section: 'game' },
+  { icon: Banknote, label: 'Withdrawals', path: '/admin/withdrawals', section: 'withdrawals' },
+  { icon: Wallet, label: 'Finance', path: '/admin/finance', section: 'finance' },
+  { icon: Settings, label: 'Settings', path: '/admin/settings', section: 'settings' },
 ];
+
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  marketer: 'Marketer',
+  player: 'Player',
+};
 
 export default function AdminSidebar() {
   const { pathname } = useLocation();
+  const { role } = useAdmin();
   const isActive = (p: string) => p === '/admin' ? pathname === '/admin' || pathname === '/admin/dashboard' : pathname.startsWith(p);
 
-  // Live count of pending withdrawals, shown as a badge so admins are notified
-  // of new payout requests from anywhere in the dashboard. Loads once, then
-  // stays current via a Realtime subscription on withdrawal_requests (admins
-  // have SELECT via the admin_full_access RLS policy, so changes are delivered).
+  const items = NAV.filter(n => canAccess(role, n.section));
+  const showWithdrawalsBadge = canAccess(role, 'withdrawals');
+
+  // Live count of pending withdrawals, shown as a badge so operators are notified
+  // of new payout requests. Only subscribed when the Withdrawals item is visible
+  // to the current role (avoids a needless query/subscription for marketers).
   const [pending, setPending] = useState(0);
   useEffect(() => {
+    if (!showWithdrawalsBadge) return;
     let active = true;
     const load = async () => {
       const { count } = await supabase
@@ -36,7 +48,7 @@ export default function AdminSidebar() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, load)
       .subscribe();
     return () => { active = false; supabase.removeChannel(channel); };
-  }, []);
+  }, [showWithdrawalsBadge]);
 
   return (
     <aside className="w-56 bg-brand-dark flex flex-col flex-shrink-0 hidden lg:flex">
@@ -46,8 +58,11 @@ export default function AdminSidebar() {
           <span className="text-white font-semibold text-sm tracking-tight">Aviator Admin</span>
         </Link>
       </div>
+      <div className="px-5 py-3 border-b border-white/10">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/10 text-white/80 text-[11px] font-medium tracking-tight">{ROLE_LABEL[role] ?? role}</span>
+      </div>
       <nav className="flex-1 py-4 px-3 space-y-1">
-        {NAV.map(({ icon: Icon, label, path }) => {
+        {items.map(({ icon: Icon, label, path }) => {
           const active = isActive(path);
           const badge = path === '/admin/withdrawals' && pending > 0;
           return (

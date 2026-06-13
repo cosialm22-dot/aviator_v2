@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { AdminContext, makeIdentity, type AdminIdentity, type Role } from './roleContext';
+
+// AdminGuard authenticates the session, authorises STAFF roles (admin,
+// super_admin, marketer), rejects suspended (banned) accounts, and publishes the
+// resolved identity to the panel via AdminContext. Players and banned staff are
+// denied. Role-aware nav/route gating downstream reads useAdmin().
+const STAFF_ROLES: Role[] = ['admin', 'super_admin', 'marketer'];
 
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<'loading' | 'login' | 'denied' | 'ok'>('loading');
+  const [identity, setIdentity] = useState<AdminIdentity | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,10 +24,17 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
 
   async function check() {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setState('login'); return; }
-    const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
-    if (data && (data.role === 'admin' || data.role === 'super_admin')) setState('ok');
-    else setState('denied');
+    if (!session) { setIdentity(null); setState('login'); return; }
+    const { data } = await supabase.from('profiles').select('role, is_banned').eq('id', session.user.id).maybeSingle();
+    const role = data?.role as Role | undefined;
+    const banned = data?.is_banned === true;
+    if (data && !banned && role && STAFF_ROLES.includes(role)) {
+      setIdentity(makeIdentity(session.user.id, role));
+      setState('ok');
+    } else {
+      setIdentity(null);
+      setState('denied');
+    }
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -55,11 +70,11 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     </div>
   );
 
-  if (state === 'denied') return (
+  if (state === 'denied' || !identity) return (
     <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center p-4 text-center">
-      <div><div className="text-4xl mb-4">&#x26d4;</div><div className="text-white font-bold text-lg">Access Denied</div><div className="text-slate-400 text-sm mt-2">No admin privileges.</div><a href="/" className="inline-block mt-4 px-4 py-2 bg-[#1a1a2e] rounded-lg text-white text-sm">Back to Game</a></div>
+      <div><div className="text-4xl mb-4">&#x26d4;</div><div className="text-white font-bold text-lg">Access Denied</div><div className="text-slate-400 text-sm mt-2">No admin privileges, or this account is suspended.</div><a href="/" className="inline-block mt-4 px-4 py-2 bg-[#1a1a2e] rounded-lg text-white text-sm">Back to Game</a></div>
     </div>
   );
 
-  return <>{children}</>;
+  return <AdminContext.Provider value={identity}>{children}</AdminContext.Provider>;
 }
