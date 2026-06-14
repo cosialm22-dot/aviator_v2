@@ -14,6 +14,23 @@ const VIEWPORT_K  = 1.5;
 const MIN_VIEWPORT = 2.0;
 const PLANE_SCALE = 2.0;
 
+// ── Replacement plane sprite ────────────────────────────────────────────────
+// The supplied red-plane art, drawn via drawImage once decoded. Until then (or
+// if it ever fails to load) the original vector plane is drawn instead, so the
+// flight tip is never empty on a slow network — no visual regression.
+const PLANE_IMG_SRC = '/plane.png';
+const planeSprite: HTMLImageElement | null =
+  typeof Image !== 'undefined' ? new Image() : null;
+let planeSpriteReady = false;
+if (planeSprite) {
+  planeSprite.onload = () => { planeSpriteReady = true; };
+  planeSprite.onerror = () => { planeSpriteReady = false; };
+  planeSprite.src = PLANE_IMG_SRC;
+}
+// On-canvas sprite footprint (px). Aspect mirrors the source art (~2.38:1).
+const PLANE_W = 116;
+const PLANE_H = Math.round(PLANE_W / 2.38);
+
 // ── Animated background objects ────────────────────────────────────────────
 
 interface Star { x: number; y: number; r: number; speed: number; alpha: number; twinkleOffset: number }
@@ -368,6 +385,59 @@ function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 // ── Red propeller plane ───────────────────────────────────────────────────────
 function drawRedPlane(ctx: CanvasRenderingContext2D, cx: number, cy: number, angle: number) {
+  if (planeSprite && planeSpriteReady) { drawPlaneSprite(ctx, cx, cy, angle); return; }
+  drawVectorPlane(ctx, cx, cy, angle);
+}
+
+// Sprite renderer: the supplied red-plane art with an animated engine trail
+// (exhaust glow + flame jets) behind the tail. Nose points to +x, so the
+// tangent `angle` orients it along the flight curve exactly like the vector art.
+function drawPlaneSprite(ctx: CanvasRenderingContext2D, cx: number, cy: number, angle: number) {
+  if (!planeSprite) return;
+  const wobble = Math.sin(Date.now() * 0.005) * 1.2;
+  const hw = PLANE_W / 2;
+
+  ctx.save();
+  ctx.translate(cx, cy + wobble);
+  ctx.rotate(angle);
+
+  // Engine exhaust glow (behind the tail, toward -x).
+  const exhaust = ctx.createLinearGradient(-hw - 44, 0, -hw + 6, 0);
+  exhaust.addColorStop(0,   'rgba(255,120,20,0)');
+  exhaust.addColorStop(0.5, 'rgba(255,160,40,0.14)');
+  exhaust.addColorStop(1,   'rgba(255,200,60,0.32)');
+  ctx.fillStyle = exhaust;
+  ctx.fillRect(-hw - 44, -5, 44, 10);
+
+  // Flame jets.
+  ctx.save();
+  ctx.shadowBlur  = 16;
+  ctx.shadowColor = '#f97316';
+  for (const dy of [-1.5, 1.5]) {
+    const fl = ctx.createLinearGradient(-hw - 24, 0, -hw, 0);
+    fl.addColorStop(0,   'rgba(239,68,68,0)');
+    fl.addColorStop(0.4, '#fbbf24');
+    fl.addColorStop(1,   '#f97316');
+    ctx.fillStyle = fl;
+    ctx.beginPath();
+    ctx.moveTo(-hw,      dy - 2.5);
+    ctx.lineTo(-hw - 24, dy);
+    ctx.lineTo(-hw,      dy + 2.5);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // The sprite itself, centred on the flight tip.
+  ctx.shadowBlur  = 10;
+  ctx.shadowColor = 'rgba(204,0,24,0.55)';
+  ctx.drawImage(planeSprite, -hw, -PLANE_H / 2, PLANE_W, PLANE_H);
+
+  ctx.restore();
+}
+
+// ── Vector fallback plane (original art; used until the sprite decodes) ──────
+function drawVectorPlane(ctx: CanvasRenderingContext2D, cx: number, cy: number, angle: number) {
   const wobble  = Math.sin(Date.now() * 0.005) * 1.2;
   const propRot = (Date.now() * 0.018) % (Math.PI * 2);
 
