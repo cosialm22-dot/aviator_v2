@@ -4,16 +4,24 @@ import type { GameStatus } from '../../types';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { ActiveBet } from '../../hooks/useGame';
 
+// A bet queued for the next round. Carries the auto-cashout target (if any) so a
+// bet queued in Auto mode is placed next round with the same target the player
+// configured (the server settles it via _settle_flight). null = manual cashout.
+export interface QueuedBet {
+  amount: number;
+  autoCashout: number | null;
+}
+
 interface Props {
   panelIndex: number;
   status: GameStatus;
   multiplier: number;
   balance: number;
   activeBet: ActiveBet | null;
-  queuedBet: number | null; // NEW: queued bet amount for next round
+  queuedBet: QueuedBet | null;
   onPlaceBet: (amount: number, autoCashoutAt: number | null) => Promise<void>;
-  onQueueBet: (amount: number) => void; // NEW: queue bet for next round
-  onCancelQueue: () => void; // NEW: cancel queued bet
+  onQueueBet: (amount: number, autoCashoutAt: number | null) => void;
+  onCancelQueue: () => void;
   onCashOut: () => void;
   onAuthRequired: () => void;
   isAuthenticated: boolean;
@@ -26,6 +34,8 @@ interface Props {
 
 const MIN_BET = 50;
 const QUICK_AMOUNTS = [50, 100, 200, 500];
+const MIN_AUTO = 1.01;          // auto-cashout must be strictly above 1.00x (server enforces too)
+const DEFAULT_AUTO = '2.00';
 
 export default function BettingPanel({
   panelIndex, status, multiplier, balance, activeBet, queuedBet,
@@ -34,14 +44,22 @@ export default function BettingPanel({
 }: Props) {
   const [rawAmount, setRawAmount] = useState(String(MIN_BET));
   const [autoMode, setAutoMode]   = useState(false);
+  const [autoStr, setAutoStr]     = useState(DEFAULT_AUTO);
   const [loading, setLoading]     = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const amount = Math.max(MIN_BET, Math.floor(parseFloat(rawAmount) || MIN_BET));
 
+  // Auto-cashout target (2dp). Only meaningful in Auto mode; must be > 1.00x.
+  const parsedAuto = Math.round((parseFloat(autoStr) || 0) * 100) / 100;
+  const autoValid = !autoMode || parsedAuto > 1.0;
+  const autoTarget = autoMode ? parsedAuto : null;
+
+  const locked = !!activeBet || !!queuedBet; // amount/target are immutable once committed
+
   // Can place bet during waiting OR queue during flight/crashed
-  const canBetNow = status === 'waiting' && !activeBet && !queuedBet && amount >= MIN_BET && amount <= balance;
-  const canQueueBet = (status === 'flying' || status === 'crashed') && !activeBet && !queuedBet && amount >= MIN_BET && amount <= balance;
+  const canBetNow = status === 'waiting' && !locked && autoValid && amount >= MIN_BET && amount <= balance;
+  const canQueueBet = (status === 'flying' || status === 'crashed') && !locked && autoValid && amount >= MIN_BET && amount <= balance;
 
   const handleBet = async () => {
     if (isOperator) return; // operators cannot wager (see Props.isOperator)
@@ -50,13 +68,13 @@ export default function BettingPanel({
     // During waiting: place bet immediately
     if (canBetNow) {
       setLoading(true);
-      try { await onPlaceBet(amount, null); } finally { setLoading(false); }
+      try { await onPlaceBet(amount, autoTarget); } finally { setLoading(false); }
       return;
     }
 
-    // During flying/crashed: queue bet for next round
+    // During flying/crashed: queue bet (with its auto target) for next round
     if (canQueueBet) {
-      onQueueBet(amount);
+      onQueueBet(amount, autoTarget);
     }
   };
 
@@ -73,6 +91,15 @@ export default function BettingPanel({
   const handleBlur = () => {
     const n = parseFloat(rawAmount) || MIN_BET;
     setRawAmount(String(Math.max(MIN_BET, Math.floor(n))));
+  };
+
+  const adjustAuto = (delta: number) => {
+    const next = Math.max(MIN_AUTO, Math.round((parsedAuto + delta) * 100) / 100);
+    setAutoStr(next.toFixed(2));
+  };
+  const handleAutoBlur = () => {
+    const n = parseFloat(autoStr);
+    setAutoStr((Number.isFinite(n) && n > 1.0 ? n : Number(DEFAULT_AUTO)).toFixed(2));
   };
 
   const winnings = activeBet && activeBet.status === 'active'
@@ -98,7 +125,7 @@ export default function BettingPanel({
     if (queuedBet) {
       return {
         label: 'Queued for next',
-        sublabel: `KSh ${queuedBet.toLocaleString('en-KE')}`,
+        sublabel: `KSh ${queuedBet.amount.toLocaleString('en-KE')}${queuedBet.autoCashout ? ` @ ${queuedBet.autoCashout.toFixed(2)}x` : ''}`,
         action: onCancelQueue,
         style: 'bg-amber-600/80 text-white cursor-pointer hover:bg-amber-700',
         icon: Clock,
@@ -106,7 +133,7 @@ export default function BettingPanel({
       };
     }
 
-    // Active bet flying: show in-flight status
+    // Active bet flying: show in-flight status (panel 0 shows Cash Out separately)
     if (activeBet?.status === 'active' && status === 'flying' && panelIndex === 0) {
       return {
         label: 'Flying...',
@@ -128,11 +155,22 @@ export default function BettingPanel({
       };
     }
 
+    // Invalid auto target while in Auto mode
+    if (autoMode && !autoValid && (status === 'waiting' || status === 'flying' || status === 'crashed') && !locked) {
+      return {
+        label: 'Set auto \u2265 1.01x',
+        sublabel: '',
+        action: () => {},
+        style: 'bg-[#22c55e]/20 text-white/40 cursor-not-allowed',
+        disabled: true,
+      };
+    }
+
     // Can bet now (waiting)
     if (canBetNow) {
       return {
         label: loading ? 'Placing...' : 'Bet',
-        sublabel: `KSh ${amount.toLocaleString('en-KE')}`,
+        sublabel: `KSh ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}`,
         action: handleBet,
         style: 'bg-[#22c55e] hover:bg-[#16a34a] text-white shadow-lg shadow-green-500/30',
         disabled: loading,
@@ -143,7 +181,7 @@ export default function BettingPanel({
     if (canQueueBet) {
       return {
         label: 'Bet Next Round',
-        sublabel: `KSh ${amount.toLocaleString('en-KE')}`,
+        sublabel: `KSh ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}`,
         action: handleBet,
         style: 'bg-[#22c55e]/80 hover:bg-[#22c55e] text-white',
         icon: Clock,
@@ -172,7 +210,8 @@ export default function BettingPanel({
             <button
               key={tab}
               onClick={() => setAutoMode(tab === 'Auto')}
-              className={`px-4 py-1 text-xs font-semibold rounded-full transition-all ${
+              disabled={isOperator || locked}
+              className={`px-4 py-1 text-xs font-semibold rounded-full transition-all disabled:opacity-50 ${
                 (tab === 'Auto') === autoMode
                   ? 'bg-[#2a2a45] text-white'
                   : 'text-slate-500 hover:text-slate-300'
@@ -182,7 +221,48 @@ export default function BettingPanel({
             </button>
           ))}
         </div>
+        {autoMode && (
+          <span className="text-[10px] text-slate-500 font-medium">Auto cashes out at your target</span>
+        )}
       </div>
+
+      {/* Auto-cashout target row (Auto mode only) */}
+      {autoMode && (
+        <div className="flex items-center gap-2 px-3 pb-1.5">
+          <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide w-[88px]">Auto cashout</span>
+          <div className="flex items-center bg-[#1a1a2e] rounded-lg border border-[#2a2a45] flex-1">
+            <button
+              onClick={() => adjustAuto(-0.1)}
+              disabled={isOperator || locked || parsedAuto <= MIN_AUTO}
+              className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-l-lg transition disabled:opacity-40 active:scale-95"
+            >
+              <Minus size={13} />
+            </button>
+            <div className="flex items-center justify-center flex-1 h-9">
+              <input
+                type="number"
+                inputMode="decimal"
+                step={0.1}
+                min={MIN_AUTO}
+                value={autoStr}
+                onChange={e => setAutoStr(e.target.value)}
+                onBlur={handleAutoBlur}
+                disabled={isOperator || locked}
+                aria-label="Auto cashout multiplier"
+                className={`w-full bg-transparent font-bold text-sm tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${autoValid ? 'text-white' : 'text-red-400'}`}
+              />
+              <span className="text-slate-500 text-xs font-bold pr-1">x</span>
+            </div>
+            <button
+              onClick={() => adjustAuto(0.1)}
+              disabled={isOperator || locked}
+              className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-r-lg transition disabled:opacity-40 active:scale-95"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Amount stepper + action button */}
       <div className="flex items-stretch gap-2 px-3 pb-2">
@@ -190,7 +270,7 @@ export default function BettingPanel({
         <div className="flex items-center bg-[#1a1a2e] rounded-lg border border-[#2a2a45] flex-shrink-0">
           <button
             onClick={() => adjust(-50)}
-            disabled={isOperator || !!activeBet || !!queuedBet || amount <= MIN_BET}
+            disabled={isOperator || locked || amount <= MIN_BET}
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-l-lg transition disabled:opacity-40 active:scale-95"
           >
             <Minus size={14} />
@@ -207,7 +287,7 @@ export default function BettingPanel({
               value={rawAmount}
               onChange={e => handleRawChange(e.target.value)}
               onBlur={handleBlur}
-              disabled={isOperator || !!activeBet || !!queuedBet}
+              disabled={isOperator || locked}
               className="w-full bg-transparent text-white font-bold text-sm tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-slate-500 text-[9px] leading-none mt-0.5">KShs</span>
@@ -215,7 +295,7 @@ export default function BettingPanel({
 
           <button
             onClick={() => adjust(50)}
-            disabled={isOperator || !!activeBet || !!queuedBet}
+            disabled={isOperator || locked}
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-r-lg transition disabled:opacity-40 active:scale-95"
           >
             <Plus size={14} />
@@ -259,7 +339,7 @@ export default function BettingPanel({
           <button
             key={q}
             onClick={() => setRawAmount(String(q))}
-            disabled={isOperator || !!activeBet || !!queuedBet}
+            disabled={isOperator || locked}
             className="flex-1 py-1 text-[11px] font-semibold bg-[#1a1a2e] border border-[#2a2a45] rounded text-slate-400 hover:text-white hover:bg-[#2a2a45] transition disabled:opacity-40 active:scale-95"
           >
             {q >= 1000 ? `${q / 1000}K` : q}
@@ -267,11 +347,21 @@ export default function BettingPanel({
         ))}
       </div>
 
+      {/* Active auto-cashout target indicator (while the bet is in flight) */}
+      {activeBet?.status === 'active' && activeBet.autoCashout && panelIndex === 0 && (
+        <div className="px-3 pb-2 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+          <Zap size={11} className="text-[#22c55e]" />
+          <span>Auto cashout at <span className="text-white font-semibold">{activeBet.autoCashout.toFixed(2)}x</span></span>
+        </div>
+      )}
+
       {/* Queued bet indicator */}
       {queuedBet && (
         <div className="px-3 pb-2 flex items-center justify-center gap-2">
           <Clock size={11} className="text-amber-400" />
-          <span className="text-amber-400 text-[11px] font-semibold">Queued: KSh {queuedBet.toLocaleString('en-KE')} for next round</span>
+          <span className="text-amber-400 text-[11px] font-semibold">
+            Queued: KSh {queuedBet.amount.toLocaleString('en-KE')}{queuedBet.autoCashout ? ` @ ${queuedBet.autoCashout.toFixed(2)}x` : ''} for next round
+          </span>
           <button onClick={onCancelQueue} className="text-[10px] text-slate-400 hover:text-red-400 underline">Cancel</button>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Users } from 'lucide-react';
 import GameCanvas from './GameCanvas';
-import BettingPanel from './BettingPanel';
+import BettingPanel, { type QueuedBet } from './BettingPanel';
 import LiveBetsTable from './LiveBetsTable';
 import GameHistory from './GameHistory';
 import Chat from './Chat';
@@ -32,7 +32,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   const [mobileTab, setMobileTab] = useState<MobileTab>('bets');
   const [nudge, setNudge] = useState<{ title: string; sub: string } | null>(null);
   const nudgeShownRef = useRef(false);
-  const [queuedBet, setQueuedBet] = useState<number | null>(null);
+  const [queuedBet, setQueuedBet] = useState<QueuedBet | null>(null);
   const balance = wallet?.balance ?? 0;
   // Operators (admin/super_admin) run the platform and must never wager. Marketers
   // and players are unaffected. The DB is the authoritative gate (place_bet +
@@ -69,12 +69,12 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   // Auto-place queued bet when waiting phase begins (never for operators).
   useEffect(() => {
     if (!isOperator && gameStatus === 'waiting' && queuedBet && !activeBet) {
-      placeBet(queuedBet, null).then(() => setQueuedBet(null)).catch(() => setQueuedBet(null));
+      placeBet(queuedBet.amount, queuedBet.autoCashout).then(() => setQueuedBet(null)).catch(() => setQueuedBet(null));
     }
   }, [gameStatus, queuedBet, activeBet, placeBet, isOperator]);
 
-  const handleQueueBet = (amount: number) => {
-    setQueuedBet(amount);
+  const handleQueueBet = (amount: number, autoCashout: number | null) => {
+    setQueuedBet({ amount, autoCashout });
   };
 
   const handleCancelQueue = () => {
