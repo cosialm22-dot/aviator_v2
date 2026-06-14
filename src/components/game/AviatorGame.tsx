@@ -7,6 +7,8 @@ import GameHistory from './GameHistory';
 import Leaderboard from './Leaderboard';
 import PreviousRoundBets from './PreviousRoundBets';
 import Chat from './Chat';
+import ChatTicker from './ChatTicker';
+import { useChatStream } from '../../hooks/useChatStream';
 import { useGame, BET_SLOTS, type BetSlot } from '../../hooks/useGame';
 import { useDemoBets, DEMO_STARTING_BALANCE } from '../../hooks/useDemoBets';
 import { usePromos } from '../../hooks/usePromos';
@@ -68,6 +70,10 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   // money locally. It is always mounted so its balance persists across mode
   // toggles; it only drives the panels when isDemo is true.
   const demo = useDemoBets({ status: gameStatus, multiplier: currentMultiplier, roundId: currentRound?.id ?? null });
+
+  // Single shared chat stream (bots + Realtime + own sends). Lifted here so the
+  // full chat panel and the mobile ChatTicker render the identical stream.
+  const chat = useChatStream({ userId: profile?.id, username: profile?.username, avatarColor: profile?.avatar_color });
 
   // Player promotions (free bets + rain) - real-money mode only.
   const { freeBets, rain: openRain, busy: promoBusy, placeFreeBet: placeFreeBetRpc, claimRain } = usePromos(profile?.id, onRefreshWallet);
@@ -318,6 +324,11 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             )}
           </div>
 
+          {/* Mobile/tablet chat ticker: one rotating line of live chat just below
+              the canvas, so players see what others say without switching tabs.
+              Hidden on xl where the full chat panel is always visible. */}
+          <ChatTicker messages={chat.messages} onOpenChat={() => setMobileTab('chat')} />
+
           {/* Operator notice: admins/super_admins manage the platform and cannot
               wager with real money. They may still practise in Demo mode. */}
           {panelOperatorLock && (
@@ -445,7 +456,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
               </div>
             ) : (
               <div className="h-full">
-                <Chat userId={profile?.id} username={profile?.username} avatarColor={profile?.avatar_color} />
+                <Chat messages={chat.messages} sending={chat.sending} onSend={chat.send} userId={profile?.id} username={profile?.username} />
               </div>
             )}
           </div>
@@ -453,7 +464,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
 
         {/* ── Right: Live Chat (xl+) ────────────────────────────────── */}
         <div className="hidden xl:flex flex-col w-60 flex-shrink-0 bg-[#0d0d1a] border-l border-[#2a2a45]">
-          <Chat userId={profile?.id} username={profile?.username} avatarColor={profile?.avatar_color} />
+          <Chat messages={chat.messages} sending={chat.sending} onSend={chat.send} userId={profile?.id} username={profile?.username} />
         </div>
       </div>
     </div>

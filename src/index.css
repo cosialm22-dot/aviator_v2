@@ -133,3 +133,9 @@ canvas {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* Chat ticker: fade each rotating message in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

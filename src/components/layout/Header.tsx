@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Wallet, LogOut, Menu, X } from 'lucide-react';
+import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard } from 'lucide-react';
 import type { Profile } from '../../types';
 
 interface Props {
@@ -11,8 +11,15 @@ interface Props {
   onSignOut: () => void;
 }
 
+// Path to the staff area. Marketers land on their own affiliate dashboard
+// (/admin/marketing) via AdminApp's role-aware Landing dispatch.
+const MARKETER_DASHBOARD_PATH = '/admin';
+
 export default function Header({ profile, balance, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);       // mobile hamburger sheet
+  const [profileOpen, setProfileOpen] = useState(false); // desktop profile dropdown
+
+  const isMarketer = profile?.role === 'marketer';
 
   return (
     <header className="bg-[#0d0d1a] border-b border-[#2a2a45] px-4 h-12 flex items-center justify-between relative z-30 flex-shrink-0">
@@ -20,11 +27,7 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
       <div className="flex items-center gap-1">
         <span
           className="font-black italic text-xl tracking-tight"
-          style={{
-            color: '#cc0018',
-            fontFamily: '"Georgia", serif',
-            textShadow: '0 0 12px rgba(200,0,24,0.5)',
-          }}
+          style={{ color: '#cc0018', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(200,0,24,0.5)' }}
         >
           Aviator
         </span>
@@ -35,15 +38,9 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
         {profile ? (
           <>
             {/* Balance */}
-            <button
-              onClick={onWalletOpen}
-              className="hidden sm:flex items-center gap-1.5 hover:opacity-90 transition"
-            >
+            <button onClick={onWalletOpen} className="hidden sm:flex items-center gap-1.5 hover:opacity-90 transition">
               <span className="text-slate-400 text-xs font-semibold">KShs</span>
-              <span
-                className="text-base font-bold tabular-nums"
-                style={{ color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.4)' }}
-              >
+              <span className="text-base font-bold tabular-nums" style={{ color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.4)' }}>
                 {balance.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </button>
@@ -57,39 +54,64 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
               Deposit
             </button>
 
-            {/* Avatar + username */}
-            <div className="hidden sm:flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[#2a2a45]">
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                style={{ backgroundColor: profile.avatar_color }}
+            {/* Profile dropdown (desktop) - avatar is the menu trigger */}
+            <div className="hidden sm:block relative">
+              <button
+                onClick={() => setProfileOpen(o => !o)}
+                aria-haspopup="menu"
+                aria-expanded={profileOpen}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[#2a2a45] hover:border-[#3a3a55] transition"
               >
-                {profile.username[0]?.toUpperCase()}
-              </div>
-              <span className="text-slate-300 text-xs font-medium">{profile.username}</span>
-            </div>
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                  style={{ backgroundColor: profile.avatar_color }}
+                >
+                  {profile.username[0]?.toUpperCase()}
+                </div>
+                <span className="text-slate-300 text-xs font-medium">{profile.username}</span>
+                <ChevronDown size={12} className={`text-slate-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-            <button
-              onClick={onSignOut}
-              className="hidden sm:flex p-1.5 text-slate-500 hover:text-white hover:bg-[#1a1a2e] rounded-lg transition"
-              title="Sign out"
-            >
-              <LogOut size={14} />
-            </button>
+              {profileOpen && (
+                <>
+                  {/* click-away backdrop */}
+                  <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} />
+                  <div role="menu" className="absolute right-0 top-full mt-1 w-56 bg-[#0d0d1a] border border-[#2a2a45] rounded-xl shadow-2xl z-40 overflow-hidden py-1">
+                    {isMarketer && (
+                      <a
+                        href={MARKETER_DASHBOARD_PATH}
+                        role="menuitem"
+                        className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-[#1a1a2e] transition"
+                      >
+                        <LayoutDashboard size={15} className="text-[#22c55e]" />
+                        Marketer Dashboard
+                      </a>
+                    )}
+                    <button
+                      onClick={() => { setProfileOpen(false); onSignOut(); }}
+                      role="menuitem"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-[#1a1a2e] transition"
+                    >
+                      <LogOut size={15} className="text-slate-500" />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="sm:hidden p-1.5 text-slate-400 hover:text-white transition"
+              aria-label="Menu"
             >
               {menuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </>
         ) : (
           <div className="flex items-center gap-2">
-            <button
-              onClick={onSignInOpen}
-              className="px-3 py-1.5 text-sm font-semibold text-slate-400 hover:text-white transition"
-            >
+            <button onClick={onSignInOpen} className="px-3 py-1.5 text-sm font-semibold text-slate-400 hover:text-white transition">
               Sign In
             </button>
             <button
@@ -121,6 +143,16 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
               </div>
             </div>
           </div>
+
+          {isMarketer && (
+            <a
+              href={MARKETER_DASHBOARD_PATH}
+              className="flex items-center justify-center gap-2 py-2 bg-[#1a1a2e] border border-[#2a2a45] text-slate-200 rounded-lg text-sm font-semibold"
+            >
+              <LayoutDashboard size={14} className="text-[#22c55e]" /> Marketer Dashboard
+            </a>
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={() => { onWalletOpen(); setMenuOpen(false); }}
