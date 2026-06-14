@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameStatus } from '../types';
 import type { ActiveBet, ActiveBets, BetSlot } from './useGame';
+import {
+  DEMO_STARTING_BALANCE,
+  cashoutCredit,
+  assertValidStake,
+  assertValidAutoCashout,
+} from './demoEngine';
+
+// Re-export so existing import sites (e.g. AviatorGame) are unaffected.
+export { DEMO_STARTING_BALANCE } from './demoEngine';
 
 // ============================================================================
 // useDemoBets - CLIENT-SIDE FREE-PLAY (DEMO) SANDBOX
@@ -12,17 +21,18 @@ import type { ActiveBet, ActiveBets, BetSlot } from './useGame';
 //     or pollute live stats / the public board;
 //   • it consumes the authoritative round lifecycle (status, multiplier, round
 //     id) produced by useGame and settles play-money bets locally with the SAME
-//     payout math the server uses (auto-cashout pays at the target; manual pays
-//     at the live multiplier; still-active bets lose on crash).
+//     payout math AND CAPS the server uses (see demoEngine): auto-cashout pays
+//     at the target, manual pays at the live multiplier, both floored to 2dp and
+//     capped at max_payout; still-active bets lose on crash. Because it rides the
+//     real crash points, the demo reflects the TRUE odds - it is never tuned to
+//     feel more favourable than real-money play.
 //
 // The play-money balance persists per-browser in localStorage and is resettable.
 // All settlement runs in idempotent, ref-based effects so React StrictMode's
 // double-invocation can never double-credit a win.
 // ============================================================================
 
-export const DEMO_STARTING_BALANCE = 10000;
 const STORAGE_KEY = 'aviator:demoBalance';
-const MIN_BET = 50; // mirrors BettingPanel MIN_BET and the server game.min_bet
 
 const EMPTY: ActiveBets = { 1: null, 2: null };
 const SLOTS: readonly BetSlot[] = [1, 2] as const;
@@ -89,7 +99,7 @@ export function useDemoBets({ status, multiplier, roundId }: Params) {
     for (const slot of SLOTS) {
       const b = cur[slot];
       if (b && b.status === 'active' && b.autoCashout != null && multiplier >= b.autoCashout) {
-        const win = Math.floor(b.amount * b.autoCashout * 100) / 100;
+        const win = cashoutCredit(b.amount, b.autoCashout);
         next[slot] = { ...b, status: 'won', cashout_multiplier: b.autoCashout, winnings: win };
         credit += win;
         changed = true;
@@ -120,11 +130,10 @@ export function useDemoBets({ status, multiplier, roundId }: Params) {
   // friendly messages real betting uses so the UI behaves identically.
   const placeBet = useCallback(async (amount: number, autoCashoutAt: number | null, slot: BetSlot = 1) => {
     if (status !== 'waiting') throw new Error('Betting is closed for this round.');
-    if (autoCashoutAt != null && autoCashoutAt <= 1.0) throw new Error('Auto-cashout must be greater than 1.00x.');
+    assertValidAutoCashout(autoCashoutAt);
     const amt = Math.floor(amount);
-    if (!Number.isFinite(amt) || amt < MIN_BET) throw new Error('Bet amount is outside the allowed limits.');
     if (betsRef.current[slot]) throw new Error('You already have a bet on this slot.');
-    if (amt > balanceRef.current) throw new Error('Insufficient balance.');
+    assertValidStake(amt, balanceRef.current); // mirrors server range + affordability (incl. max_bet)
 
     const bet: ActiveBet = {
       id: newId(), slot, amount: amt, autoCashout: autoCashoutAt,
@@ -142,7 +151,7 @@ export function useDemoBets({ status, multiplier, roundId }: Params) {
     const b = betsRef.current[slot];
     if (!b || b.status !== 'active') return;
     const m = multRef.current;
-    const win = Math.floor(b.amount * m * 100) / 100;
+    const win = cashoutCredit(b.amount, m);
     const next: ActiveBets = { ...betsRef.current, [slot]: { ...b, status: 'won', cashout_multiplier: m, winnings: win } };
     betsRef.current = next;
     setActiveBets(next);
