@@ -13,14 +13,19 @@ import type { GameStatus, GameRound, Profile } from '../types';
 //     to the server-revealed crash_multiplier on the 'crashed' event. The crash
 //     point is hidden server-side until then (provably fair).
 //   • Places bets / cashes out ONLY through the place_bet / cash_out RPCs.
-//   • Reads its own bet + the live board from `bets` via Realtime.
+//   • Reads its own bets + the live board from `bets` via Realtime.
 // It never writes wallets/bets/transactions/game_rounds directly.
 //
-// The return shape is IDENTICAL to the legacy hook so GameCanvas / controls /
-// live-board components need no changes.
+// DUAL BET: a player may hold up to TWO independent bets per round, one per
+// `slot` (1 or 2). Each betting panel owns one slot. The server enforces the
+// per-slot uniqueness (uniq_bet_round_user_slot) and settles each bet
+// independently, so the two slots never interfere with one another.
 // ============================================================================
 
 const UI_THROTTLE_MS = 66; // ~15fps React updates; canvas reads the ref at 60fps
+
+export type BetSlot = 1 | 2;
+export const BET_SLOTS: readonly BetSlot[] = [1, 2] as const;
 
 // game_rounds carries provably-fair columns beyond the base GameRound type.
 type RoundRow = GameRound & {
@@ -31,12 +36,17 @@ type RoundRow = GameRound & {
 
 export interface ActiveBet {
   id: string;
+  slot: BetSlot;
   amount: number;
   autoCashout: number | null;
   status: 'active' | 'won' | 'lost';
   cashout_multiplier: number | null;
   winnings: number | null;
 }
+
+// Both slots' own-bet state for the signed-in player. null = no bet this round.
+export type ActiveBets = Record<BetSlot, ActiveBet | null>;
+const EMPTY_ACTIVE_BETS: ActiveBets = { 1: null, 2: null };
 
 interface LiveBetEntry {
   id: string;
@@ -62,7 +72,12 @@ type BetRow = {
   winnings: number | null;
   status: 'active' | 'won' | 'lost';
   is_bot: boolean;
+  slot: number | null;
 };
+
+// Coerce a DB slot value to the 1|2 domain; anything unexpected defaults to 1
+// (matches the bets.slot column default and the CHECK constraint).
+const toSlot = (v: number | null | undefined): BetSlot => (Number(v) === 2 ? 2 : 1);
 
 function friendlyError(message: string): string {
   const map: Record<string, string> = {
@@ -72,9 +87,10 @@ function friendlyError(message: string): string {
     STAFF_CANNOT_PLAY: 'Operator accounts cannot place bets.',
     BETTING_CLOSED: 'Betting is closed for this round.',
     ROUND_NOT_FOUND: 'Round not found - please wait for the next one.',
-    ALREADY_BET: 'You already have a bet this round.',
+    ALREADY_BET: 'You already have a bet on this slot.',
     INSUFFICIENT_BALANCE: 'Insufficient balance.',
     BET_OUT_OF_RANGE: 'Bet amount is outside the allowed limits.',
+    INVALID_SLOT: 'Invalid bet slot.',
     NO_WALLET: 'Wallet error. Please refresh.',
     NO_PROFILE: 'Profile error. Please refresh.',
     INVALID_AUTO_CASHOUT: 'Auto-cashout must be greater than 1.00x.',
@@ -94,7 +110,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
 
   const [currentRound, setCurrentRound] = useState<GameRound | null>(null);
   const [history, setHistory] = useState<GameRound[]>([]);
-  const [activeBet, setActiveBet] = useState<ActiveBet | null>(null);
+  const [activeBets, setActiveBets] = useState<ActiveBets>(EMPTY_ACTIVE_BETS);
   const [liveBets, setLiveBets] = useState<LiveBetEntry[]>([]);
   const [countdown, setCountdown] = useState(0);
   const [crashPoint, setCrashPoint] = useState<number>(0);
@@ -108,6 +124,11 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
   profileRef.current = profile;
 
   const getMultiplier = useCallback(() => multiplierRef.current, []);
+
+  const toActiveBet = (b: BetRow): ActiveBet => ({
+    id: b.id, slot: toSlot(b.slot), amount: Number(b.amount), autoCashout: b.auto_cashout,
+    status: b.status, cashout_multiplier: b.cashout_multiplier, winnings: b.winnings,
+  });
 
   // ── Flight animation: multiplier from server started_at; no crash knowledge ──
   const stopRaf = () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); rafRef.current = 0; };
@@ -143,7 +164,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
       multiplierRef.current = 1.0;
       setCurrentMultiplier(1.0);
       setCrashPoint(0);
-      setActiveBet(null);
+      setActiveBets(EMPTY_ACTIVE_BETS);
       setLiveBets([]); // fresh board for the new round; bets stream in via Realtime
       statusRef.current = 'waiting';
       setGameStatus('waiting');
@@ -163,7 +184,10 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
       setGameStatus('crashed');
       // finalize the board: anyone still active lost
       setLiveBets((prevBets) => prevBets.map((b) => (b.status === 'active' ? { ...b, status: 'lost' } : b)));
-      setActiveBet((ab) => (ab && ab.status === 'active' ? { ...ab, status: 'lost' } : ab));
+      setActiveBets((prev) => ({
+        1: prev[1] && prev[1].status === 'active' ? { ...prev[1], status: 'lost' } : prev[1],
+        2: prev[2] && prev[2].status === 'active' ? { ...prev[2], status: 'lost' } : prev[2],
+      }));
       // prepend to history
       setHistory((h) => [row as GameRound, ...h.filter((x) => x.id !== row.id)].slice(0, 50));
       // server may have auto-cashed us - reconcile wallet
@@ -198,7 +222,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
     return () => { void supabase.removeChannel(ch); };
   }, [applyRound]);
 
-  // ── Realtime: live board + own bet, scoped to the current round ──
+  // ── Realtime: live board + own bets (both slots), scoped to the current round ──
   const roundId = currentRound?.id ?? null;
   useEffect(() => {
     if (!roundId) return;
@@ -211,11 +235,14 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
           id: b.id, username: b.username, avatar_color: b.avatar_color, amount: Number(b.amount),
           cashout_multiplier: b.cashout_multiplier, winnings: b.winnings, status: b.status, is_bot: b.is_bot,
         })));
-        const mine = data.find((b: BetRow) => b.user_id && b.user_id === profileRef.current?.id);
-        if (mine) setActiveBet({
-          id: mine.id, amount: Number(mine.amount), autoCashout: mine.auto_cashout,
-          status: mine.status, cashout_multiplier: mine.cashout_multiplier, winnings: mine.winnings,
-        });
+        const mineRows = data.filter((b: BetRow) => b.user_id && b.user_id === profileRef.current?.id && !b.is_bot);
+        if (mineRows.length) {
+          setActiveBets((prev) => {
+            const next: ActiveBets = { ...prev };
+            for (const b of mineRows) next[toSlot(b.slot)] = toActiveBet(b);
+            return next;
+          });
+        }
       }
     })();
 
@@ -229,11 +256,9 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
         if (i === -1) return [entry, ...prev];
         const next = prev.slice(); next[i] = entry; return next;
       });
-      if (b.user_id && b.user_id === profileRef.current?.id) {
-        setActiveBet({
-          id: b.id, amount: Number(b.amount), autoCashout: b.auto_cashout,
-          status: b.status, cashout_multiplier: b.cashout_multiplier, winnings: b.winnings,
-        });
+      if (b.user_id && b.user_id === profileRef.current?.id && !b.is_bot) {
+        const slot = toSlot(b.slot);
+        setActiveBets((prev) => ({ ...prev, [slot]: toActiveBet(b) }));
         if (b.status === 'won') void onRefreshWallet();
       }
     };
@@ -258,21 +283,23 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
   }, [gameStatus, currentRound?.id]);
 
   // ── Actions (RPC only) ──
-  const placeBet = useCallback(async (amount: number, autoCashoutAt: number | null) => {
+  // placeBet/cashOut are slot-aware. slot defaults to 1 so existing single-panel
+  // call sites keep working; the second panel passes slot=2.
+  const placeBet = useCallback(async (amount: number, autoCashoutAt: number | null, slot: BetSlot = 1) => {
     if (!profile) throw new Error('Please sign in to bet.');
     const round = roundRef.current;
     if (!round || round.status !== 'waiting') throw new Error('Betting is closed for this round.');
     const { error } = await supabase.rpc('place_bet', {
-      p_round_id: round.id, p_amount: amount, p_auto_cashout: autoCashoutAt,
+      p_round_id: round.id, p_amount: amount, p_auto_cashout: autoCashoutAt, p_slot: slot,
     });
     if (error) throw new Error(friendlyError(error.message));
     await onRefreshWallet(); // bet row + active state arrive via Realtime
   }, [profile, onRefreshWallet]);
 
-  const cashOut = useCallback(async () => {
+  const cashOut = useCallback(async (slot: BetSlot = 1) => {
     const round = roundRef.current;
     if (!round || round.status !== 'flying') return;
-    const { error } = await supabase.rpc('cash_out', { p_round_id: round.id });
+    const { error } = await supabase.rpc('cash_out', { p_round_id: round.id, p_slot: slot });
     if (error) throw new Error(friendlyError(error.message));
     await onRefreshWallet();
   }, [onRefreshWallet]);
@@ -283,7 +310,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
     getMultiplier,
     currentRound,
     history,
-    activeBet,
+    activeBets,
     liveBets,
     countdown,
     crashPoint,

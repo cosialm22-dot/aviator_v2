@@ -5,7 +5,7 @@ import BettingPanel, { type QueuedBet } from './BettingPanel';
 import LiveBetsTable from './LiveBetsTable';
 import GameHistory from './GameHistory';
 import Chat from './Chat';
-import { useGame } from '../../hooks/useGame';
+import { useGame, BET_SLOTS, type BetSlot } from '../../hooks/useGame';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { Profile, Wallet } from '../../types';
 
@@ -32,7 +32,9 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   const [mobileTab, setMobileTab] = useState<MobileTab>('bets');
   const [nudge, setNudge] = useState<{ title: string; sub: string } | null>(null);
   const nudgeShownRef = useRef(false);
-  const [queuedBet, setQueuedBet] = useState<QueuedBet | null>(null);
+  // One queued bet per slot (dual-bet): each panel can independently queue a bet
+  // for the next round while the current one is in flight.
+  const [queuedBets, setQueuedBets] = useState<Record<BetSlot, QueuedBet | null>>({ 1: null, 2: null });
   const balance = wallet?.balance ?? 0;
   // Operators (admin/super_admin) run the platform and must never wager. Marketers
   // and players are unaffected. The DB is the authoritative gate (place_bet +
@@ -44,7 +46,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
     currentMultiplier,
     getMultiplier,
     history,
-    activeBet,
+    activeBets,
     liveBets,
     countdown,
     crashPoint,
@@ -66,20 +68,32 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
     }
   }, [balance, profile, gameStatus]);
 
-  // Auto-place queued bet when waiting phase begins (never for operators).
+  // Auto-place each slot's queued bet when the waiting phase begins (never for
+  // operators). Slots are independent, so both can fire in the same window.
   useEffect(() => {
-    if (!isOperator && gameStatus === 'waiting' && queuedBet && !activeBet) {
-      placeBet(queuedBet.amount, queuedBet.autoCashout).then(() => setQueuedBet(null)).catch(() => setQueuedBet(null));
+    if (isOperator || gameStatus !== 'waiting') return;
+    for (const slot of BET_SLOTS) {
+      const q = queuedBets[slot];
+      if (q && !activeBets[slot]) {
+        placeBet(q.amount, q.autoCashout, slot)
+          .then(() => setQueuedBets((prev) => ({ ...prev, [slot]: null })))
+          .catch(() => setQueuedBets((prev) => ({ ...prev, [slot]: null })));
+      }
     }
-  }, [gameStatus, queuedBet, activeBet, placeBet, isOperator]);
+  }, [gameStatus, queuedBets, activeBets, placeBet, isOperator]);
 
-  const handleQueueBet = (amount: number, autoCashout: number | null) => {
-    setQueuedBet({ amount, autoCashout });
+  const handleQueueBet = (slot: BetSlot) => (amount: number, autoCashout: number | null) => {
+    setQueuedBets((prev) => ({ ...prev, [slot]: { amount, autoCashout } }));
   };
 
-  const handleCancelQueue = () => {
-    setQueuedBet(null);
+  const handleCancelQueue = (slot: BetSlot) => () => {
+    setQueuedBets((prev) => ({ ...prev, [slot]: null }));
   };
+
+  // Aggregate signals across both slots for the shared canvas overlays.
+  const anyActiveInFlight = activeBets[1]?.status === 'active' || activeBets[2]?.status === 'active';
+  const anyBetThisRound = !!activeBets[1] || !!activeBets[2];
+  const lastWon = (activeBets[1]?.status === 'won' && activeBets[1]) || (activeBets[2]?.status === 'won' && activeBets[2]) || null;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#0d0d1a]">
@@ -167,7 +181,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                   >
                     {formatMultiplier(currentMultiplier)}
                   </div>
-                  {activeBet && activeBet.status === 'active' && (
+                  {anyActiveInFlight && (
                     <div className="text-green-400 text-sm mt-2 font-black animate-pulse tracking-wide">
                       CASH OUT NOW!
                     </div>
@@ -186,7 +200,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                   <div className="text-slate-400 text-xs mt-1.5 tracking-widest uppercase font-semibold">
                     Starting in...
                   </div>
-                  {activeBet && (
+                  {anyBetThisRound && (
                     <div className="mt-2 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
                       Bet in - ready!
                     </div>
@@ -196,9 +210,9 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             </div>
 
             {/* Cashout toast */}
-            {activeBet?.status === 'won' && (
+            {lastWon && (
               <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-green-500 text-white font-bold px-4 py-2 rounded-full text-sm shadow-lg shadow-green-500/40 z-20 whitespace-nowrap">
-                +KSh {(activeBet.winnings ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} @ {(activeBet.cashout_multiplier ?? currentMultiplier).toFixed(2)}×
+                +KSh {(lastWon.winnings ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} @ {(lastWon.cashout_multiplier ?? currentMultiplier).toFixed(2)}×
               </div>
             )}
 
@@ -240,7 +254,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             </div>
           )}
 
-          {/* Betting panels */}
+          {/* Betting panels - two independent dual-bet slots (1 and 2) */}
           <div className="flex flex-shrink-0 border-t border-[#2a2a45] bg-[#0d0d1a]">
             <div className="flex-1 border-r border-[#2a2a45]">
               <BettingPanel
@@ -248,12 +262,12 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 status={gameStatus}
                 multiplier={currentMultiplier}
                 balance={balance}
-                activeBet={activeBet}
-                queuedBet={queuedBet}
-                onPlaceBet={placeBet}
-                onQueueBet={handleQueueBet}
-                onCancelQueue={handleCancelQueue}
-                onCashOut={cashOut}
+                activeBet={activeBets[1]}
+                queuedBet={queuedBets[1]}
+                onPlaceBet={(a, c) => placeBet(a, c, 1)}
+                onQueueBet={handleQueueBet(1)}
+                onCancelQueue={handleCancelQueue(1)}
+                onCashOut={() => { void cashOut(1); }}
                 onAuthRequired={onAuthRequired}
                 isAuthenticated={!!profile}
                 isOperator={isOperator}
@@ -265,12 +279,12 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 status={gameStatus}
                 multiplier={currentMultiplier}
                 balance={balance}
-                activeBet={null}
-                queuedBet={null}
-                onPlaceBet={async () => {}}
-                onQueueBet={() => {}}
-                onCancelQueue={() => {}}
-                onCashOut={() => {}}
+                activeBet={activeBets[2]}
+                queuedBet={queuedBets[2]}
+                onPlaceBet={(a, c) => placeBet(a, c, 2)}
+                onQueueBet={handleQueueBet(2)}
+                onCancelQueue={handleCancelQueue(2)}
+                onCashOut={() => { void cashOut(2); }}
                 onAuthRequired={onAuthRequired}
                 isAuthenticated={!!profile}
                 isOperator={isOperator}

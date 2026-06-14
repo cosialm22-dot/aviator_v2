@@ -14,6 +14,9 @@ export interface QueuedBet {
 }
 
 interface Props {
+  // 0-based panel index used only for keys/labels. Both panels are fully
+  // functional and symmetric; the parent binds each to a distinct server bet
+  // slot via onPlaceBet / onCashOut, so dual-bet is real on both sides.
   panelIndex: number;
   status: GameStatus;
   multiplier: number;
@@ -63,9 +66,9 @@ export default function BettingPanel({
   const autoValid = !autoMode || parsedAuto > 1.0;
   const autoTarget = autoMode ? parsedAuto : null;
 
-  // Auto-bet sequencer (panel 0 only; settlement stays server-authoritative).
+  // Auto-bet sequencer for THIS panel/slot (settlement stays server-authoritative).
   const autoBet = useAutoBet({ status, activeBet, balance, isOperator, placeBet: onPlaceBet });
-  const showAutoBet = autoMode && panelIndex === 0 && !isOperator;
+  const showAutoBet = autoMode && !isOperator;
 
   // amount/target are immutable once a bet is committed, queued, or a sequence runs
   const locked = !!activeBet || !!queuedBet || autoBet.running;
@@ -119,7 +122,7 @@ export default function BettingPanel({
     ? Math.floor(activeBet.amount * multiplier * 100) / 100
     : activeBet?.winnings ?? 0;
 
-  const isCashable = !isOperator && status === 'flying' && activeBet?.status === 'active' && panelIndex === 0;
+  const isCashable = !isOperator && status === 'flying' && activeBet?.status === 'active';
 
   // Determine button state and label
   const getButtonConfig = () => {
@@ -146,8 +149,8 @@ export default function BettingPanel({
       };
     }
 
-    // Active bet flying: show in-flight status (panel 0 shows Cash Out separately)
-    if (activeBet?.status === 'active' && status === 'flying' && panelIndex === 0) {
+    // Active bet flying: panel shows the Cash Out button separately (isCashable)
+    if (activeBet?.status === 'active' && status === 'flying') {
       return {
         label: 'Flying...',
         sublabel: `KSh ${activeBet.amount.toLocaleString('en-KE')}`,
@@ -158,7 +161,7 @@ export default function BettingPanel({
     }
 
     // Cashed out: show result
-    if (activeBet?.status === 'won' && panelIndex === 0) {
+    if (activeBet?.status === 'won') {
       return {
         label: 'Cashed Out!',
         sublabel: `+KSh ${(activeBet.winnings ?? 0).toLocaleString('en-KE')}`,
@@ -213,6 +216,7 @@ export default function BettingPanel({
   };
 
   const btnConfig = getButtonConfig();
+  const autoFieldId = (key: string) => `autobet-${panelIndex}-${key}`;
 
   return (
     <div className="flex flex-col bg-[#0d0d1a] select-none">
@@ -360,14 +364,15 @@ export default function BettingPanel({
         ))}
       </div>
 
-      {/* Auto-bet sequencer (Auto mode, primary panel) */}
+      {/* Auto-bet sequencer (Auto mode) */}
       {showAutoBet && (
         <div className="px-3 pb-2.5 pt-2 border-t border-[#1a1a2e] space-y-2">
           <div className="grid grid-cols-3 gap-2">
             {AUTO_FIELDS.map(f => (
-              <label key={f.key} className="flex flex-col gap-1" title={f.hint}>
+              <label key={f.key} htmlFor={autoFieldId(f.key)} className="flex flex-col gap-1" title={f.hint}>
                 <span className="text-[9px] text-slate-500 uppercase tracking-wide">{f.label}</span>
                 <input
+                  id={autoFieldId(f.key)}
                   type="number"
                   min={f.min}
                   step={1}
@@ -413,7 +418,7 @@ export default function BettingPanel({
       )}
 
       {/* Active auto-cashout target indicator (while the bet is in flight) */}
-      {activeBet?.status === 'active' && activeBet.autoCashout && panelIndex === 0 && (
+      {activeBet?.status === 'active' && activeBet.autoCashout && (
         <div className="px-3 pb-2 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
           <Zap size={11} className="text-[#22c55e]" />
           <span>Auto cashout at <span className="text-white font-semibold">{activeBet.autoCashout.toFixed(2)}x</span></span>
@@ -432,7 +437,7 @@ export default function BettingPanel({
       )}
 
       {/* Cashout confirmation row */}
-      {activeBet?.status === 'won' && panelIndex === 0 && (
+      {activeBet?.status === 'won' && (
         <div className="px-3 pb-2 text-center text-green-400 text-[11px] font-semibold">
           +KSh {(activeBet.winnings ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })} @ {formatMultiplier(activeBet.cashout_multiplier ?? multiplier)}
         </div>
