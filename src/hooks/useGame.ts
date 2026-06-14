@@ -67,6 +67,7 @@ type BetRow = {
 function friendlyError(message: string): string {
   const map: Record<string, string> = {
     AUTH_REQUIRED: 'Please sign in to bet.',
+    STAFF_CANNOT_PLAY: 'Staff accounts cannot place bets.',
     BETTING_CLOSED: 'Betting is closed for this round.',
     ROUND_NOT_FOUND: 'Round not found - please wait for the next one.',
     ALREADY_BET: 'You already have a bet this round.',

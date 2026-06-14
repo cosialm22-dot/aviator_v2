@@ -43,7 +43,7 @@ interface UserDetail {
   is_self: boolean;
 }
 
-const ROLES = ['player', 'marketer', 'admin', 'super_admin'] as const;
+const ROLES = ['player', 'marketer', 'admin'] as const;
 const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
 const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
 
@@ -59,6 +59,8 @@ function friendly(code: string): string {
     REASON_REQUIRED: 'A reason is required.',
     INVALID_ROLE: 'Invalid role.',
     LAST_SUPER_ADMIN: 'At least one super admin must remain.',
+    SUPER_ADMIN_LOCKED: 'No one can be promoted to super admin.',
+    ROOT_SUPER_ADMIN_PROTECTED: 'The super admin is protected and cannot be changed, banned, or removed.',
     INVALID_DELTA: 'Enter a non-zero amount.',
     NEGATIVE_BALANCE: 'That adjustment would make the balance negative.',
     NO_WALLET: 'This player has no wallet.',
@@ -202,20 +204,26 @@ export default function UserDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {d.can_manage_roles && !d.is_self && (
-              <select
-                value={p.role}
-                onChange={e => { if (e.target.value !== p.role) setPendingRole(e.target.value); }}
-                aria-label="Change role"
-                className="px-3 py-2 rounded-lg border border-line bg-surface text-ink text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors"
-              >
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+            {p.role === 'super_admin' ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line bg-canvas text-muted text-xs font-medium" title="The super admin is permanent: it cannot be demoted, banned, or removed.">Protected super admin</span>
+            ) : (
+              <>
+                {d.can_manage_roles && !d.is_self && (
+                  <select
+                    value={p.role}
+                    onChange={e => { if (e.target.value !== p.role) setPendingRole(e.target.value); }}
+                    aria-label="Change role"
+                    className="px-3 py-2 rounded-lg border border-line bg-surface text-ink text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors"
+                  >
+                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                )}
+                <button onClick={() => { setErr(null); setAdjAmount(''); setAdjReason(''); setShowAdjust(true); }} disabled={d.wallet_balance == null} className="px-3 py-2 rounded-lg border border-line bg-surface text-ink text-xs font-medium hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">Adjust Balance</button>
+                {p.is_banned
+                  ? <button onClick={() => setBan(false)} disabled={busy} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-brand/30 text-brand hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">{busy && <Spin />}Unban</button>
+                  : <button onClick={() => { setErr(null); setBanReason(''); setShowBan(true); }} disabled={busy} className="px-3 py-2 rounded-lg text-xs font-medium border border-rose-200 text-down hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 transition-colors disabled:opacity-40">Ban</button>}
+              </>
             )}
-            <button onClick={() => { setErr(null); setAdjAmount(''); setAdjReason(''); setShowAdjust(true); }} disabled={d.wallet_balance == null} className="px-3 py-2 rounded-lg border border-line bg-surface text-ink text-xs font-medium hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">Adjust Balance</button>
-            {p.is_banned
-              ? <button onClick={() => setBan(false)} disabled={busy} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-brand/30 text-brand hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">{busy && <Spin />}Unban</button>
-              : <button onClick={() => { setErr(null); setBanReason(''); setShowBan(true); }} disabled={busy} className="px-3 py-2 rounded-lg text-xs font-medium border border-rose-200 text-down hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 transition-colors disabled:opacity-40">Ban</button>}
           </div>
         </div>
 

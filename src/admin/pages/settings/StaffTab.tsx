@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, UserCog } from 'lucide-react';
+import { ShieldCheck, UserCog, Lock } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAdmin } from '../../roleContext';
 import PlayerCombobox, { type PlayerLite } from '../../components/PlayerCombobox';
@@ -19,11 +19,12 @@ interface StaffRow {
   created_at: string;
 }
 
+// Super admin is intentionally absent: it is a single, immutable account that
+// can never be assigned (enforced server-side; see the super_admin lockdown).
 const ASSIGNABLE: { value: string; label: string }[] = [
   { value: 'player', label: 'Player (remove staff access)' },
   { value: 'marketer', label: 'Marketer' },
   { value: 'admin', label: 'Admin' },
-  { value: 'super_admin', label: 'Super Admin' },
 ];
 
 const RANK: Record<string, number> = { super_admin: 0, admin: 1, marketer: 2 };
@@ -41,7 +42,7 @@ export default function StaffTab() {
 
   // add staff
   const [picked, setPicked] = useState<PlayerLite | null>(null);
-  const [addRole, setAddRole] = useState<'marketer' | 'admin' | 'super_admin'>('admin');
+  const [addRole, setAddRole] = useState<'marketer' | 'admin'>('admin');
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
@@ -116,7 +117,6 @@ export default function StaffTab() {
             className="px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition">
             <option value="marketer">Marketer</option>
             <option value="admin">Admin</option>
-            <option value="super_admin">Super Admin</option>
           </select>
           <button onClick={addStaff} disabled={!picked || adding}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[13px] font-semibold transition-colors disabled:opacity-50 flex-shrink-0">
@@ -157,15 +157,19 @@ export default function StaffTab() {
                     </td>
                     <td className="px-5 py-3 text-muted text-xs hidden sm:table-cell whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</td>
                     <td className="px-5 py-3 text-right">
-                      <select
-                        value={r.role}
-                        disabled={self}
-                        title={self ? 'You cannot change your own role' : undefined}
-                        onChange={e => { const to = e.target.value; if (to !== r.role) setPending({ id: r.id, username: r.username, from: r.role, to }); }}
-                        className="px-3 py-1.5 bg-surface border border-line rounded-lg text-[13px] text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {ASSIGNABLE.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
+                      {r.role === 'super_admin' ? (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted" title="The super admin is permanent and cannot be changed"><Lock size={12} />Protected</span>
+                      ) : (
+                        <select
+                          value={r.role}
+                          disabled={self}
+                          title={self ? 'You cannot change your own role' : undefined}
+                          onChange={e => { const to = e.target.value; if (to !== r.role) setPending({ id: r.id, username: r.username, from: r.role, to }); }}
+                          className="px-3 py-1.5 bg-surface border border-line rounded-lg text-[13px] text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {ASSIGNABLE.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      )}
                     </td>
                   </tr>
                 );

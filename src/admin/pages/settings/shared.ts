@@ -20,6 +20,8 @@ export function friendly(code: string): string {
     CANNOT_TARGET_SELF: 'You cannot change your own role.',
     INVALID_ROLE: 'Choose a valid role.',
     LAST_SUPER_ADMIN: 'You cannot demote the last super admin.',
+    SUPER_ADMIN_LOCKED: 'No one can be promoted to super admin.',
+    ROOT_SUPER_ADMIN_PROTECTED: 'The super admin is protected and cannot be changed, banned, or removed.',
     CANNOT_CONVERT_OPERATOR: 'Admins and super admins cannot be made marketers.',
     ALREADY_MARKETER: 'That user is already a marketer.',
     NOT_A_MARKETER: 'That user is not a marketer.',
