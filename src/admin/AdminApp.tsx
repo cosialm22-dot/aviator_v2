@@ -8,6 +8,7 @@ import UserDetailPage from './pages/UserDetailPage';
 import GameControlPage from './pages/GameControlPage';
 import WithdrawalsPage from './pages/WithdrawalsPage';
 import FinancePage from './pages/FinancePage';
+import RiskPage from './pages/RiskPage';
 import SettingsPage from './pages/SettingsPage';
 import MarketingPage from './pages/MarketingPage';
 import MarketingAdminPage from './pages/MarketingAdminPage';
@@ -51,6 +52,7 @@ export default function AdminApp() {
           <Route path="users/:userId" element={<RequireSection section="users"><UserDetailPage /></RequireSection>} />
           <Route path="game" element={<RequireSection section="game"><GameControlPage /></RequireSection>} />
           <Route path="withdrawals" element={<RequireSection section="withdrawals"><WithdrawalsPage /></RequireSection>} />
+          <Route path="risk" element={<RequireSection section="risk"><RiskPage /></RequireSection>} />
           <Route path="finance" element={<RequireSection section="finance"><FinancePage /></RequireSection>} />
           <Route path="settings" element={<RequireSection section="settings"><SettingsPage /></RequireSection>} />
           <Route path="*" element={<Navigate to="/admin" replace />} />

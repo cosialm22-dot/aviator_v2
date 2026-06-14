@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { getDeviceFingerprint } from '../lib/fingerprint';
 import type { Profile, Wallet } from '../types';
 
 /*
@@ -14,6 +15,20 @@ import type { Profile, Wallet } from '../types';
 
 function phoneToEmail(phone: string): string {
   return `${phone}@phone.aviator.ke`;
+}
+
+// Best-effort device fingerprint capture for the risk engine's multi-account
+// signal (record_device_fingerprint -> device_fingerprints). Fire-and-forget:
+// any failure is swallowed so it can never disrupt auth or gameplay.
+async function recordFingerprint(): Promise<void> {
+  try {
+    const fp = await getDeviceFingerprint();
+    if (!fp) return;
+    await supabase.rpc('record_device_fingerprint', {
+      p_fingerprint: fp,
+      p_user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+    });
+  } catch { /* non-critical: never block on fingerprinting */ }
 }
 
 /**
@@ -102,11 +117,12 @@ export function useAuth() {
         const phone = (session.user.email ?? '').replace('@phone.aviator.ke', '');
         setUser({ id: session.user.id, phone });
         fetchProfile(session.user.id);
+        setTimeout(() => { void recordFingerprint(); }, 0);
       }
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // Synchronous state updates (setUser/clearing) are safe here, but any
       // Supabase call (fetchProfile -> .from()) MUST be deferred out of this
       // callback: GoTrue holds its navigator lock while invoking it, and a
@@ -117,6 +133,9 @@ export function useAuth() {
         setUser({ id: session.user.id, phone });
         const uid = session.user.id;
         setTimeout(() => { void fetchProfile(uid); }, 0);
+        // Record the device fingerprint once per fresh sign-in (not on silent
+        // token refreshes) to keep login_count meaningful for the risk engine.
+        if (event === 'SIGNED_IN') setTimeout(() => { void recordFingerprint(); }, 0);
       } else {
         setUser(null);
         setProfile(null);

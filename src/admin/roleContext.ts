@@ -15,7 +15,7 @@ export type Role = 'player' | 'admin' | 'super_admin' | 'marketer';
 
 export type Section =
   | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'finance' | 'settings' | 'staff'
-  | 'marketing' | 'commissions';
+  | 'marketing' | 'commissions' | 'risk';
 
 const ACCESS: Record<Section, Role[]> = {
   // Operations analytics is for operators only; marketers see their own
@@ -25,6 +25,8 @@ const ACCESS: Record<Section, Role[]> = {
   game:        ['super_admin', 'admin'],
   withdrawals: ['super_admin', 'admin'],
   finance:     ['super_admin', 'admin'],
+  // Risk & fraud monitoring is an operations function (see module 7 spec).
+  risk:        ['super_admin', 'admin'],
   settings:    ['super_admin'],
   staff:       ['super_admin'],
   // Shared route: marketers get their own dashboard, operators get the admin

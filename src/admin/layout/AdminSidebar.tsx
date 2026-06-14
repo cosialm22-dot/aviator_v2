@@ -1,7 +1,7 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, ShieldAlert } from 'lucide-react';
 import { useAdmin, canAccess, type Role, type Section } from '../roleContext';
 
 // `marketing` is one nav item that resolves to a marketer's own dashboard or the
@@ -14,6 +14,7 @@ const NAV: { icon: typeof LayoutDashboard; label: string; path: string; section:
   { icon: Users, label: 'Players', path: '/admin/users', section: 'users' },
   { icon: Gamepad2, label: 'Game Control', path: '/admin/game', section: 'game' },
   { icon: Banknote, label: 'Withdrawals', path: '/admin/withdrawals', section: 'withdrawals' },
+  { icon: ShieldAlert, label: 'Risk & Fraud', path: '/admin/risk', section: 'risk' },
   { icon: Wallet, label: 'Finance', path: '/admin/finance', section: 'finance' },
   { icon: Settings, label: 'Settings', path: '/admin/settings', section: 'settings' },
 ];
