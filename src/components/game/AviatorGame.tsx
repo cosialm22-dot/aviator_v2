@@ -4,6 +4,8 @@ import GameCanvas from './GameCanvas';
 import BettingPanel, { type QueuedBet } from './BettingPanel';
 import LiveBetsTable from './LiveBetsTable';
 import GameHistory from './GameHistory';
+import Leaderboard from './Leaderboard';
+import PreviousRoundBets from './PreviousRoundBets';
 import Chat from './Chat';
 import { useGame, BET_SLOTS, type BetSlot } from '../../hooks/useGame';
 import { useDemoBets, DEMO_STARTING_BALANCE } from '../../hooks/useDemoBets';
@@ -182,34 +184,44 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             ))}
           </div>
 
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a2a45] flex-shrink-0">
-            <div className="flex items-center gap-1.5">
-              <div className="flex -space-x-1">
-                {liveBets.slice(0, 3).map((b, i) => (
-                  <div key={i} className="w-5 h-5 rounded-full border border-[#0d0d1a] flex items-center justify-center text-white text-[8px] font-bold" style={{ backgroundColor: b.avatar_color }}>
-                    {b.username[0]?.toUpperCase()}
+          {activeTab === 'top' ? (
+            <Leaderboard />
+          ) : (
+            <>
+              {activeTab === 'allBets' && (
+                <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a2a45] flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex -space-x-1">
+                      {liveBets.slice(0, 3).map((b, i) => (
+                        <div key={i} className="w-5 h-5 rounded-full border border-[#0d0d1a] flex items-center justify-center text-white text-[8px] font-bold" style={{ backgroundColor: b.avatar_color }}>
+                          {b.username[0]?.toUpperCase()}
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-white font-semibold">{liveBets.length}</span>
+                    <span className="text-[10px] text-slate-600">bets</span>
                   </div>
-                ))}
+                  <div className="text-right">
+                    <div className="text-white text-sm font-bold">{(liveBets.reduce((s, b) => s + b.amount, 0) / 1000).toFixed(1)}K</div>
+                    <div className="text-slate-500 text-[9px]">KShs total</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid px-3 py-1 text-[10px] text-slate-500 border-b border-[#2a2a45]/50 flex-shrink-0" style={{ gridTemplateColumns: '1fr auto auto auto' }}>
+                <span>Player</span>
+                <span className="px-2">Bet</span>
+                <span className="px-2 text-center">X</span>
+                <span className="text-right">Win</span>
               </div>
-              <span className="text-[11px] text-white font-semibold">{liveBets.length}</span>
-              <span className="text-[10px] text-slate-600">bets</span>
-            </div>
-            <div className="text-right">
-              <div className="text-white text-sm font-bold">{(liveBets.reduce((s, b) => s + b.amount, 0) / 1000).toFixed(1)}K</div>
-              <div className="text-slate-500 text-[9px]">KShs total</div>
-            </div>
-          </div>
 
-          <div className="grid px-3 py-1 text-[10px] text-slate-500 border-b border-[#2a2a45]/50 flex-shrink-0" style={{ gridTemplateColumns: '1fr auto auto auto' }}>
-            <span>Player</span>
-            <span className="px-2">Bet</span>
-            <span className="px-2 text-center">X</span>
-            <span className="text-right">Win</span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto scrollbar-thin">
-            <LiveBetsTable bets={liveBets} status={gameStatus} />
-          </div>
+              <div className="flex-1 overflow-y-auto scrollbar-thin">
+                {activeTab === 'allBets'
+                  ? <LiveBetsTable bets={liveBets} status={gameStatus} />
+                  : <PreviousRoundBets roundId={history[0]?.id ?? null} />}
+              </div>
+            </>
+          )}
         </div>
 
         {/* ── Center: Canvas + Betting ───────────────────────────────── */}
