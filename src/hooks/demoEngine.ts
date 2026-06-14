@@ -74,7 +74,9 @@ export function riggedCrashPoint(target: number, rng: () => number = Math.random
     if (r < 0.55) cp = T + rng() * 1.5;            // modest win just past target
     else if (r < 0.87) cp = T + 1.5 + rng() * 4.5; // solid win
     else cp = T + 6 + rng() * 40;                   // big, shareable win (FOMO)
-    return Math.max(T, floor2(cp));
+    const v = floor2(cp);
+    // Guarantee a 2dp result that is never below the target (so the player wins).
+    return v >= T ? v : Math.ceil(T * 100) / 100;
   }
 
   // Unfavourable: crash below the target.
