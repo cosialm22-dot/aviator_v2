@@ -62,3 +62,49 @@ describe('assertValidAutoCashout', () => {
     expect(() => assertValidAutoCashout(1.01)).not.toThrow();
   });
 });
+
+import { riggedCrashPoint, DEMO_WIN_RATE } from './demoEngine';
+
+// Deterministic RNG that replays a fixed sequence (then repeats) so the rig's
+// branch math can be asserted exactly.
+function seq(values: number[]): () => number {
+  let i = 0;
+  return () => values[i++ % values.length];
+}
+
+describe('riggedCrashPoint', () => {
+  it('wins (crash >= target) when the gate roll is below the win rate', () => {
+    // [gate<winRate, branch=modest, magnitude=0] -> crash exactly at target.
+    expect(riggedCrashPoint(2.0, seq([0.0, 0.0, 0.0]))).toBeGreaterThanOrEqual(2.0);
+    expect(riggedCrashPoint(3.5, seq([0.1, 0.9, 0.5]))).toBeGreaterThanOrEqual(3.5);
+  });
+
+  it('loses (crash < target) when the gate roll is at/above the win rate', () => {
+    const loss = riggedCrashPoint(2.0, seq([0.99, 0.99, 0.0]));
+    expect(loss).toBeLessThan(2.0);
+    expect(loss).toBeGreaterThanOrEqual(1.0);
+  });
+
+  it('always returns >= 1.00 and floored to 2 decimals', () => {
+    for (let i = 0; i < 5000; i++) {
+      const cp = riggedCrashPoint(1.2 + Math.random() * 10);
+      expect(cp).toBeGreaterThanOrEqual(1.0);
+      // 2dp value: cp*100 is an integer up to float representation error.
+      expect(Math.abs(cp * 100 - Math.round(cp * 100))).toBeLessThan(1e-9);
+    }
+  });
+
+  it('degenerate target (<=1.02) busts instantly on a loss', () => {
+    expect(riggedCrashPoint(1.01, seq([0.99]))).toBe(1.0);
+  });
+
+  it(`empirically hits ~${DEMO_WIN_RATE * 100}% wins at a fixed target`, () => {
+    const N = 40000;
+    const T = 2.0;
+    let wins = 0;
+    for (let i = 0; i < N; i++) if (riggedCrashPoint(T) >= T) wins++;
+    const rate = wins / N;
+    expect(rate).toBeGreaterThan(DEMO_WIN_RATE - 0.03);
+    expect(rate).toBeLessThan(DEMO_WIN_RATE + 0.03);
+  });
+});

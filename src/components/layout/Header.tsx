@@ -1,10 +1,16 @@
 import { useState } from 'react';
-import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard, RotateCcw } from 'lucide-react';
 import type { Profile } from '../../types';
+
+type PlayMode = 'real' | 'demo';
 
 interface Props {
   profile: Profile | null;
   balance: number;
+  mode: PlayMode;
+  onSetMode: (mode: PlayMode) => void;
+  demoBalance: number;
+  onResetDemo: () => void;
   onSignInOpen: () => void;
   onRegisterOpen: () => void;
   onWalletOpen: () => void;
@@ -15,7 +21,7 @@ interface Props {
 // (/admin/marketing) via AdminApp's role-aware Landing dispatch.
 const MARKETER_DASHBOARD_PATH = '/admin';
 
-export default function Header({ profile, balance, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
+export default function Header({ profile, balance, mode, onSetMode, demoBalance, onResetDemo, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);       // mobile hamburger sheet
   const [profileOpen, setProfileOpen] = useState(false); // desktop profile dropdown
 
@@ -35,6 +41,43 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
 
       {/* Right side */}
       <div className="flex items-center gap-2">
+        {/* Play-mode switch (Real / Demo). Demo needs no account; shown left of
+            the Sign In / profile cluster on every screen size. */}
+        <div className="flex items-center gap-1.5">
+          {mode === 'demo' && (
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-[#1a1a2e] border border-[#2a2a45] px-2 py-1">
+              <span className="text-[9px] uppercase tracking-wide text-slate-500 font-bold">Demo</span>
+              <span className="text-xs font-bold tabular-nums text-[#60a5fa]">
+                KSh {demoBalance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
+              </span>
+              <button
+                onClick={onResetDemo}
+                title="Reset demo balance"
+                aria-label="Reset demo balance"
+                className="text-slate-400 hover:text-white transition active:scale-90"
+              >
+                <RotateCcw size={11} />
+              </button>
+            </div>
+          )}
+          <div className="flex bg-[#1a1a2e] rounded-full p-0.5" role="tablist" aria-label="Play mode">
+            {(['real', 'demo'] as const).map((m) => (
+              <button
+                key={m}
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => onSetMode(m)}
+                className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
+                  mode === m
+                    ? (m === 'demo' ? 'bg-[#1d4ed8] text-white' : 'bg-[#22c55e] text-white')
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {m === 'real' ? 'Real' : 'Demo'}
+              </button>
+            ))}
+          </div>
+        </div>
         {profile ? (
           <>
             {/* Balance */}

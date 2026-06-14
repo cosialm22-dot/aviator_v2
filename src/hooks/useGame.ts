@@ -48,7 +48,9 @@ export interface ActiveBet {
 export type ActiveBets = Record<BetSlot, ActiveBet | null>;
 const EMPTY_ACTIVE_BETS: ActiveBets = { 1: null, 2: null };
 
-interface LiveBetEntry {
+// Exported so the demo engine (useDemoGame) can produce the identical board
+// shape, letting AviatorGame consume real or demo through one union with no casts.
+export interface LiveBetEntry {
   id: string;
   username: string;
   avatar_color: string;

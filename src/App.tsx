@@ -4,18 +4,36 @@ import Header from './components/layout/Header';
 import AviatorGame from './components/game/AviatorGame';
 import AuthModal from './components/auth/AuthModal';
 import WalletModal from './components/wallet/WalletModal';
+import DemoNudgeToast from './components/game/DemoNudgeToast';
 import { useAuth } from './hooks/useAuth';
 import { useWallet } from './hooks/useWallet';
+import { useDemoGame } from './hooks/useDemoGame';
+import { useDemoNudges } from './hooks/useDemoNudges';
 import AdminApp from './admin/AdminApp';
 
 type AuthMode = 'signin' | 'signup' | null;
+export type PlayMode = 'real' | 'demo';
 
 function PlayerApp() {
   const [authMode, setAuthMode] = useState<AuthMode>(null);
   const [walletOpen, setWalletOpen] = useState(false);
+  // Real vs Demo play mode. Lifted here so the header switch, the game, and the
+  // conversion toast all share one source of truth.
+  const [mode, setMode] = useState<PlayMode>('real');
 
   const { user, profile, wallet, loading, signUp, signIn, signOut, refreshWallet } = useAuth();
   const { deposit, withdraw, depositing, withdrawing } = useWallet(user?.id, refreshWallet);
+
+  // Self-contained, rigged, client-only demo engine (no DB writes). Always
+  // mounted so its play-money balance persists across mode toggles; it only runs
+  // its round loop while `active`. Demo bets are attributed to the player's name
+  // when signed in, otherwise to a neutral guest identity.
+  const demo = useDemoGame({
+    active: mode === 'demo',
+    playerName: profile?.username ?? 'You',
+    playerColor: profile?.avatar_color ?? '#22c55e',
+  });
+  const nudges = useDemoNudges({ active: mode === 'demo', lastWin: demo.lastWin, roundsPlayed: demo.roundsPlayed });
 
   if (loading) {
     return (
@@ -33,11 +51,21 @@ function PlayerApp() {
     setWalletOpen(true);
   };
 
+  // CTA from a demo nudge: leave demo and, if not signed in, prompt sign-up.
+  const playForReal = () => {
+    setMode('real');
+    if (!profile) setAuthMode('signup');
+  };
+
   return (
     <div className="h-[100dvh] bg-[#0d0d1a] flex flex-col overflow-hidden">
       <Header
         profile={profile}
         balance={wallet?.balance ?? 0}
+        mode={mode}
+        onSetMode={setMode}
+        demoBalance={demo.balance}
+        onResetDemo={demo.reset}
         onSignInOpen={() => setAuthMode('signin')}
         onRegisterOpen={() => setAuthMode('signup')}
         onWalletOpen={() => setWalletOpen(true)}
@@ -48,11 +76,17 @@ function PlayerApp() {
         <AviatorGame
           profile={profile}
           wallet={wallet}
+          mode={mode}
+          demo={demo}
           onAuthRequired={() => setAuthMode('signup')}
           onRefreshWallet={refreshWallet}
           onDepositOpen={openDeposit}
         />
       </main>
+
+      {mode === 'demo' && (
+        <DemoNudgeToast nudge={nudges.current} onPlayReal={playForReal} onDismiss={nudges.dismiss} />
+      )}
 
       {authMode && (
         <AuthModal

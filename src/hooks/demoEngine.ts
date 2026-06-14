@@ -1,43 +1,44 @@
 // ============================================================================
-// demoEngine - PURE settlement math for free-play (Demo) mode.
+// demoEngine - PURE math for free-play (Demo) mode.
 // ----------------------------------------------------------------------------
-// Demo rides the REAL shared rounds (identical crash points to live). To keep
-// practice honest, its payout math must MIRROR THE SERVER EXACTLY - never more
-// generous. These functions reproduce the server contract:
-//   * payout = floor(amount * mult, 2dp) capped at max_payout  (server _bet_credit, non-free)
-//   * stakes constrained to [min_bet, max_bet]                  (server place_bet)
-// Constants mirror system_settings defaults (game.min_bet / max_bet / max_payout).
-// Pure and side-effect-free so they can be unit-tested and parity-checked.
+// Demo mode is a SELF-CONTAINED, client-only sandbox (see useDemoGame). It does
+// NOT ride the real shared rounds: a controlled, conversion-oriented win rate is
+// impossible against a crash point the player can see, so the demo runs its own
+// rigged round lifecycle entirely in the browser and never touches the DB.
+//
+// Two concerns live here, both pure and unit-tested:
+//   1. cashoutCredit / validation - the PAYOUT math, which still mirrors the
+//      server contract EXACTLY (floor to 2dp, max-payout cap, stake range) so
+//      winning amounts look and feel identical to real money.
+//   2. riggedCrashPoint - the demo's intentionally favourable crash generator
+//      (target ~80% wins) used only by the demo engine, never by real money.
 // ============================================================================
 
-export const DEMO_MIN_BET = 50;            // mirrors game.min_bet
-export const DEMO_MAX_BET = 50000;         // mirrors game.max_bet
-export const DEMO_MAX_PAYOUT = 500000;     // mirrors game.max_payout
-export const DEMO_STARTING_BALANCE = 10000; // play-money sandbox starting balance
+export const DEMO_MIN_BET = 50;             // mirrors game.min_bet
+export const DEMO_MAX_BET = 50000;          // mirrors game.max_bet
+export const DEMO_MAX_PAYOUT = 500000;      // mirrors game.max_payout
+export const DEMO_STARTING_BALANCE = 1000;  // play-money starting balance (KSh)
+
+// Demo is tuned to convert: the player wins ~80% of rounds they bet on.
+export const DEMO_WIN_RATE = 0.8;
+// Effective cashout target assumed for a manual (no auto-cashout) bet when
+// deciding a favourable round - a comfortable, attainable multiplier.
+export const DEMO_MANUAL_TARGET = 2.0;
 
 /**
- * Credit for cashing out a (non-free) stake at `mult`. Must equal the server's
- * `least(floor(amount*mult*100)/100, max_payout)` computed in Postgres `numeric`
- * (exact decimal). A naive float `floor(amount*mult*100)/100` suffers IEEE-754
- * drift (e.g. 2010 * 1.49 floors to 2994.89 instead of 2994.90), which would
- * make the demo diverge from real money by a cent. Since `amount` is an integer
- * stake and `mult` is always a 2-decimal value (server _multiplier_at truncates
- * to 2dp; auto-cashout targets are parsed to 2dp), we compute in INTEGER CENTS:
- *   floor(amount * round(mult*100)) / 100
- * `amount * round(mult*100)` is an exact integer, so there is no rounding drift
- * and the result matches the server bit-for-bit across the real input domain.
+ * Credit for cashing out a stake at `mult`. Must equal the server's
+ * `least(floor(amount*mult*100)/100, max_payout)` computed in Postgres `numeric`.
+ * Computed in INTEGER CENTS (amount integer, mult 2dp) to avoid IEEE-754 drift
+ * (e.g. 2010 * 1.49 must floor to 2994.90, not 2994.89), matching the server
+ * bit-for-bit across the real input domain.
  */
 export function cashoutCredit(amount: number, mult: number): number {
-  const multCents = Math.round(mult * 100);                  // exact integer hundredths of the multiplier
-  const payout = Math.floor(amount * multCents) / 100;       // integer * integer -> drift-free
+  const multCents = Math.round(mult * 100);            // exact integer hundredths
+  const payout = Math.floor(amount * multCents) / 100; // integer*integer -> drift-free
   return Math.min(payout, DEMO_MAX_PAYOUT);
 }
 
-/**
- * Validate a stake exactly as place_bet does (range + affordability), throwing
- * the same friendly messages the real-money path surfaces so the UI behaves
- * identically in both modes.
- */
+/** Validate a stake exactly as place_bet does (range + affordability). */
 export function assertValidStake(amount: number, balance: number): void {
   if (!Number.isFinite(amount) || amount < DEMO_MIN_BET || amount > DEMO_MAX_BET) {
     throw new Error('Bet amount is outside the allowed limits.');
@@ -50,4 +51,37 @@ export function assertValidAutoCashout(target: number | null): void {
   if (target != null && target <= 1.0) {
     throw new Error('Auto-cashout must be greater than 1.00x.');
   }
+}
+
+/**
+ * Rigged crash point for a demo round given the player's effective cashout
+ * target `T` (the max auto-cashout among active bets, or DEMO_MANUAL_TARGET for
+ * a manual bet). With probability DEMO_WIN_RATE the round crashes AT/ABOVE `T`
+ * (the player wins, with occasional big multipliers for excitement); otherwise
+ * it crashes BELOW `T` (a loss, frequently a near-miss to maximise tension).
+ *
+ * Pure: `rng` is injectable so the distribution can be unit-tested
+ * deterministically. Result is always >= 1.00 and floored to 2dp.
+ */
+export function riggedCrashPoint(target: number, rng: () => number = Math.random): number {
+  const T = Math.max(1.01, target);
+  const floor2 = (n: number) => Math.floor(n * 100) / 100;
+
+  if (rng() < DEMO_WIN_RATE) {
+    // Favourable: crash strictly at/above the target so the player cashes out.
+    const r = rng();
+    let cp: number;
+    if (r < 0.55) cp = T + rng() * 1.5;            // modest win just past target
+    else if (r < 0.87) cp = T + 1.5 + rng() * 4.5; // solid win
+    else cp = T + 6 + rng() * 40;                   // big, shareable win (FOMO)
+    return Math.max(T, floor2(cp));
+  }
+
+  // Unfavourable: crash below the target.
+  if (T <= 1.02) return 1.0; // degenerate target -> instant bust
+  const r = rng();
+  const cp = r < 0.6
+    ? T * 0.8 + rng() * (T * 0.2)        // near-miss [0.8T, T)
+    : 1.01 + rng() * (T * 0.8 - 1.01);    // clearly short
+  return Math.min(floor2(T - 0.01), Math.max(1.0, floor2(cp)));
 }
