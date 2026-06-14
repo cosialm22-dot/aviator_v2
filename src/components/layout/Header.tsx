@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard, RotateCcw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard, RotateCcw, UserCircle } from 'lucide-react';
 import type { Profile } from '../../types';
 
 type PlayMode = 'real' | 'demo';
@@ -24,6 +25,7 @@ const MARKETER_DASHBOARD_PATH = '/admin';
 export default function Header({ profile, balance, mode, onSetMode, demoBalance, onResetDemo, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);       // mobile hamburger sheet
   const [profileOpen, setProfileOpen] = useState(false); // desktop profile dropdown
+  const navigate = useNavigate();
 
   const isMarketer = profile?.role === 'marketer';
 
@@ -120,6 +122,14 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
                   {/* click-away backdrop */}
                   <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} />
                   <div role="menu" className="absolute right-0 top-full mt-1 w-56 bg-[#0d0d1a] border border-[#2a2a45] rounded-xl shadow-2xl z-40 overflow-hidden py-1">
+                    <button
+                      onClick={() => { setProfileOpen(false); navigate('/profile'); }}
+                      role="menuitem"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-[#1a1a2e] transition"
+                    >
+                      <UserCircle size={15} className="text-[#60a5fa]" />
+                      My Profile
+                    </button>
                     {isMarketer && (
                       <a
                         href={MARKETER_DASHBOARD_PATH}
@@ -186,6 +196,13 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
               </div>
             </div>
           </div>
+
+          <button
+            onClick={() => { setMenuOpen(false); navigate('/profile'); }}
+            className="w-full flex items-center justify-center gap-2 py-2 bg-[#1a1a2e] border border-[#2a2a45] text-slate-200 rounded-lg text-sm font-semibold"
+          >
+            <UserCircle size={14} className="text-[#60a5fa]" /> My Profile
+          </button>
 
           {isMarketer && (
             <a

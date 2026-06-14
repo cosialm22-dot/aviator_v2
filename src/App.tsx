@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import AviatorGame from './components/game/AviatorGame';
+import ProfilePage from './components/profile/ProfilePage';
 import AuthModal from './components/auth/AuthModal';
 import WalletModal from './components/wallet/WalletModal';
 import DemoNudgeToast from './components/game/DemoNudgeToast';
@@ -24,16 +25,22 @@ function PlayerApp() {
   const { user, profile, wallet, loading, signUp, signIn, signOut, refreshWallet } = useAuth();
   const { deposit, withdraw, depositing, withdrawing } = useWallet(user?.id, refreshWallet);
 
+  // The demo engine (and its nudges/toast) only make sense on the game screen.
+  // Off the game route (e.g. /profile, /marketer) the rigged loop is paused so
+  // it never burns a rAF in the background.
+  const { pathname } = useLocation();
+  const onGameRoute = pathname === '/' || pathname === '';
+
   // Self-contained, rigged, client-only demo engine (no DB writes). Always
   // mounted so its play-money balance persists across mode toggles; it only runs
   // its round loop while `active`. Demo bets are attributed to the player's name
   // when signed in, otherwise to a neutral guest identity.
   const demo = useDemoGame({
-    active: mode === 'demo',
+    active: mode === 'demo' && onGameRoute,
     playerName: profile?.username ?? 'You',
     playerColor: profile?.avatar_color ?? '#22c55e',
   });
-  const nudges = useDemoNudges({ active: mode === 'demo', lastWin: demo.lastWin, roundsPlayed: demo.roundsPlayed });
+  const nudges = useDemoNudges({ active: mode === 'demo' && onGameRoute, lastWin: demo.lastWin, roundsPlayed: demo.roundsPlayed });
 
   if (loading) {
     return (
@@ -73,18 +80,37 @@ function PlayerApp() {
       />
 
       <main className="flex-1 min-h-0 overflow-hidden">
-        <AviatorGame
-          profile={profile}
-          wallet={wallet}
-          mode={mode}
-          demo={demo}
-          onAuthRequired={() => setAuthMode('signup')}
-          onRefreshWallet={refreshWallet}
-          onDepositOpen={openDeposit}
-        />
+        <Routes>
+          <Route
+            index
+            element={
+              <AviatorGame
+                profile={profile}
+                wallet={wallet}
+                mode={mode}
+                demo={demo}
+                onAuthRequired={() => setAuthMode('signup')}
+                onRefreshWallet={refreshWallet}
+                onDepositOpen={openDeposit}
+              />
+            }
+          />
+          <Route
+            path="profile"
+            element={
+              <ProfilePage
+                user={user}
+                profile={profile}
+                wallet={wallet}
+                onSignInRequired={() => setAuthMode('signin')}
+              />
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
-      {mode === 'demo' && (
+      {mode === 'demo' && onGameRoute && (
         <DemoNudgeToast nudge={nudges.current} onPlayReal={playForReal} onDismiss={nudges.dismiss} />
       )}
 
