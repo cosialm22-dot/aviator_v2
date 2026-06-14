@@ -7,6 +7,8 @@ import GameHistory from './GameHistory';
 import Chat from './Chat';
 import { useGame, BET_SLOTS, type BetSlot } from '../../hooks/useGame';
 import { useDemoBets, DEMO_STARTING_BALANCE } from '../../hooks/useDemoBets';
+import { usePromos } from '../../hooks/usePromos';
+import PromoBar from './PromoBar';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { Profile, Wallet } from '../../types';
 
@@ -64,6 +66,11 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   // money locally. It is always mounted so its balance persists across mode
   // toggles; it only drives the panels when isDemo is true.
   const demo = useDemoBets({ status: gameStatus, multiplier: currentMultiplier, roundId: currentRound?.id ?? null });
+
+  // Player promotions (free bets + rain) - real-money mode only.
+  const { freeBets, rain: openRain, busy: promoBusy, placeFreeBet: placeFreeBetRpc, claimRain } = usePromos(profile?.id, onRefreshWallet);
+  // A free bet queued to auto-place on the next waiting round (slot 1).
+  const [queuedFreeBet, setQueuedFreeBet] = useState<{ id: string; auto: number } | null>(null);
 
   // The betting surface fed to the panels switches with the mode. The round
   // lifecycle, canvas, history and live board ALWAYS come from the real game.
@@ -125,6 +132,27 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   const anyActiveInFlight = panelActiveBets[1]?.status === 'active' || panelActiveBets[2]?.status === 'active';
   const anyBetThisRound = !!panelActiveBets[1] || !!panelActiveBets[2];
   const lastWon = (panelActiveBets[1]?.status === 'won' && panelActiveBets[1]) || (panelActiveBets[2]?.status === 'won' && panelActiveBets[2]) || null;
+
+  // Free bets stake on slot 1. Place now if waiting & slot 1 is free, else queue
+  // for the next waiting round. Real-money mode only (demo has its own balance).
+  const slot1Free = !activeBets[1] && !queuedBets[1];
+  const handleUseFreeBet = (freeBetId: string, auto: number) => {
+    if (isDemo || isOperator) return;
+    const round = currentRound;
+    if (gameStatus === 'waiting' && round && slot1Free) {
+      placeFreeBetRpc(round.id, freeBetId, auto, 1).catch(() => {});
+    } else {
+      setQueuedFreeBet({ id: freeBetId, auto });
+    }
+  };
+  useEffect(() => {
+    if (isDemo || isOperator || gameStatus !== 'waiting' || !queuedFreeBet) return;
+    const round = currentRound;
+    if (!round || activeBets[1] || queuedBets[1]) return;
+    placeFreeBetRpc(round.id, queuedFreeBet.id, queuedFreeBet.auto, 1)
+      .then(() => setQueuedFreeBet(null))
+      .catch(() => setQueuedFreeBet(null));
+  }, [gameStatus, queuedFreeBet, currentRound, activeBets, queuedBets, isDemo, isOperator, placeFreeBetRpc]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#0d0d1a]">
@@ -284,6 +312,18 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             <div className="flex-shrink-0 border-t border-[#2a2a45] bg-amber-500/10 px-4 py-2 text-center text-amber-300 text-[11px] font-semibold">
               You are signed in as an operator. Operator accounts cannot place real bets - switch to Demo to practise.
             </div>
+          )}
+
+          {/* Player promotions: free bets + rain (real-money mode only) */}
+          {!isDemo && profile && !isOperator && (
+            <PromoBar
+              freeBets={freeBets}
+              rain={openRain}
+              busy={promoBusy}
+              canUseFreeBet={slot1Free && !queuedFreeBet}
+              onClaimRain={claimRain}
+              onUseFreeBet={handleUseFreeBet}
+            />
           )}
 
           {/* Real / Demo mode toggle */}
