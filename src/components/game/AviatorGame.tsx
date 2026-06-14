@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Users } from 'lucide-react';
+import { MessageSquare, Users, RotateCcw } from 'lucide-react';
 import GameCanvas from './GameCanvas';
 import BettingPanel, { type QueuedBet } from './BettingPanel';
 import LiveBetsTable from './LiveBetsTable';
 import GameHistory from './GameHistory';
 import Chat from './Chat';
 import { useGame, BET_SLOTS, type BetSlot } from '../../hooks/useGame';
+import { useDemoBets, DEMO_STARTING_BALANCE } from '../../hooks/useDemoBets';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { Profile, Wallet } from '../../types';
 
@@ -35,6 +36,10 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   // One queued bet per slot (dual-bet): each panel can independently queue a bet
   // for the next round while the current one is in flight.
   const [queuedBets, setQueuedBets] = useState<Record<BetSlot, QueuedBet | null>>({ 1: null, 2: null });
+  // Real vs Demo (free-play) mode. Demo rides the same shared rounds with play
+  // money and never touches the server (see useDemoBets).
+  const [mode, setMode] = useState<'real' | 'demo'>('real');
+  const isDemo = mode === 'demo';
   const balance = wallet?.balance ?? 0;
   // Operators (admin/super_admin) run the platform and must never wager. Marketers
   // and players are unaffected. The DB is the authoritative gate (place_bet +
@@ -45,6 +50,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
     gameStatus,
     currentMultiplier,
     getMultiplier,
+    currentRound,
     history,
     activeBets,
     liveBets,
@@ -54,9 +60,26 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
     cashOut,
   } = useGame(profile, balance, onRefreshWallet);
 
-  // Psychology nudge: low balance after a crash
+  // Demo sandbox consumes the authoritative round lifecycle and settles play
+  // money locally. It is always mounted so its balance persists across mode
+  // toggles; it only drives the panels when isDemo is true.
+  const demo = useDemoBets({ status: gameStatus, multiplier: currentMultiplier, roundId: currentRound?.id ?? null });
+
+  // The betting surface fed to the panels switches with the mode. The round
+  // lifecycle, canvas, history and live board ALWAYS come from the real game.
+  const panelBalance = isDemo ? demo.balance : balance;
+  const panelActiveBets = isDemo ? demo.activeBets : activeBets;
+  const panelPlaceBet = isDemo ? demo.placeBet : placeBet;
+  const panelCashOut = isDemo ? demo.cashOut : cashOut;
+  // Operators may practise in demo (no real money); the wager lock is real-only.
+  const panelOperatorLock = isOperator && !isDemo;
+  // Demo never requires authentication.
+  const panelAuthed = isDemo ? true : !!profile;
+
+  // Psychology nudge: low balance after a crash (real mode only - demo can be
+  // reset for free, so we never push deposits during free-play).
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || isDemo) return;
     if (balance < 50 && balance >= 0 && !nudgeShownRef.current && gameStatus === 'crashed') {
       nudgeShownRef.current = true;
       const msg = LOW_BALANCE_NUDGES[Math.floor(Math.random() * LOW_BALANCE_NUDGES.length)];
@@ -66,21 +89,29 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
       nudgeShownRef.current = false;
       setNudge(null);
     }
-  }, [balance, profile, gameStatus]);
+  }, [balance, profile, gameStatus, isDemo]);
 
-  // Auto-place each slot's queued bet when the waiting phase begins (never for
-  // operators). Slots are independent, so both can fire in the same window.
+  // Switching modes clears any pending queue and dismisses the nudge so the two
+  // money contexts never leak into one another.
   useEffect(() => {
-    if (isOperator || gameStatus !== 'waiting') return;
+    setQueuedBets({ 1: null, 2: null });
+    setNudge(null);
+  }, [mode]);
+
+  // Auto-place each slot's queued bet when the waiting phase begins. Uses the
+  // active betting surface (real or demo). Slots are independent, so both can
+  // fire in the same window.
+  useEffect(() => {
+    if (panelOperatorLock || gameStatus !== 'waiting') return;
     for (const slot of BET_SLOTS) {
       const q = queuedBets[slot];
-      if (q && !activeBets[slot]) {
-        placeBet(q.amount, q.autoCashout, slot)
+      if (q && !panelActiveBets[slot]) {
+        panelPlaceBet(q.amount, q.autoCashout, slot)
           .then(() => setQueuedBets((prev) => ({ ...prev, [slot]: null })))
           .catch(() => setQueuedBets((prev) => ({ ...prev, [slot]: null })));
       }
     }
-  }, [gameStatus, queuedBets, activeBets, placeBet, isOperator]);
+  }, [gameStatus, queuedBets, panelActiveBets, panelPlaceBet, panelOperatorLock]);
 
   const handleQueueBet = (slot: BetSlot) => (amount: number, autoCashout: number | null) => {
     setQueuedBets((prev) => ({ ...prev, [slot]: { amount, autoCashout } }));
@@ -91,9 +122,9 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   };
 
   // Aggregate signals across both slots for the shared canvas overlays.
-  const anyActiveInFlight = activeBets[1]?.status === 'active' || activeBets[2]?.status === 'active';
-  const anyBetThisRound = !!activeBets[1] || !!activeBets[2];
-  const lastWon = (activeBets[1]?.status === 'won' && activeBets[1]) || (activeBets[2]?.status === 'won' && activeBets[2]) || null;
+  const anyActiveInFlight = panelActiveBets[1]?.status === 'active' || panelActiveBets[2]?.status === 'active';
+  const anyBetThisRound = !!panelActiveBets[1] || !!panelActiveBets[2];
+  const lastWon = (panelActiveBets[1]?.status === 'won' && panelActiveBets[1]) || (panelActiveBets[2]?.status === 'won' && panelActiveBets[2]) || null;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#0d0d1a]">
@@ -247,12 +278,52 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             )}
           </div>
 
-          {/* Operator notice: admins/super_admins manage the platform and cannot wager. */}
-          {isOperator && (
+          {/* Operator notice: admins/super_admins manage the platform and cannot
+              wager with real money. They may still practise in Demo mode. */}
+          {panelOperatorLock && (
             <div className="flex-shrink-0 border-t border-[#2a2a45] bg-amber-500/10 px-4 py-2 text-center text-amber-300 text-[11px] font-semibold">
-              You are signed in as an operator. Operator accounts cannot place bets.
+              You are signed in as an operator. Operator accounts cannot place real bets - switch to Demo to practise.
             </div>
           )}
+
+          {/* Real / Demo mode toggle */}
+          <div className="flex flex-shrink-0 items-center justify-between gap-2 border-t border-[#2a2a45] bg-[#0d0d1a] px-3 py-1.5">
+            <div className="flex bg-[#1a1a2e] rounded-full p-0.5" role="tablist" aria-label="Play mode">
+              {(['real', 'demo'] as const).map((m) => (
+                <button
+                  key={m}
+                  role="tab"
+                  aria-selected={mode === m}
+                  onClick={() => setMode(m)}
+                  className={`px-4 py-1 text-xs font-bold rounded-full transition-all ${
+                    mode === m
+                      ? (m === 'demo' ? 'bg-[#1d4ed8] text-white' : 'bg-[#22c55e] text-white')
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {m === 'real' ? 'Real' : 'Demo'}
+                </button>
+              ))}
+            </div>
+
+            {isDemo ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Demo balance</span>
+                <span className="text-sm font-bold tabular-nums text-[#60a5fa]">
+                  KSh {panelBalance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
+                </span>
+                <button
+                  onClick={demo.reset}
+                  title={`Reset to KSh ${DEMO_STARTING_BALANCE.toLocaleString('en-KE')}`}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#1a1a2e] border border-[#2a2a45] text-slate-300 text-[10px] font-semibold hover:text-white hover:border-[#3a3a55] transition active:scale-95"
+                >
+                  <RotateCcw size={11} /> Reset
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] text-slate-500 font-medium hidden sm:block">Practise risk-free in Demo</span>
+            )}
+          </div>
 
           {/* Betting panels - two independent dual-bet slots (1 and 2) */}
           <div className="flex flex-shrink-0 border-t border-[#2a2a45] bg-[#0d0d1a]">
@@ -261,16 +332,16 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 panelIndex={0}
                 status={gameStatus}
                 multiplier={currentMultiplier}
-                balance={balance}
-                activeBet={activeBets[1]}
+                balance={panelBalance}
+                activeBet={panelActiveBets[1]}
                 queuedBet={queuedBets[1]}
-                onPlaceBet={(a, c) => placeBet(a, c, 1)}
+                onPlaceBet={(a, c) => panelPlaceBet(a, c, 1)}
                 onQueueBet={handleQueueBet(1)}
                 onCancelQueue={handleCancelQueue(1)}
-                onCashOut={() => { void cashOut(1); }}
+                onCashOut={() => { void panelCashOut(1); }}
                 onAuthRequired={onAuthRequired}
-                isAuthenticated={!!profile}
-                isOperator={isOperator}
+                isAuthenticated={panelAuthed}
+                isOperator={panelOperatorLock}
               />
             </div>
             <div className="flex-1">
@@ -278,16 +349,16 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 panelIndex={1}
                 status={gameStatus}
                 multiplier={currentMultiplier}
-                balance={balance}
-                activeBet={activeBets[2]}
+                balance={panelBalance}
+                activeBet={panelActiveBets[2]}
                 queuedBet={queuedBets[2]}
-                onPlaceBet={(a, c) => placeBet(a, c, 2)}
+                onPlaceBet={(a, c) => panelPlaceBet(a, c, 2)}
                 onQueueBet={handleQueueBet(2)}
                 onCancelQueue={handleCancelQueue(2)}
-                onCashOut={() => { void cashOut(2); }}
+                onCashOut={() => { void panelCashOut(2); }}
                 onAuthRequired={onAuthRequired}
-                isAuthenticated={!!profile}
-                isOperator={isOperator}
+                isAuthenticated={panelAuthed}
+                isOperator={panelOperatorLock}
               />
             </div>
           </div>
