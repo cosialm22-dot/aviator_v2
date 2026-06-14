@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
-import { Minus, Plus, Zap, Clock } from 'lucide-react';
+import { Minus, Plus, Zap, Clock, Play, Square } from 'lucide-react';
 import type { GameStatus } from '../../types';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { ActiveBet } from '../../hooks/useGame';
+import { useAutoBet, type AutoBetConfig } from '../../hooks/useAutoBet';
 
 // A bet queued for the next round. Carries the auto-cashout target (if any) so a
 // bet queued in Auto mode is placed next round with the same target the player
@@ -37,6 +38,13 @@ const QUICK_AMOUNTS = [50, 100, 200, 500];
 const MIN_AUTO = 1.01;          // auto-cashout must be strictly above 1.00x (server enforces too)
 const DEFAULT_AUTO = '2.00';
 
+// Auto-bet sequencing inputs (0 = "off" for the stop thresholds).
+const AUTO_FIELDS: { key: keyof AutoBetConfig; label: string; min: number; hint: string }[] = [
+  { key: 'rounds', label: 'Rounds', min: 1, hint: 'Number of bets to place automatically' },
+  { key: 'stopLoss', label: 'Stop loss', min: 0, hint: 'Stop when net loss reaches this (KSh, 0 = off)' },
+  { key: 'stopWin', label: 'Stop win', min: 0, hint: 'Stop when net profit reaches this (KSh, 0 = off)' },
+];
+
 export default function BettingPanel({
   panelIndex, status, multiplier, balance, activeBet, queuedBet,
   onPlaceBet, onQueueBet, onCancelQueue, onCashOut, onAuthRequired, isAuthenticated,
@@ -55,7 +63,12 @@ export default function BettingPanel({
   const autoValid = !autoMode || parsedAuto > 1.0;
   const autoTarget = autoMode ? parsedAuto : null;
 
-  const locked = !!activeBet || !!queuedBet; // amount/target are immutable once committed
+  // Auto-bet sequencer (panel 0 only; settlement stays server-authoritative).
+  const autoBet = useAutoBet({ status, activeBet, balance, isOperator, placeBet: onPlaceBet });
+  const showAutoBet = autoMode && panelIndex === 0 && !isOperator;
+
+  // amount/target are immutable once a bet is committed, queued, or a sequence runs
+  const locked = !!activeBet || !!queuedBet || autoBet.running;
 
   // Can place bet during waiting OR queue during flight/crashed
   const canBetNow = status === 'waiting' && !locked && autoValid && amount >= MIN_BET && amount <= balance;
@@ -346,6 +359,58 @@ export default function BettingPanel({
           </button>
         ))}
       </div>
+
+      {/* Auto-bet sequencer (Auto mode, primary panel) */}
+      {showAutoBet && (
+        <div className="px-3 pb-2.5 pt-2 border-t border-[#1a1a2e] space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            {AUTO_FIELDS.map(f => (
+              <label key={f.key} className="flex flex-col gap-1" title={f.hint}>
+                <span className="text-[9px] text-slate-500 uppercase tracking-wide">{f.label}</span>
+                <input
+                  type="number"
+                  min={f.min}
+                  step={1}
+                  value={autoBet.config[f.key]}
+                  disabled={autoBet.running}
+                  onChange={e => autoBet.setConfig(c => ({ ...c, [f.key]: Math.max(f.min, Math.floor(Number(e.target.value) || 0)) }))}
+                  aria-label={f.label}
+                  className="w-full bg-[#1a1a2e] border border-[#2a2a45] rounded-md px-2 py-1.5 text-white text-xs font-semibold tabular-nums text-center focus:outline-none focus:border-[#22c55e]/50 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </label>
+            ))}
+          </div>
+
+          {!autoBet.running ? (
+            <button
+              onClick={() => autoBet.start(amount, autoTarget)}
+              disabled={!autoValid || amount < MIN_BET || amount > balance}
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-bold transition disabled:opacity-40 active:scale-[0.98]"
+            >
+              <Play size={12} className="fill-current" />
+              Start auto-bet{autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}
+            </button>
+          ) : (
+            <div className="space-y-1.5">
+              <button
+                onClick={autoBet.stop}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#c8001c] hover:bg-[#a50018] text-white text-xs font-bold transition active:scale-[0.98]"
+              >
+                <Square size={11} className="fill-current" />
+                Stop ({autoBet.stats.remaining} left)
+              </button>
+              <div className="flex items-center justify-center gap-3 text-[10px] text-slate-400">
+                <span>Played <span className="text-white font-semibold tabular-nums">{autoBet.stats.played}</span></span>
+                <span>Net{' '}
+                  <span className={'font-semibold tabular-nums ' + (autoBet.stats.net >= 0 ? 'text-green-400' : 'text-red-400')}>
+                    {autoBet.stats.net >= 0 ? '+' : '\u2212'}KSh {Math.abs(autoBet.stats.net).toLocaleString('en-KE', { maximumFractionDigits: 0 })}
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Active auto-cashout target indicator (while the bet is in flight) */}
       {activeBet?.status === 'active' && activeBet.autoCashout && panelIndex === 0 && (
