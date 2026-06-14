@@ -93,6 +93,7 @@ interface Props {
 export default function ProfilePage({ user, profile, wallet, onSignInRequired }: Props) {
   const [tab, setTab] = useState<Tab>('account');
   const [stats, setStats] = useState<MyStats | null>(null);
+  const [statsUnavailable, setStatsUnavailable] = useState(false);
   const [bets, setBets] = useState<BetRow[]>([]);
   const [txns, setTxns] = useState<TxRow[]>([]);
   const [joinedAt, setJoinedAt] = useState<string | null>(null);
@@ -125,10 +126,19 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
         // RLS "Users can read all profiles" permits this read.
         supabase.from('profiles').select('created_at').eq('id', uid).maybeSingle(),
       ]);
-      if (statsRes.error) throw statsRes.error;
+      // Core reads (always available under RLS): a failure here is a real page error.
       if (betsRes.error) throw betsRes.error;
       if (txRes.error) throw txRes.error;
-      setStats(statsRes.data as MyStats);
+      // Stats is best-effort: a failure (e.g. RPC unavailable) must NOT blank the
+      // rest of the profile - it degrades to a dedicated "unavailable" state.
+      if (statsRes.error) {
+        console.warn('[ProfilePage] get_my_stats unavailable', statsRes.error);
+        setStats(null);
+        setStatsUnavailable(true);
+      } else {
+        setStats(statsRes.data as MyStats);
+        setStatsUnavailable(false);
+      }
       setJoinedAt((profRes.data as { created_at?: string } | null)?.created_at ?? null);
       // Supabase returns the joined relation as an array; normalise to a single object.
       setBets(((betsRes.data ?? []) as Record<string, unknown>[]).map((b) => ({
@@ -229,7 +239,7 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
           <AccountTab profile={profile} user={user} wallet={wallet} joinedAt={joinedAt} />
         )}
         {tab === 'stats' && (
-          loading ? <SkeletonGrid /> : <StatsTab stats={stats} />
+          loading ? <SkeletonGrid /> : statsUnavailable ? <Empty icon={BarChart3} title="Stats unavailable" sub="We couldn't load your statistics right now. Pull to refresh or try again shortly." /> : <StatsTab stats={stats} />
         )}
         {tab === 'bets' && (
           loading ? <SkeletonList /> : <BetsTab bets={bets} />
