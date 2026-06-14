@@ -4,7 +4,8 @@ import { createContext, useContext } from 'react';
 // Admin RBAC - single source of truth for the four-role model and access map.
 // Mirrors the DB contract in migration 20260613060000_rbac_four_roles.sql:
 //   player       - customer; never enters the admin panel.
-//   marketer     - growth staff; analytics (Dashboard) visibility only for now.
+//   marketer     - growth affiliate; uses the /marketer hub in the PLAYER shell,
+//                  never the operator admin panel.
 //   admin        - operations; players, game, withdrawals, finance.
 //   super_admin  - everything admin can do, plus settings and staff/role mgmt.
 // The server RPCs enforce every privileged write; this map only governs UI
@@ -29,10 +30,9 @@ const ACCESS: Record<Section, Role[]> = {
   risk:        ['super_admin', 'admin'],
   settings:    ['super_admin'],
   staff:       ['super_admin'],
-  // Shared route: marketers get their own dashboard, operators get the admin
-  // Marketing hub (affiliates + promotions + commissions). Content is dispatched
-  // by role in AdminApp; this only governs who may open /admin/marketing.
-  marketing:   ['super_admin', 'admin', 'marketer'],
+  // Operator-only Marketing hub (affiliates + promotions + commissions). Marketers
+  // manage their own affiliate data in the /marketer hub (player shell), not here.
+  marketing:   ['super_admin', 'admin'],
   commissions: ['super_admin', 'admin'],     // legacy section; route now redirects into the hub
 };
 
@@ -45,7 +45,7 @@ export interface AdminIdentity {
   role: Role;
   isSuperAdmin: boolean; // role === 'super_admin'
   isAdmin: boolean;      // 'admin' or 'super_admin' (operational staff)
-  isStaff: boolean;      // any non-player (admin, super_admin, marketer)
+  isStaff: boolean;      // operator (admin or super_admin); marketers are not operators
 }
 
 export const AdminContext = createContext<AdminIdentity | null>(null);
@@ -62,6 +62,6 @@ export function makeIdentity(userId: string, role: Role): AdminIdentity {
     role,
     isSuperAdmin: role === 'super_admin',
     isAdmin: role === 'super_admin' || role === 'admin',
-    isStaff: role === 'super_admin' || role === 'admin' || role === 'marketer',
+    isStaff: role === 'super_admin' || role === 'admin',
   };
 }

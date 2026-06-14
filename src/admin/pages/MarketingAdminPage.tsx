@@ -13,8 +13,9 @@ import CommissionsPage from './CommissionsPage';
 //   * Promotions   - CRUD over the promotions catalogue
 //   * Commissions  - the existing payout review queue (reused as-is)
 // The active tab is held in the URL (?tab=) so it is deep-linkable and survives
-// refresh. Marketers never reach this page; AdminApp dispatches them to their
-// own dashboard (MarketingPage). All authorisation is enforced server-side.
+// refresh. Marketers never reach this page (the operator admin panel is
+// operators-only); they use the /marketer hub in the player shell. All
+// authorisation is enforced server-side.
 // ============================================================================
 
 const TABS = [

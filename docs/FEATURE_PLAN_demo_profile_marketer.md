@@ -12,10 +12,10 @@ A phase is not started until the previous one is green and committed.
 
 | Phase | Scope | State |
 |-------|-------|-------|
-| 1 | Plane sprite replacement (`GameCanvas`) | this commit |
-| 2 | Demo mode overhaul (header entry, rigged client engine, nudges) | planned |
-| 3 | Player profile MVP (`/profile`: Account · Stats · My Bets · Transactions) | planned |
-| 4 | Marketer hub (`/marketer` in player shell, removed from admin; charts + psychology + social invite) | planned |
+| 1 | Plane sprite replacement (`GameCanvas`) | ✅ done (on main) |
+| 2 | Demo mode overhaul (header entry, rigged client engine, nudges) | ✅ done (on main) |
+| 3 | Player profile MVP (`/profile`: Account · Stats · My Bets · Transactions) | ✅ done (on main) |
+| 4 | Marketer hub (`/marketer` in player shell, removed from admin; charts + psychology + social invite) | ✅ done (on main) |
 
 ---
 

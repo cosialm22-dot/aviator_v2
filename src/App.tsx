@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import AviatorGame from './components/game/AviatorGame';
 import ProfilePage from './components/profile/ProfilePage';
+import MarketerHub from './components/marketer/MarketerHub';
 import AuthModal from './components/auth/AuthModal';
 import WalletModal from './components/wallet/WalletModal';
 import DemoNudgeToast from './components/game/DemoNudgeToast';
@@ -102,6 +103,15 @@ function PlayerApp() {
                 user={user}
                 profile={profile}
                 wallet={wallet}
+                onSignInRequired={() => setAuthMode('signin')}
+              />
+            }
+          />
+          <Route
+            path="marketer"
+            element={
+              <MarketerHub
+                profile={profile}
                 onSignInRequired={() => setAuthMode('signin')}
               />
             }

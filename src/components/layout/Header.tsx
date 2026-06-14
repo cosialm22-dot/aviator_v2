@@ -18,9 +18,9 @@ interface Props {
   onSignOut: () => void;
 }
 
-// Path to the staff area. Marketers land on their own affiliate dashboard
-// (/admin/marketing) via AdminApp's role-aware Landing dispatch.
-const MARKETER_DASHBOARD_PATH = '/admin';
+// Marketers get their own hub in the PLAYER shell (they are signed-in players,
+// never operators). The operator admin panel (/admin) is operators-only.
+const MARKETER_DASHBOARD_PATH = '/marketer';
 
 export default function Header({ profile, balance, mode, onSetMode, demoBalance, onResetDemo, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);       // mobile hamburger sheet
@@ -131,14 +131,14 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
                       My Profile
                     </button>
                     {isMarketer && (
-                      <a
-                        href={MARKETER_DASHBOARD_PATH}
+                      <button
+                        onClick={() => { setProfileOpen(false); navigate(MARKETER_DASHBOARD_PATH); }}
                         role="menuitem"
-                        className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-[#1a1a2e] transition"
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-[#1a1a2e] transition"
                       >
                         <LayoutDashboard size={15} className="text-[#22c55e]" />
-                        Marketer Dashboard
-                      </a>
+                        Marketer Hub
+                      </button>
                     )}
                     <button
                       onClick={() => { setProfileOpen(false); onSignOut(); }}
@@ -205,12 +205,12 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
           </button>
 
           {isMarketer && (
-            <a
-              href={MARKETER_DASHBOARD_PATH}
-              className="flex items-center justify-center gap-2 py-2 bg-[#1a1a2e] border border-[#2a2a45] text-slate-200 rounded-lg text-sm font-semibold"
+            <button
+              onClick={() => { setMenuOpen(false); navigate(MARKETER_DASHBOARD_PATH); }}
+              className="w-full flex items-center justify-center gap-2 py-2 bg-[#1a1a2e] border border-[#2a2a45] text-slate-200 rounded-lg text-sm font-semibold"
             >
-              <LayoutDashboard size={14} className="text-[#22c55e]" /> Marketer Dashboard
-            </a>
+              <LayoutDashboard size={14} className="text-[#22c55e]" /> Marketer Hub
+            </button>
           )}
 
           <div className="flex gap-2">
