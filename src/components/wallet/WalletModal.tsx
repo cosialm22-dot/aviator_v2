@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone } from 'lucide-react';
+import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone, Lock, Eye, EyeOff } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
 
 /*
@@ -33,6 +33,8 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
   const [tab, setTab] = useState<Tab>('deposit');
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState<Step>('form');
   const [error, setError] = useState('');
   const [depositConfirmed, setDepositConfirmed] = useState(false);
@@ -40,7 +42,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
   const parsedAmount = parseFloat(amount) || 0;
   const minAmount = tab === 'deposit' ? MIN_DEPOSIT : MIN_WITHDRAWAL;
 
-  const reset = () => { setStep('form'); setAmount(''); setPhone(''); setError(''); setDepositConfirmed(false); };
+  const reset = () => { setStep('form'); setAmount(''); setPhone(''); setPassword(''); setShowPassword(false); setError(''); setDepositConfirmed(false); };
   const switchTab = (t: Tab) => { setTab(t); reset(); };
 
   const inputBase =
@@ -53,6 +55,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
     }
     if (phone.replace(/\D/g, '').length < 9) { setError('Enter a valid phone number'); return; }
     if (tab === 'withdraw' && parsedAmount > balance) { setError('Insufficient balance'); return; }
+    if (tab === 'withdraw' && !password.trim()) { setError('Enter your password to confirm this withdrawal'); return; }
 
     setStep('processing');
     try {
@@ -60,7 +63,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
         const confirmed = await onDeposit(parsedAmount, 'mpesa', { phone });
         setDepositConfirmed(confirmed);
       } else {
-        await onWithdraw(parsedAmount, 'mpesa', { phone });
+        await onWithdraw(parsedAmount, 'mpesa', { phone, password });
       }
       setStep('success');
     } catch (e) {
@@ -232,6 +235,36 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
                   />
                 </div>
               </div>
+
+              {/* Withdrawal password confirmation (step-up auth): prevents an
+                  unattended/abandoned session from cashing out. */}
+              {tab === 'withdraw' && (
+                <div>
+                  <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium flex items-center gap-1.5">
+                    <Lock size={11} className="text-[#22c55e]" />
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      placeholder="Your account password"
+                      className={inputBase + ' pr-11'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  <p className="text-slate-500 text-[10px] mt-1.5">For your security, confirm your password to authorise this withdrawal.</p>
+                </div>
+              )}
 
               {error && <p className="text-red-400 text-xs text-center">{error}</p>}
 

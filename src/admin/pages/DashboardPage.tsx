@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { DonutChart, TrendAreaChart } from '../components/charts';
 
 interface Stats {
   revenue: number; players: number; bets: number;
@@ -8,6 +9,8 @@ interface Stats {
 }
 
 interface Bucket { label: string; count: number; pct: number }
+interface Outcomes { won: number; lost: number; active: number }
+interface TrendPoint { x: string; y: number }
 
 interface FeedRow {
   id: string;
@@ -36,6 +39,8 @@ export default function DashboardPage() {
   const [s, setS] = useState<Stats | null>(null);
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [feed, setFeed] = useState<FeedRow[]>([]);
+  const [outcomes, setOutcomes] = useState<Outcomes>({ won: 0, lost: 0, active: 0 });
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -43,7 +48,11 @@ export default function DashboardPage() {
     try {
       const today = new Date().toISOString().split('T')[0];
       const zc = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      const [bR, pR, rR, wR, zR, aR, fR] = await Promise.all([
+      // Local start-of-day, 6 days back (inclusive) -> 7-day window for the trend.
+      const weekStart = new Date();
+      weekStart.setHours(0, 0, 0, 0);
+      weekStart.setDate(weekStart.getDate() - 6);
+      const [bR, pR, rR, wR, zR, aR, fR, tR] = await Promise.all([
         supabase.from('bets').select('amount,winnings,status').gte('created_at', today).eq('is_bot', false),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('game_rounds').select('crash_multiplier,status').eq('status', 'crashed').order('created_at', { ascending: false }).limit(200),
@@ -51,11 +60,42 @@ export default function DashboardPage() {
         supabase.from('game_rounds').select('id', { count: 'exact', head: true }).eq('status', 'flying').lt('started_at', zc),
         supabase.from('game_rounds').select('started_at').eq('status', 'flying').order('started_at', { ascending: true }).limit(1),
         supabase.from('bets').select('id,username,amount,cashout_multiplier,winnings,status,created_at').order('created_at', { ascending: false }).limit(15),
+        supabase.from('bets').select('amount,winnings,status,created_at').gte('created_at', weekStart.toISOString()).eq('is_bot', false),
       ]);
       const bets = bR.data ?? [];
       const wagered = bets.reduce((x: number, b) => x + Math.abs(Number(b.amount)), 0);
       const wins = bets.filter((b) => b.status === 'won').reduce((x: number, b) => x + Number(b.winnings ?? 0), 0);
       const revenue = wagered - wins;
+
+      // Today's outcome split (counts) for the donut.
+      setOutcomes({
+        won: bets.filter((b) => b.status === 'won').length,
+        lost: bets.filter((b) => b.status === 'lost').length,
+        active: bets.filter((b) => b.status === 'active').length,
+      });
+
+      // 7-day daily house revenue (wagered - wins), bucketed by LOCAL day.
+      const dayKey = (d: Date) => d.toLocaleDateString('en-KE', { weekday: 'short' });
+      const days: { key: string; date: Date }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - i);
+        days.push({ key: dayKey(d), date: d });
+      }
+      const wageredByDay = new Map<string, number>();
+      const winsByDay = new Map<string, number>();
+      for (const b of tR.data ?? []) {
+        const d = new Date(String(b.created_at));
+        d.setHours(0, 0, 0, 0);
+        const k = d.toISOString().slice(0, 10);
+        wageredByDay.set(k, (wageredByDay.get(k) ?? 0) + Math.abs(Number(b.amount)));
+        if (b.status === 'won') winsByDay.set(k, (winsByDay.get(k) ?? 0) + Number(b.winnings ?? 0));
+      }
+      setTrend(days.map(({ key, date }) => {
+        const k = date.toISOString().slice(0, 10);
+        return { x: key, y: (wageredByDay.get(k) ?? 0) - (winsByDay.get(k) ?? 0) };
+      }));
       const rounds = rR.data ?? [];
       const bm: Record<string, number> = {
         '1.00x (instant)': 0, '1.01-1.49x': 0, '1.50-2.49x': 0,
@@ -193,6 +233,33 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        {/* Revenue trend + today's outcome split */}
+        <section className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3 rounded-xl border border-line bg-surface p-6">
+            <h2 className={HEAD}>House Revenue &middot; Last 7 Days</h2>
+            <p className="text-[12px] text-muted mt-1 mb-4">Daily wagered minus payouts (KES)</p>
+            <TrendAreaChart points={trend} color="#015d72" valueFormatter={(n) => 'KSh ' + fmtKES(n)} />
+          </div>
+          <div className="lg:col-span-2 rounded-xl border border-line bg-surface p-6">
+            <h2 className={HEAD}>Today&rsquo;s Bet Outcomes</h2>
+            <p className="text-[12px] text-muted mt-1 mb-5">Real-player bets settled today</p>
+            {outcomes.won + outcomes.lost + outcomes.active === 0 ? (
+              <div className="py-10 text-center text-faint text-[13px]">No bets yet today</div>
+            ) : (
+              <DonutChart
+                data={[
+                  { label: 'Won', value: outcomes.won, color: '#0ecb81' },
+                  { label: 'Lost', value: outcomes.lost, color: '#f6465d' },
+                  { label: 'In play', value: outcomes.active, color: '#e0a80b' },
+                ]}
+                centerLabel="Bets"
+                centerValue={String(outcomes.won + outcomes.lost + outcomes.active)}
+                valueFormatter={(n) => n.toLocaleString('en-KE')}
+              />
+            )}
           </div>
         </section>
 

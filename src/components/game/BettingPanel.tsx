@@ -17,6 +17,11 @@ interface Props {
   onCashOut: () => void;
   onAuthRequired: () => void;
   isAuthenticated: boolean;
+  // True for admin/super_admin accounts. Operators run the platform and must
+  // never wager (enforced authoritatively by the DB place_bet guard + the
+  // block_operator_bets trigger); this disables the controls so they never hit
+  // a server rejection. Marketers and players are NOT operators and play freely.
+  isOperator?: boolean;
 }
 
 const MIN_BET = 50;
@@ -25,6 +30,7 @@ const QUICK_AMOUNTS = [50, 100, 200, 500];
 export default function BettingPanel({
   panelIndex, status, multiplier, balance, activeBet, queuedBet,
   onPlaceBet, onQueueBet, onCancelQueue, onCashOut, onAuthRequired, isAuthenticated,
+  isOperator = false,
 }: Props) {
   const [rawAmount, setRawAmount] = useState(String(MIN_BET));
   const [autoMode, setAutoMode]   = useState(false);
@@ -38,6 +44,7 @@ export default function BettingPanel({
   const canQueueBet = (status === 'flying' || status === 'crashed') && !activeBet && !queuedBet && amount >= MIN_BET && amount <= balance;
 
   const handleBet = async () => {
+    if (isOperator) return; // operators cannot wager (see Props.isOperator)
     if (!isAuthenticated) { onAuthRequired(); return; }
 
     // During waiting: place bet immediately
@@ -72,10 +79,21 @@ export default function BettingPanel({
     ? Math.floor(activeBet.amount * multiplier * 100) / 100
     : activeBet?.winnings ?? 0;
 
-  const isCashable = status === 'flying' && activeBet?.status === 'active' && panelIndex === 0;
+  const isCashable = !isOperator && status === 'flying' && activeBet?.status === 'active' && panelIndex === 0;
 
   // Determine button state and label
   const getButtonConfig = () => {
+    // Operator accounts (admin/super_admin) may never wager.
+    if (isOperator) {
+      return {
+        label: 'Operators can\u2019t bet',
+        sublabel: '',
+        action: () => {},
+        style: 'bg-[#1a1a2e] border border-[#2a2a45] text-white/40 cursor-not-allowed',
+        disabled: true,
+      };
+    }
+
     // Queued bet: show "Queued" with cancel option
     if (queuedBet) {
       return {
@@ -172,7 +190,7 @@ export default function BettingPanel({
         <div className="flex items-center bg-[#1a1a2e] rounded-lg border border-[#2a2a45] flex-shrink-0">
           <button
             onClick={() => adjust(-50)}
-            disabled={!!activeBet || !!queuedBet || amount <= MIN_BET}
+            disabled={isOperator || !!activeBet || !!queuedBet || amount <= MIN_BET}
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-l-lg transition disabled:opacity-40 active:scale-95"
           >
             <Minus size={14} />
@@ -189,7 +207,7 @@ export default function BettingPanel({
               value={rawAmount}
               onChange={e => handleRawChange(e.target.value)}
               onBlur={handleBlur}
-              disabled={!!activeBet || !!queuedBet}
+              disabled={isOperator || !!activeBet || !!queuedBet}
               className="w-full bg-transparent text-white font-bold text-sm tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-slate-500 text-[9px] leading-none mt-0.5">KShs</span>
@@ -197,7 +215,7 @@ export default function BettingPanel({
 
           <button
             onClick={() => adjust(50)}
-            disabled={!!activeBet || !!queuedBet}
+            disabled={isOperator || !!activeBet || !!queuedBet}
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-r-lg transition disabled:opacity-40 active:scale-95"
           >
             <Plus size={14} />
@@ -241,7 +259,7 @@ export default function BettingPanel({
           <button
             key={q}
             onClick={() => setRawAmount(String(q))}
-            disabled={!!activeBet || !!queuedBet}
+            disabled={isOperator || !!activeBet || !!queuedBet}
             className="flex-1 py-1 text-[11px] font-semibold bg-[#1a1a2e] border border-[#2a2a45] rounded text-slate-400 hover:text-white hover:bg-[#2a2a45] transition disabled:opacity-40 active:scale-95"
           >
             {q >= 1000 ? `${q / 1000}K` : q}

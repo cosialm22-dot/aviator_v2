@@ -2,10 +2,17 @@ export type GameStatus = 'idle' | 'waiting' | 'flying' | 'crashed';
 
 export type BetStatus = 'active' | 'won' | 'lost' | 'cashedout';
 
+export type UserRole = 'player' | 'marketer' | 'admin' | 'super_admin';
+
 export interface Profile {
   id: string;
   username: string;
   avatar_color: string;
+  // Present at runtime (profiles are fetched with select('*')). Drives the
+  // operator play-restriction: only 'player' and 'marketer' may wager; admins
+  // and super_admins are operators and must not place bets (mirrors the DB
+  // place_bet guard and the block_operator_bets trigger).
+  role?: UserRole;
 }
 
 export interface Wallet {

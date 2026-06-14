@@ -38,6 +38,9 @@ function friendly(code: string, op: 'deposit' | 'withdrawal'): string {
     AMOUNT_NOT_INTEGER: 'Enter a whole-number amount.',
     INSUFFICIENT_BALANCE: 'Insufficient balance.',
     NO_WALLET: 'Wallet error. Please refresh and try again.',
+    INCORRECT_PASSWORD: 'Incorrect password. Please try again.',
+    PASSWORD_REQUIRED: 'Enter your password to confirm this withdrawal.',
+    SESSION_EXPIRED: 'Your session expired. Please sign in again.',
     WITHDRAWAL_PENDING: 'You already have a withdrawal being processed.',
     RATE_LIMIT: 'Too many attempts - please wait a minute and try again.',
     network: 'Connection error. Check your internet and try again.',
@@ -111,7 +114,17 @@ export function useWallet(userId: string | undefined, onRefresh: () => Promise<v
     }
   }, [userId, onRefresh]);
 
-  /** Create a pending withdrawal request (payout handled server-side). */
+  /**
+   * Create a pending withdrawal request (payout handled server-side).
+   *
+   * SECURITY (step-up auth): a withdrawal moves money, so we re-verify the
+   * account password immediately before issuing the request. This blocks anyone
+   * who finds an unlocked/abandoned session from cashing out. We re-authenticate
+   * with supabase.auth.signInWithPassword against the SESSION's own email (the
+   * password is never stored, never sent anywhere except Supabase Auth, and the
+   * call simply re-issues a session for the same user on success). Only on a
+   * verified password do we call request_withdrawal.
+   */
   const withdraw = useCallback(async (
     amount: number,
     method: 'mpesa' | 'bank',
@@ -123,8 +136,21 @@ export function useWallet(userId: string | undefined, onRefresh: () => Promise<v
     if (!phone) throw new Error('Enter a valid M-Pesa phone number.');
     if (!Number.isInteger(amount) || amount <= 0) throw new Error('Enter a whole-number amount.');
 
+    const password = (details.password || '').trim();
+    if (!password) throw new Error(friendly('PASSWORD_REQUIRED', 'withdrawal'));
+
     setWithdrawing(true);
     try {
+      // Resolve the current account's email from the live session (do not trust
+      // the form's phone field for identity - identity comes from the session).
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      const email = user?.email;
+      if (userErr || !email) throw new Error(friendly('SESSION_EXPIRED', 'withdrawal'));
+
+      // Step-up re-authentication. A failure here means the wrong password.
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (authErr) throw new Error(friendly('INCORRECT_PASSWORD', 'withdrawal'));
+
       const { error } = await supabase.rpc('request_withdrawal', { p_amount: amount, p_phone: phone });
       if (error) throw new Error(friendly(error.message, 'withdrawal'));
       await onRefresh();

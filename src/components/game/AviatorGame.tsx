@@ -34,6 +34,10 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
   const nudgeShownRef = useRef(false);
   const [queuedBet, setQueuedBet] = useState<number | null>(null);
   const balance = wallet?.balance ?? 0;
+  // Operators (admin/super_admin) run the platform and must never wager. Marketers
+  // and players are unaffected. The DB is the authoritative gate (place_bet +
+  // block_operator_bets trigger); this only keeps the UI honest.
+  const isOperator = profile?.role === 'admin' || profile?.role === 'super_admin';
 
   const {
     gameStatus,
@@ -62,12 +66,12 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
     }
   }, [balance, profile, gameStatus]);
 
-  // Auto-place queued bet when waiting phase begins
+  // Auto-place queued bet when waiting phase begins (never for operators).
   useEffect(() => {
-    if (gameStatus === 'waiting' && queuedBet && !activeBet) {
-      placeBet(queuedBet, null).then(() => setQueuedBet(null));
+    if (!isOperator && gameStatus === 'waiting' && queuedBet && !activeBet) {
+      placeBet(queuedBet, null).then(() => setQueuedBet(null)).catch(() => setQueuedBet(null));
     }
-  }, [gameStatus, queuedBet, activeBet, placeBet]);
+  }, [gameStatus, queuedBet, activeBet, placeBet, isOperator]);
 
   const handleQueueBet = (amount: number) => {
     setQueuedBet(amount);
@@ -229,6 +233,13 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
             )}
           </div>
 
+          {/* Operator notice: admins/super_admins manage the platform and cannot wager. */}
+          {isOperator && (
+            <div className="flex-shrink-0 border-t border-[#2a2a45] bg-amber-500/10 px-4 py-2 text-center text-amber-300 text-[11px] font-semibold">
+              You are signed in as an operator. Operator accounts cannot place bets.
+            </div>
+          )}
+
           {/* Betting panels */}
           <div className="flex flex-shrink-0 border-t border-[#2a2a45] bg-[#0d0d1a]">
             <div className="flex-1 border-r border-[#2a2a45]">
@@ -245,6 +256,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 onCashOut={cashOut}
                 onAuthRequired={onAuthRequired}
                 isAuthenticated={!!profile}
+                isOperator={isOperator}
               />
             </div>
             <div className="flex-1">
@@ -261,6 +273,7 @@ export default function AviatorGame({ profile, wallet, onAuthRequired, onRefresh
                 onCashOut={() => {}}
                 onAuthRequired={onAuthRequired}
                 isAuthenticated={!!profile}
+                isOperator={isOperator}
               />
             </div>
           </div>

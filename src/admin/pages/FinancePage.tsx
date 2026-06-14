@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { DonutChart, CompareBars } from '../components/charts';
 
 // ============================================================================
 // FinancePage - admin financial reconciliation, ledger and M-Pesa drill-down
@@ -413,6 +414,53 @@ export default function FinancePage() {
           </div>
         )}
       </div>
+
+      {/* Visual breakdown - driven entirely by the already-fetched summary (no extra queries) */}
+      {summary && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="rounded-xl border border-line bg-surface p-6">
+            <span className={HEAD}>Cashflow composition</span>
+            <p className="text-[12px] text-muted mt-1 mb-5">Money in vs money out &middot; {rangeLabel}</p>
+            <DonutChart
+              data={[
+                { label: 'Deposits in', value: summary.deposit_total, color: '#0ecb81' },
+                { label: 'Withdrawals out', value: summary.withdrawal_paid_total, color: '#f6465d' },
+              ]}
+              centerLabel="Net"
+              centerValue={fmtKES(summary.net_cashflow)}
+            />
+          </div>
+
+          <div className="rounded-xl border border-line bg-surface p-6">
+            <span className={HEAD}>Withdrawal status</span>
+            <p className="text-[12px] text-muted mt-1 mb-5">By value across the range</p>
+            <DonutChart
+              data={[
+                { label: 'Paid', value: summary.withdrawal_paid_total, color: '#0ecb81' },
+                { label: 'Pending', value: summary.withdrawal_pending_total, color: '#e0a80b' },
+                { label: 'Failed', value: summary.withdrawal_failed_total, color: '#f6465d' },
+                { label: 'Reversed', value: summary.withdrawal_reversed_total, color: '#566169' },
+              ]}
+              centerLabel="Requests"
+              centerValue={String(summary.withdrawal_paid_count + summary.withdrawal_pending_count + summary.withdrawal_failed_count)}
+            />
+          </div>
+
+          <div className="rounded-xl border border-line bg-surface p-6">
+            <span className={HEAD}>Volumes</span>
+            <p className="text-[12px] text-muted mt-1 mb-5">Headline totals &middot; {rangeLabel}</p>
+            <CompareBars
+              data={[
+                { label: 'Deposits', value: summary.deposit_total, color: '#0ecb81' },
+                { label: 'Withdrawals', value: summary.withdrawal_paid_total, color: '#f6465d' },
+                { label: 'Bet volume', value: summary.bet_volume, color: '#015d72' },
+                { label: 'GGR', value: summary.ggr, color: '#e0a80b' },
+              ]}
+              valueFormatter={(n) => 'KSh ' + (Math.abs(n) >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : Math.round(n).toLocaleString('en-KE'))}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">

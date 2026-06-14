@@ -18,7 +18,16 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     check();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => check());
+    // CRITICAL: never call Supabase methods synchronously inside the
+    // onAuthStateChange callback. GoTrue invokes this callback while holding its
+    // internal navigator lock; any nested Supabase call (getSession, or any
+    // .from() query which attaches the JWT via getSession) re-acquires that lock
+    // and deadlocks the entire client - every subsequent request hangs forever,
+    // freezing all admin navigation. Deferring with setTimeout(0) runs check()
+    // after the lock is released. See supabase/auth-js lock-deadlock guidance.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      setTimeout(() => { void check(); }, 0);
+    });
     return () => subscription.unsubscribe();
   }, []);
 

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, Gamepad2, Wallet, Megaphone, Users, ScrollText } from 'lucide-react';
+import { SlidersHorizontal, Gamepad2, Wallet, Megaphone, Users, ScrollText, Smartphone } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import SystemSettingsTab, { type SettingRecord } from './settings/SystemSettingsTab';
 import { type SettingsTabId } from './settings/registry';
 import MarketingSettingsTab from './settings/MarketingSettingsTab';
+import PaymentsTab from './settings/PaymentsTab';
 import StaffTab from './settings/StaffTab';
 import AuditTab from './settings/AuditTab';
 import { friendly } from './settings/shared';
@@ -29,6 +30,7 @@ const TABS = [
   { k: 'general', label: 'General', icon: SlidersHorizontal },
   { k: 'game', label: 'Game', icon: Gamepad2 },
   { k: 'finance', label: 'Finance', icon: Wallet },
+  { k: 'payments', label: 'Payments', icon: Smartphone },
   { k: 'marketing', label: 'Marketing', icon: Megaphone },
   { k: 'staff', label: 'Staff & Roles', icon: Users },
   { k: 'audit', label: 'Audit Log', icon: ScrollText },
@@ -120,6 +122,7 @@ export default function SettingsPage() {
             : <SystemSettingsTab tab={tab as SettingsTabId} rows={rows} onSave={saveSetting} />
         )}
 
+        {tab === 'payments' && <PaymentsTab />}
         {tab === 'marketing' && <MarketingSettingsTab />}
         {tab === 'staff' && <StaffTab />}
         {tab === 'audit' && <AuditTab />}

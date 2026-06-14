@@ -107,10 +107,16 @@ export function useAuth() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Synchronous state updates (setUser/clearing) are safe here, but any
+      // Supabase call (fetchProfile -> .from()) MUST be deferred out of this
+      // callback: GoTrue holds its navigator lock while invoking it, and a
+      // nested Supabase request re-acquires that lock and deadlocks the client
+      // (every later query hangs). setTimeout(0) defers until the lock is freed.
       if (session?.user) {
         const phone = (session.user.email ?? '').replace('@phone.aviator.ke', '');
         setUser({ id: session.user.id, phone });
-        fetchProfile(session.user.id);
+        const uid = session.user.id;
+        setTimeout(() => { void fetchProfile(uid); }, 0);
       } else {
         setUser(null);
         setProfile(null);
