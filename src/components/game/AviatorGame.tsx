@@ -244,50 +244,31 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
               multiplier={currentMultiplier}
               getMultiplier={getMultiplier}
               crashPoint={crashPoint}
+              countdown={countdown}
             />
 
-            {/* Multiplier / countdown */}
+            {/* The multiplier, countdown, loader and crash text are rendered on
+                the canvas itself (60fps, perfectly synced with the plane/trail).
+                This layer only adds the contextual prompts that sit below them. */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-              {gameStatus === 'flying' && (
-                <div className="text-center" style={{ marginTop: '8%' }}>
-                  <div
-                    className="font-black tabular-nums"
-                    style={{
-                      color: '#ffffff',
-                      fontSize: 'clamp(2.2rem, 10vw, 5.5rem)',
-                      textShadow: '0 0 40px rgba(255,255,255,0.4), 0 2px 8px rgba(0,0,0,0.8)',
-                      lineHeight: 1,
-                      letterSpacing: '-0.02em',
-                    }}
-                  >
-                    {formatMultiplier(currentMultiplier)}
-                  </div>
-                  {anyActiveInFlight && (
-                    <div className="text-green-400 text-sm mt-2 font-black animate-pulse tracking-wide">
-                      CASH OUT NOW!
-                    </div>
-                  )}
+              {gameStatus === 'flying' && anyActiveInFlight && (
+                <div className="text-green-400 text-sm font-black animate-pulse tracking-wide" style={{ marginTop: '20%' }}>
+                  CASH OUT NOW!
                 </div>
               )}
+              {gameStatus === 'waiting' && anyBetThisRound && (
+                <div className="px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold" style={{ marginTop: '20%' }}>
+                  Bet in - ready!
+                </div>
+              )}
+            </div>
 
-              {gameStatus === 'waiting' && (
-                <div className="text-center" style={{ marginTop: '8%' }}>
-                  <div
-                    className="font-black text-white tabular-nums"
-                    style={{ fontSize: 'clamp(2.2rem, 10vw, 5rem)', lineHeight: 1 }}
-                  >
-                    {countdown}
-                  </div>
-                  <div className="text-slate-400 text-xs mt-1.5 tracking-widest uppercase font-semibold">
-                    Starting in...
-                  </div>
-                  {anyBetThisRound && (
-                    <div className="mt-2 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
-                      Bet in - ready!
-                    </div>
-                  )}
-                </div>
-              )}
+            {/* Accessibility: expose the live game state to assistive tech, since
+                the visual multiplier is painted on the canvas (not in the DOM). */}
+            <div className="sr-only" aria-live="polite" role="status">
+              {gameStatus === 'flying'  && `Multiplier ${formatMultiplier(currentMultiplier)}`}
+              {gameStatus === 'crashed' && `Flew away at ${formatMultiplier(crashPoint)}`}
+              {gameStatus === 'waiting' && 'Waiting for next round'}
             </div>
 
             {/* Cashout toast */}
