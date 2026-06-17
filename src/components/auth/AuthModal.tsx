@@ -93,7 +93,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
             <button
               onClick={onClose}
               aria-label="Close"
-              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-500 hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-500 hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/60"
             >
               <X size={15} />
             </button>
@@ -145,7 +145,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                       minLength={3}
                       maxLength={20}
                       autoComplete="username"
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
                     />
                   </div>
                 )}
@@ -168,7 +168,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                       maxLength={13}
                       autoComplete="tel"
                       inputMode="numeric"
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-11 pr-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-11 pr-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
                     />
                   </div>
                 </div>
@@ -186,13 +186,13 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                       required
                       minLength={isSignup ? 6 : undefined}
                       autoComplete={isSignup ? 'new-password' : 'current-password'}
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-700"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-700"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPass(!showPass)}
                       aria-label={showPass ? 'Hide password' : 'Show password'}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 rounded"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/60 rounded"
                     >
                       {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
                     </button>
@@ -211,10 +211,10 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-6 py-4 rounded-xl font-semibold text-[15px] text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70"
+                className="w-full mt-6 py-4 rounded-xl font-semibold text-[15px] text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/70"
                 style={{
-                  background: loading ? '#1e293b' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  boxShadow: loading ? 'none' : '0 8px 32px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
+                  background: loading ? '#1e293b' : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  boxShadow: loading ? 'none' : '0 8px 32px rgba(34, 197, 94, 0.3), inset 0 1px 0 rgba(255,255,255,0.12)',
                 }}
               >
                 {loading ? 'Please wait...' : isSignup ? 'Create Account' : 'Sign In'}
@@ -228,7 +228,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                 <button
                   type="button"
                   onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(''); }}
-                  className="ml-2 text-blue-400 hover:text-blue-300 text-[13px] font-medium transition rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                  className="ml-2 text-win hover:text-[#4ade80] text-[13px] font-medium transition rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/60"
                 >
                   {isSignup ? 'Sign In' : 'Create Account'}
                 </button>
