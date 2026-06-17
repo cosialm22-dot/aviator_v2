@@ -71,17 +71,17 @@ export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
         }`}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-brand-dark flex flex-col transform transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-56 lg:translate-x-0 lg:flex-shrink-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-line flex flex-col transform transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-56 lg:translate-x-0 lg:flex-shrink-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-      <div className="h-14 flex items-center px-5 border-b border-white/10">
+      <div className="h-14 flex items-center px-5 border-b border-line">
         <Link to="/admin" className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-danger rounded-lg flex items-center justify-center"><span className="text-white text-xs font-black">A</span></div>
           <span className="text-white font-semibold text-sm tracking-tight">Aviator Admin</span>
         </Link>
       </div>
-      <div className="px-5 py-3 border-b border-white/10">
+      <div className="px-5 py-3 border-b border-line">
         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/10 text-white/80 text-[11px] font-medium tracking-tight">{ROLE_LABEL[role] ?? role}</span>
       </div>
       <nav className="flex-1 py-4 px-3 space-y-1">
@@ -109,7 +109,7 @@ export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
           );
         })}
       </nav>
-      <div className="px-5 py-4 border-t border-white/10">
+      <div className="px-5 py-4 border-t border-line">
         <a href="/" className="text-white/55 hover:text-white text-xs transition-colors">&larr; Back to Game</a>
       </div>
       </aside>
