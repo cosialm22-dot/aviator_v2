@@ -228,7 +228,9 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
   // Spokes radiate from just outside the bottom-left corner and rotate slowly.
   const ox = -W * 0.02, oy = H * 1.02;
   const R  = Math.hypot(W, H) * 1.5;
-  const N  = 36;                       // measured: ~10° period (≈9 in view)
+  // Sunburst spoke count. Spokes alternate between two shades, so N must be EVEN
+  // to keep the two colours balanced. N = 18 → exactly 9 light + 9 dark spokes.
+  const N  = 18;                       // 18 spokes total = 9 per colour
   const rot = now * 0.000018;          // ≈0.06°/frame — subtle, matches reference
   ctx.save();
   for (let i = 0; i < N; i++) {

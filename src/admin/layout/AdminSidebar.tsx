@@ -24,7 +24,13 @@ const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin',
 };
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  /** Drawer visibility on screens below `lg`. Ignored at `lg+` (always docked). */
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
   const { pathname } = useLocation();
   const { role } = useAdmin();
   const isActive = (p: string) => p === '/admin' ? pathname === '/admin' || pathname === '/admin/dashboard' : pathname.startsWith(p);
@@ -55,7 +61,20 @@ export default function AdminSidebar() {
   }, [showWithdrawalsBadge]);
 
   return (
-    <aside className="w-56 bg-brand-dark flex flex-col flex-shrink-0 hidden lg:flex">
+    <>
+      {/* Scrim behind the off-canvas drawer (below `lg` only). */}
+      <div
+        onClick={onClose}
+        aria-hidden="true"
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity lg:hidden ${
+          open ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      />
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-brand-dark flex flex-col transform transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-56 lg:translate-x-0 lg:flex-shrink-0 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
       <div className="h-14 flex items-center px-5 border-b border-white/10">
         <Link to="/admin" className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-[#c8001c] rounded-lg flex items-center justify-center"><span className="text-white text-xs font-black">A</span></div>
@@ -93,6 +112,7 @@ export default function AdminSidebar() {
       <div className="px-5 py-4 border-t border-white/10">
         <a href="/" className="text-white/55 hover:text-white text-xs transition-colors">&larr; Back to Game</a>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

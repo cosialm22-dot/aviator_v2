@@ -287,13 +287,13 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
             {/* Low-balance psychology nudge */}
             {nudge && profile && (
               <div className="absolute inset-x-3 bottom-12 z-20 md:left-1/2 md:-translate-x-1/2 md:w-80">
-                <div className="bg-gradient-to-br from-[#c8001c] to-[#ff2200] rounded-2xl p-4 shadow-2xl shadow-red-900/60 text-white">
+                <div className="bg-gradient-to-br from-[#16a34a] to-[#22c55e] rounded-2xl p-4 shadow-2xl shadow-green-900/60 text-white">
                   <div className="font-black text-base leading-tight">{nudge.title}</div>
                   <div className="text-xs mt-1 opacity-90">{nudge.sub}</div>
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => { setNudge(null); onDepositOpen(); }}
-                      className="flex-1 py-2.5 bg-white text-[#c8001c] rounded-xl text-sm font-black hover:bg-gray-100 transition active:scale-95"
+                      className="flex-1 py-2.5 bg-white text-[#16a34a] rounded-xl text-sm font-black hover:bg-gray-100 transition active:scale-95"
                     >
                       Deposit Now
                     </button>

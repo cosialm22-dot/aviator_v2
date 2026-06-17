@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import AviatorGame from './components/game/AviatorGame';
@@ -11,7 +11,11 @@ import { useAuth } from './hooks/useAuth';
 import { useWallet } from './hooks/useWallet';
 import { useDemoGame } from './hooks/useDemoGame';
 import { useDemoNudges } from './hooks/useDemoNudges';
-import AdminApp from './admin/AdminApp';
+
+// The operator admin panel is a large, role-gated surface that the vast majority
+// of visitors (players) never load. Code-splitting it keeps the player bundle
+// lean and only fetches admin chunks when an operator navigates to /admin.
+const AdminApp = lazy(() => import('./admin/AdminApp'));
 
 type AuthMode = 'signin' | 'signup' | null;
 export type PlayMode = 'real' | 'demo';
@@ -163,10 +167,26 @@ function PlayerApp() {
   );
 }
 
+// Shown while the lazily-loaded admin chunk is fetched.
+function RouteFallback() {
+  return (
+    <div className="min-h-[100dvh] bg-[#0d0d1a] flex items-center justify-center">
+      <div className="w-10 h-10 border-2 border-[#22c55e] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Routes>
-      <Route path="/admin/*" element={<AdminApp />} />
+      <Route
+        path="/admin/*"
+        element={
+          <Suspense fallback={<RouteFallback />}>
+            <AdminApp />
+          </Suspense>
+        }
+      />
       <Route path="/*" element={<PlayerApp />} />
     </Routes>
   );
