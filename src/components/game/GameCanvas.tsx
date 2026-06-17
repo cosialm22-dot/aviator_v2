@@ -331,9 +331,9 @@ function drawWaiting(ctx: CanvasRenderingContext2D, W: number, H: number, now: n
   let anchorY = H * 0.42;
   if (status === 'waiting' && partnerSprite && partnerSpriteReady && partnerSprite.naturalWidth > 0) {
     const aspect = partnerSprite.naturalWidth / partnerSprite.naturalHeight;
-    let logoW = Math.min(W * 0.55, 360);
+    let logoW = Math.min(W * 0.40, 250);
     let logoH = logoW / aspect;
-    const maxLogoH = H * 0.5;
+    const maxLogoH = H * 0.34;
     if (logoH > maxLogoH) { logoH = maxLogoH; logoW = logoH * aspect; }
     const logoX = (W - logoW) / 2;
     const logoY = H * 0.08;
