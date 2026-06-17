@@ -74,10 +74,6 @@ function PlayerApp() {
       <Header
         profile={profile}
         balance={wallet?.balance ?? 0}
-        mode={mode}
-        onSetMode={setMode}
-        demoBalance={demo.balance}
-        onResetDemo={demo.reset}
         onSignInOpen={() => setAuthMode('signin')}
         onRegisterOpen={() => setAuthMode('signup')}
         onWalletOpen={() => setWalletOpen(true)}
@@ -93,6 +89,7 @@ function PlayerApp() {
                 profile={profile}
                 wallet={wallet}
                 mode={mode}
+                onSetMode={setMode}
                 demo={demo}
                 onAuthRequired={() => setAuthMode('signup')}
                 onRefreshWallet={refreshWallet}

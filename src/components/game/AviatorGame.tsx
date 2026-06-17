@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Users, Plus, X, Wrench } from 'lucide-react';
+import { MessageSquare, Users, Plus, X, Wrench, RotateCcw } from 'lucide-react';
 import GameCanvas from './GameCanvas';
 import BettingPanel, { type QueuedBet } from './BettingPanel';
 import LiveBetsTable from './LiveBetsTable';
@@ -22,6 +22,7 @@ interface Props {
   profile: Profile | null;
   wallet: Wallet | null;
   mode: 'real' | 'demo';
+  onSetMode: (mode: 'real' | 'demo') => void;
   demo: DemoGame;
   onAuthRequired: () => void;
   onRefreshWallet: () => Promise<void>;
@@ -38,7 +39,7 @@ const LOW_BALANCE_NUDGES = [
 
 type MobileTab = 'bets' | 'chat';
 
-export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
+export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
   const [activeTab, setActiveTab] = useState<'allBets' | 'previous' | 'top'>('allBets');
   // Mobile Bets/Chat sheet. Closed by default (null) so the canvas + betting
   // controls own the small-screen viewport and the primary bet action is always
@@ -378,8 +379,48 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
             />
           )}
 
-          {/* Real / Demo switch lives in the header (left of Sign In); demo
-              balance + reset are shown there too. */}
+          {/* Real / Demo play-mode switch. Relocated out of the global header
+              and placed directly above the betting controls, where the choice
+              actually matters. In demo we also surface the play-money balance +
+              a reset, replacing what used to clutter the top bar. */}
+          <div className="flex-shrink-0 flex items-center justify-between gap-2 border-t border-edge bg-night px-3 py-1.5">
+            <div className="flex bg-panel-raised rounded-full p-0.5" role="tablist" aria-label="Play mode">
+              {(['real', 'demo'] as const).map((m) => (
+                <button
+                  key={m}
+                  role="tab"
+                  aria-selected={mode === m}
+                  onClick={() => onSetMode(m)}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-full transition-all ${
+                    mode === m
+                      ? (m === 'demo' ? 'bg-[#1d4ed8] text-white' : 'bg-win text-white')
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {m === 'real' ? 'Real' : 'Demo'}
+                </button>
+              ))}
+            </div>
+
+            {isDemo ? (
+              <div className="flex items-center gap-1.5 rounded-full bg-panel-raised border border-edge px-2.5 py-1">
+                <span className="text-[9px] uppercase tracking-wide text-slate-500 font-bold">Demo</span>
+                <span className="text-xs font-bold tabular-nums text-[#60a5fa]">
+                  KSh {demo.balance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
+                </span>
+                <button
+                  onClick={demo.reset}
+                  title="Reset demo balance"
+                  aria-label="Reset demo balance"
+                  className="text-slate-400 hover:text-white transition active:scale-90"
+                >
+                  <RotateCcw size={12} />
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] text-slate-500 font-medium pr-1">Practice free with Demo</span>
+            )}
+          </div>
 
           {/* Betting panels. Mobile (default): a single full-width panel so the
               bet action is the one obvious thing on screen. The second dual-bet

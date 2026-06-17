@@ -1,17 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard, RotateCcw, UserCircle } from 'lucide-react';
+import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard, UserCircle } from 'lucide-react';
 import type { Profile } from '../../types';
-
-type PlayMode = 'real' | 'demo';
 
 interface Props {
   profile: Profile | null;
   balance: number;
-  mode: PlayMode;
-  onSetMode: (mode: PlayMode) => void;
-  demoBalance: number;
-  onResetDemo: () => void;
   onSignInOpen: () => void;
   onRegisterOpen: () => void;
   onWalletOpen: () => void;
@@ -22,7 +16,14 @@ interface Props {
 // never operators). The operator admin panel (/admin) is operators-only.
 const MARKETER_DASHBOARD_PATH = '/marketer';
 
-export default function Header({ profile, balance, mode, onSetMode, demoBalance, onResetDemo, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
+// The global chrome carries ONE job per state:
+//   signed-out -> a single dominant "Register" CTA (+ a quiet "Log in" link)
+//   signed-in  -> balance, deposit, and the account menu
+// The Real/Demo play-mode switch deliberately does NOT live here: it is a
+// betting-context choice and now sits directly above the betting panel (see
+// AviatorGame), which keeps this bar uncluttered and stops it overlapping the
+// logo on narrow phones.
+export default function Header({ profile, balance, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);       // mobile hamburger sheet
   const [profileOpen, setProfileOpen] = useState(false); // desktop profile dropdown
   const navigate = useNavigate();
@@ -30,57 +31,24 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
   const isMarketer = profile?.role === 'marketer';
 
   return (
-    <header className="bg-night border-b border-edge px-4 h-12 flex items-center justify-between relative z-30 flex-shrink-0">
-      {/* Logo */}
-      <div className="flex items-center gap-2">
-        <img src="/plane.png" alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_8px_rgba(200,0,24,0.55)]" />
+    <header className="bg-night border-b border-edge px-3 sm:px-4 h-14 flex items-center justify-between gap-2 relative z-30 flex-shrink-0">
+      {/* Logo — allowed to shrink (min-w-0) but never clipped by the right cluster */}
+      <button
+        onClick={() => navigate('/')}
+        className="flex items-center gap-2 min-w-0 shrink"
+        aria-label="Aviator home"
+      >
+        <img src="/plane.png" alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_8px_rgba(200,0,24,0.55)] flex-shrink-0" />
         <span
-          className="font-black italic text-xl tracking-tight"
+          className="font-black italic text-xl tracking-tight truncate"
           style={{ color: '#cc0018', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(200,0,24,0.5)' }}
         >
           Aviator
         </span>
-      </div>
+      </button>
 
-      {/* Right side */}
-      <div className="flex items-center gap-2">
-        {/* Play-mode switch (Real / Demo). Demo needs no account; shown left of
-            the Sign In / profile cluster on every screen size. */}
-        <div className="flex items-center gap-1.5">
-          {mode === 'demo' && (
-            <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-panel-raised border border-edge px-2 py-1">
-              <span className="text-[9px] uppercase tracking-wide text-slate-500 font-bold">Demo</span>
-              <span className="text-xs font-bold tabular-nums text-[#60a5fa]">
-                KSh {demoBalance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
-              </span>
-              <button
-                onClick={onResetDemo}
-                title="Reset demo balance"
-                aria-label="Reset demo balance"
-                className="text-slate-400 hover:text-white transition active:scale-90"
-              >
-                <RotateCcw size={11} />
-              </button>
-            </div>
-          )}
-          <div className="flex bg-panel-raised rounded-full p-0.5" role="tablist" aria-label="Play mode">
-            {(['real', 'demo'] as const).map((m) => (
-              <button
-                key={m}
-                role="tab"
-                aria-selected={mode === m}
-                onClick={() => onSetMode(m)}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
-                  mode === m
-                    ? (m === 'demo' ? 'bg-[#1d4ed8] text-white' : 'bg-win text-white')
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {m === 'real' ? 'Real' : 'Demo'}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Right side — never shrinks, so the CTA is always fully visible */}
+      <div className="flex items-center gap-2 flex-shrink-0">
         {profile ? (
           <>
             {/* Balance */}
@@ -94,7 +62,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
             {/* Deposit */}
             <button
               onClick={onWalletOpen}
-              className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-win hover:bg-win-dark text-white rounded-lg text-xs font-bold transition shadow-lg shadow-green-500/20"
+              className="hidden sm:flex items-center gap-1 px-3 py-2 bg-win hover:bg-win-dark text-white rounded-lg text-xs font-bold transition shadow-lg shadow-green-500/20"
             >
               <Wallet size={12} />
               Deposit
@@ -114,7 +82,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
                 >
                   {profile.username[0]?.toUpperCase()}
                 </div>
-                <span className="text-slate-300 text-xs font-medium">{profile.username}</span>
+                <span className="text-slate-300 text-xs font-medium max-w-[120px] truncate">{profile.username}</span>
                 <ChevronDown size={12} className={`text-slate-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -157,20 +125,24 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="sm:hidden p-1.5 text-slate-400 hover:text-white transition"
+              className="sm:hidden p-2 -mr-1 text-slate-300 hover:text-white transition"
               aria-label="Menu"
+              aria-expanded={menuOpen}
             >
-              {menuOpen ? <X size={18} /> : <Menu size={18} />}
+              {menuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </>
         ) : (
-          <div className="flex items-center gap-2">
-            <button onClick={onSignInOpen} className="px-3 py-1.5 text-sm font-semibold text-slate-400 hover:text-white transition">
-              Sign In
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={onSignInOpen}
+              className="px-2.5 sm:px-3 py-2 text-sm font-semibold text-slate-300 hover:text-white transition whitespace-nowrap rounded-lg"
+            >
+              Log in
             </button>
             <button
               onClick={onRegisterOpen}
-              className="px-4 py-1.5 bg-win hover:bg-win-dark text-white rounded-lg text-sm font-bold transition shadow-lg shadow-green-500/20"
+              className="px-4 sm:px-5 py-2 bg-win hover:bg-win-dark text-white rounded-lg text-sm font-bold transition shadow-lg shadow-green-500/20 whitespace-nowrap active:scale-95"
             >
               Register
             </button>
@@ -180,7 +152,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
 
       {/* Mobile dropdown */}
       {menuOpen && profile && (
-        <div className="sm:hidden absolute top-12 right-0 left-0 bg-night border-b border-edge p-4 space-y-3 shadow-xl z-40">
+        <div className="sm:hidden absolute top-14 right-0 left-0 bg-night border-b border-edge p-4 space-y-3 shadow-xl z-40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
@@ -200,7 +172,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
 
           <button
             onClick={() => { setMenuOpen(false); navigate('/profile'); }}
-            className="w-full flex items-center justify-center gap-2 py-2 bg-panel-raised border border-edge text-slate-200 rounded-lg text-sm font-semibold"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-panel-raised border border-edge text-slate-200 rounded-lg text-sm font-semibold"
           >
             <UserCircle size={14} className="text-[#60a5fa]" /> My Profile
           </button>
@@ -208,7 +180,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
           {isMarketer && (
             <button
               onClick={() => { setMenuOpen(false); navigate(MARKETER_DASHBOARD_PATH); }}
-              className="w-full flex items-center justify-center gap-2 py-2 bg-panel-raised border border-edge text-slate-200 rounded-lg text-sm font-semibold"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-panel-raised border border-edge text-slate-200 rounded-lg text-sm font-semibold"
             >
               <LayoutDashboard size={14} className="text-win" /> Marketer Hub
             </button>
@@ -217,13 +189,13 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
           <div className="flex gap-2">
             <button
               onClick={() => { onWalletOpen(); setMenuOpen(false); }}
-              className="flex-1 flex items-center justify-center gap-2 py-2 bg-win text-white rounded-lg text-sm font-bold"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-win text-white rounded-lg text-sm font-bold"
             >
               <Wallet size={14} /> Deposit
             </button>
             <button
               onClick={() => { onSignOut(); setMenuOpen(false); }}
-              className="flex items-center gap-2 px-4 py-2 bg-panel-raised text-slate-300 rounded-lg text-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-panel-raised text-slate-300 rounded-lg text-sm"
             >
               <LogOut size={14} /> Sign Out
             </button>
