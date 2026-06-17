@@ -315,38 +315,21 @@ function drawWaiting(ctx: CanvasRenderingContext2D, W: number, H: number, now: n
   let anchorY = H * 0.42;
   if (status === 'waiting' && partnerSprite && partnerSpriteReady && partnerSprite.naturalWidth > 0) {
     const aspect = partnerSprite.naturalWidth / partnerSprite.naturalHeight;
-    let cardW = Math.min(W * 0.6, 400);
-    let cardH = cardW / aspect;
-    const maxCardH = H * 0.5;
-    if (cardH > maxCardH) { cardH = maxCardH; cardW = cardH * aspect; }
-    const cardX = (W - cardW) / 2;
-    const cardY = H * 0.07;
-    const radius = Math.min(18, cardW * 0.05);
+    let logoW = Math.min(W * 0.55, 360);
+    let logoH = logoW / aspect;
+    const maxLogoH = H * 0.5;
+    if (logoH > maxLogoH) { logoH = maxLogoH; logoW = logoH * aspect; }
+    const logoX = (W - logoW) / 2;
+    const logoY = H * 0.08;
 
-    // Soft drop shadow behind an opaque backing (keeps edges clean over the spokes).
+    // The artwork is a transparent cut-out (no background), so it sits directly
+    // on the scene; a soft shadow lifts it off the rotating spokes for legibility.
     ctx.save();
-    ctx.shadowBlur = 26; ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    roundRect(ctx, cardX, cardY, cardW, cardH, radius);
-    ctx.fillStyle = '#0a0b12';
-    ctx.fill();
+    ctx.shadowBlur = 18; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowOffsetY = 2;
+    ctx.drawImage(partnerSprite, logoX, logoY, logoW, logoH);
     ctx.restore();
 
-    // Artwork, clipped to the rounded card.
-    ctx.save();
-    roundRect(ctx, cardX, cardY, cardW, cardH, radius);
-    ctx.clip();
-    ctx.drawImage(partnerSprite, cardX, cardY, cardW, cardH);
-    ctx.restore();
-
-    // Thin brand-red border.
-    ctx.save();
-    roundRect(ctx, cardX, cardY, cardW, cardH, radius);
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(232,18,60,0.45)';
-    ctx.stroke();
-    ctx.restore();
-
-    anchorY = Math.min(cardY + cardH + H * 0.085, H * 0.82);
+    anchorY = Math.min(logoY + logoH + H * 0.085, H * 0.82);
   }
 
   ctx.save();
