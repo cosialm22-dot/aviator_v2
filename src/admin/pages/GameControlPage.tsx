@@ -3,14 +3,13 @@ import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import { getMultiplierAtTime, formatMultiplier } from '../../lib/gameEngine';
-import { Activity, Target, Settings } from 'lucide-react';
+import { Activity, Target } from 'lucide-react';
 
 interface GameRoundRow { id:string; crash_multiplier:number; status:string; started_at:string|null; crashed_at:string|null; source:string; queue_id:string|null }
 interface CQItem { id:string; crash_point:number; position:number; status:string; created_at:string }
-interface GSetting { key:string; value:unknown; description:string|null }
 
 const POLL_MS=3000; const TICK_MS=150; const ZOMBIE_MS=12e4; const MIN_C=1; const MAX_C=80;
-type Tab='monitor'|'queue'|'params';
+type Tab='monitor'|'queue';
 
 function fmtKES(n:number):string{return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toLocaleString('en-KE')}
 function elapsed(iso:string|null):number{return iso?Math.floor((Date.now()-new Date(iso).getTime())/1e3):0}
@@ -24,20 +23,17 @@ const[round,setRound]=useState<GameRoundRow|null>(null);
 const[bCnt,setBCnt]=useState(0);const[bTot,setBTot]=useState(0);
 const[mult,setMult]=useState(1);
 const[queue,setQueue]=useState<CQItem[]>([]);
-const[gSet,setGSet]=useState<GSetting[]>([]);
 const[zCnt,setZCnt]=useState(0);
 const[loading,setLoading]=useState(true);
 const[err,setErr]=useState<string|null>(null);
 const[sVal,setSVal]=useState('');const[bVal,setBVal]=useState('');
 const[shFC,setShFC]=useState(false);const[shCl,setShCl]=useState(false);const[shRc,setShRc]=useState(false);
-const[ev,setEv]=useState<Record<string,string>>({});
-const[saving,setSaving]=useState<string|null>(null);
 const[lock,setLock]=useState<string|null>(null);
 const pRef=useRef<ReturnType<typeof setInterval>>();
 const tRef=useRef<ReturnType<typeof setInterval>>();
 const aRef=useRef<AbortController|null>(null);
 
-const fetchAll=useCallback(async()=>{try{aRef.current?.abort();const ac=new AbortController();aRef.current=ac;const s=ac.signal;const[rr,ar,qr,sr,zr]=await Promise.all([supabase.from('game_rounds').select('*').order('created_at',{ascending:false}).limit(1).abortSignal(s).maybeSingle(),supabase.from('game_rounds').select('id').eq('status','flying').limit(1).abortSignal(s).maybeSingle(),supabase.from('crash_queue').select('*').order('position',{ascending:true}).limit(100).abortSignal(s),supabase.from('system_settings').select('*').eq('category','game').order('key').abortSignal(s),supabase.from('game_rounds').select('id',{count:'exact',head:true}).eq('status','flying').lt('started_at',new Date(Date.now()-ZOMBIE_MS).toISOString()).abortSignal(s)]);if(s.aborted)return;let active=(rr.data??null)as GameRoundRow|null;if(ar.data&&active?.status!=='flying'){const fr=await supabase.from('game_rounds').select('*').eq('id',ar.data.id).abortSignal(s).maybeSingle();if(!s.aborted&&fr.data)active=fr.data as GameRoundRow}setRound(active);if(active?.status==='flying'){const br=await supabase.from('bets').select('amount',{count:'exact'}).eq('round_id',active.id).eq('status','active').abortSignal(s);if(!s.aborted&&br.data){setBCnt(br.count??0);setBTot(br.data.reduce((sm:number,b:{amount:number})=>sm+Number(b.amount),0))}}else{setBCnt(0);setBTot(0)}setQueue((qr.data??[])as CQItem[]);setGSet((sr.data??[])as GSetting[]);setZCnt(zr.count??0);setEv(prev=>{const nxt={...prev};for(const sx of(sr.data??[])as GSetting[]){if(!(sx.key in nxt))nxt[sx.key]=String(sx.value)}return nxt});setErr(null)}catch(e){if(e instanceof Error&&e.name==='AbortError')return;setErr(errMsg(e,'Fetch failed'))}finally{setLoading(false)}},[]);
+const fetchAll=useCallback(async()=>{try{aRef.current?.abort();const ac=new AbortController();aRef.current=ac;const s=ac.signal;const[rr,ar,qr,zr]=await Promise.all([supabase.from('game_rounds').select('*').order('created_at',{ascending:false}).limit(1).abortSignal(s).maybeSingle(),supabase.from('game_rounds').select('id').eq('status','flying').limit(1).abortSignal(s).maybeSingle(),supabase.from('crash_queue').select('*').order('position',{ascending:true}).limit(100).abortSignal(s),supabase.from('game_rounds').select('id',{count:'exact',head:true}).eq('status','flying').lt('started_at',new Date(Date.now()-ZOMBIE_MS).toISOString()).abortSignal(s)]);if(s.aborted)return;let active=(rr.data??null)as GameRoundRow|null;if(ar.data&&active?.status!=='flying'){const fr=await supabase.from('game_rounds').select('*').eq('id',ar.data.id).abortSignal(s).maybeSingle();if(!s.aborted&&fr.data)active=fr.data as GameRoundRow}setRound(active);if(active?.status==='flying'){const br=await supabase.from('bets').select('amount',{count:'exact'}).eq('round_id',active.id).eq('status','active').abortSignal(s);if(!s.aborted&&br.data){setBCnt(br.count??0);setBTot(br.data.reduce((sm:number,b:{amount:number})=>sm+Number(b.amount),0))}}else{setBCnt(0);setBTot(0)}setQueue((qr.data??[])as CQItem[]);setZCnt(zr.count??0);setErr(null)}catch(e){if(e instanceof Error&&e.name==='AbortError')return;setErr(errMsg(e,'Fetch failed'))}finally{setLoading(false)}},[]);
 
 useEffect(()=>{if(round?.status!=='flying'||!round.started_at){setMult(1);return}const st=new Date(round.started_at).getTime();const tick=()=>{const m=getMultiplierAtTime(Date.now()-st);setMult(m>=Number(round.crash_multiplier)?Number(round.crash_multiplier):m)};tick();tRef.current=setInterval(tick,TICK_MS);return()=>clearInterval(tRef.current)},[round?.status,round?.started_at,round?.crash_multiplier]);
 
@@ -57,10 +53,8 @@ const removeQ=async(id:string,cp:number)=>{if(lock)return;setLock('rm-'+id);try{
 
 const clearQ=async()=>{if(lock)return;setLock('cq');try{const ids=queue.filter(q=>q.status==='pending').map(q=>q.id);for(const id of ids)await supabase.from('crash_queue').delete().eq('id',id);await audit('queue_clear',null,{count:ids.length});setShCl(false);fetchAll()}catch(e){setErr(errMsg(e,'Clear failed'))}finally{setLock(null)}};
 
-const saveS=async(key:string)=>{if(lock)return;const raw=ev[key];const orig=gSet.find(sx=>sx.key===key);if(!orig||String(orig.value)===raw)return;let parsed:string|number|boolean=raw;if(raw==='true')parsed=true;else if(raw==='false')parsed=false;else if(!isNaN(Number(raw))&&raw.trim()!=='')parsed=Number(raw);setSaving(key);try{await supabase.from('system_settings').update({value:parsed,updated_at:new Date().toISOString()}).eq('key',key);await audit('setting_updated',key,{old:orig.value,new:parsed});fetchAll()}catch(e){setErr(errMsg(e,'Save failed'))}finally{setSaving(null)}};
-
 const isF=round?.status==='flying';const pendingQ=queue.filter(q=>q.status==='pending');
-const TABS=[{k:'monitor'as Tab,l:'Live Monitor',i:Activity},{k:'queue'as Tab,l:'Crash Queue',i:Target},{k:'params'as Tab,l:'Settings',i:Settings}];
+const TABS=[{k:'monitor'as Tab,l:'Live Monitor',i:Activity},{k:'queue'as Tab,l:'Crash Queue',i:Target}];
 
 return(
   <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
@@ -68,7 +62,7 @@ return(
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-[22px] font-semibold text-ink tracking-tight">Game Control</h1>
-          <p className="text-[13px] text-muted mt-1">Crash queue, live monitor, settings</p>
+          <p className="text-[13px] text-muted mt-1">Live monitor and crash queue</p>
         </div>
         <div className="flex items-center gap-3">
           {err&&<span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[280px] truncate" title={err}>{err}</span>}
@@ -153,15 +147,6 @@ return(
         </div>
       </div>)}
 
-      {tab==='params'&&(<div className="rounded-xl border border-line bg-surface overflow-hidden">{gSet.length===0?(<div className="p-16 text-center text-faint text-[12px]">No game settings found</div>):(<div className="divide-y divide-line">{gSet.map(s=>{const changed=ev[s.key]!==String(s.value);return(
-        <div key={s.key} className="px-6 py-5 flex items-center justify-between gap-6 hover:bg-canvas transition-colors">
-          <div className="min-w-0 flex-1"><div className="text-[13px] text-ink font-mono">{s.key.replace('game.','')}</div>{s.description&&<div className="text-[11px] text-muted mt-1">{s.description}</div>}</div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <input type="text" value={ev[s.key]??String(s.value)} onChange={e=>setEv(prev=>({...prev,[s.key]:e.target.value}))} className={'w-24 px-3 py-2 bg-surface border rounded-lg text-sm text-right text-ink font-mono focus:outline-none transition '+(changed?'border-brand/50 ring-1 ring-brand/20':'border-line')} />
-            {changed&&(<><button onClick={()=>saveS(s.key)} disabled={saving===s.key} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-40">{saving===s.key?'Saving':'Save'}</button><button onClick={()=>setEv(prev=>({...prev,[s.key]:String(s.value)}))} className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-line text-muted hover:text-ink transition-colors">Reset</button></>)}
-          </div>
-        </div>
-      )})}</div>)}</div>)}
 
       {shFC&&<Modal title="Force Crash" msg={'Crash round at '+formatMultiplier(mult)+'? All active bets will lose. This cannot be undone.'} btn="Force Crash" color="bg-down hover:brightness-95" loading={lock==='fc'} onConfirm={forceCrash} onCancel={()=>setShFC(false)} />}
       {shRc&&<Modal title="Recover Zombie Rounds" msg={'Mark '+zCnt+' stuck round(s) as crashed? These never completed (browser closed mid-flight).'} btn="Recover All" color="bg-amber-600 hover:bg-amber-700" loading={lock==='rc'} onConfirm={recoverZ} onCancel={()=>setShRc(false)} />}
