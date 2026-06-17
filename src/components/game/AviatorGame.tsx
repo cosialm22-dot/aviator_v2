@@ -12,6 +12,7 @@ import { useChatStream } from '../../hooks/useChatStream';
 import { useGame, BET_SLOTS, type BetSlot } from '../../hooks/useGame';
 import type { DemoGame } from '../../hooks/useDemoGame';
 import { usePromos } from '../../hooks/usePromos';
+import { useOnlineCount } from '../../hooks/useOnlineCount';
 import PromoBar from './PromoBar';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { Profile, Wallet } from '../../types';
@@ -78,6 +79,10 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
   // Single shared chat stream (bots + Realtime + own sends). Lifted here so the
   // full chat panel and the mobile ChatTicker render the identical stream.
   const chat = useChatStream({ userId: profile?.id, username: profile?.username, avatarColor: profile?.avatar_color });
+
+  // Simulated "players online" presence (no realtime presence channel exists).
+  // Always ≥ the bets visible this round so the headline never under-counts.
+  const onlineCount = useOnlineCount(liveBets.length);
 
   // Player promotions (free bets + rain) - real-money mode only.
   const { freeBets, rain: openRain, busy: promoBusy, placeFreeBet: placeFreeBetRpc, claimRain } = usePromos(profile?.id, onRefreshWallet);
@@ -249,15 +254,18 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
 
             {/* The multiplier, countdown, loader and crash text are rendered on
                 the canvas itself (60fps, perfectly synced with the plane/trail).
-                This layer only adds the contextual prompts that sit below them. */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+                This layer only adds the contextual prompts that sit below them.
+                Positioned at a fixed fraction of canvas HEIGHT (top-[58%]) so the
+                prompt stays just under the multiplier on every screen width — a
+                percentage margin-top would resolve against width and drift. */}
+            <div className="absolute inset-x-0 top-[58%] flex flex-col items-center pointer-events-none z-10">
               {gameStatus === 'flying' && anyActiveInFlight && (
-                <div className="text-green-400 text-sm font-black animate-pulse tracking-wide" style={{ marginTop: '20%' }}>
+                <div className="text-green-400 text-sm font-black animate-pulse tracking-wide">
                   CASH OUT NOW!
                 </div>
               )}
               {gameStatus === 'waiting' && anyBetThisRound && (
-                <div className="px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold" style={{ marginTop: '20%' }}>
+                <div className="px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
                   Bet in - ready!
                 </div>
               )}
@@ -281,7 +289,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
             {/* Online count */}
             <div className="absolute bottom-2 right-2 flex items-center gap-1 z-10 bg-black/40 rounded-full px-2 py-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-slate-300 text-[10px] font-semibold">{Math.max(liveBets.length, 107)}</span>
+              <span className="text-slate-300 text-[10px] font-semibold">{onlineCount.toLocaleString('en-KE')}</span>
             </div>
 
             {/* Low-balance psychology nudge */}
