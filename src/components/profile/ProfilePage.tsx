@@ -210,14 +210,15 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
       </div>
 
       {/* Tabs - horizontally scrollable on small screens, large touch targets */}
-      <div className="max-w-2xl mx-auto px-4 pt-4 sticky top-12 z-10">
-        <div className="flex gap-1.5 bg-[#11111f] border border-[#2a2a45] rounded-xl p-1 overflow-x-auto scrollbar-thin">
+      <div className="max-w-2xl mx-auto px-4 pt-4 sticky top-12 z-10 bg-[#0d0d1a]">
+        <div className="flex gap-1.5 bg-[#11111f] border border-[#2a2a45] rounded-xl p-1 overflow-x-auto scrollbar-thin" role="tablist" aria-label="Profile sections">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              aria-current={tab === key ? 'page' : undefined}
-              className={`flex-1 min-w-[78px] flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition ${
+              role="tab"
+              aria-selected={tab === key}
+              className={`flex-1 min-w-[78px] flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8001c]/50 ${
                 tab === key ? 'bg-[#c8001c] text-white' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
