@@ -69,18 +69,23 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     // Scrollable overlay: the dialog stays centred when it fits and the whole
     // overlay scrolls when the form is taller than the viewport (short / landscape
     // phones) so the CTA is always reachable.
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md">
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="auth-title"
-          className="w-full max-w-[380px] relative overflow-hidden rounded-[20px]"
+          className="w-full max-w-[380px] relative overflow-hidden rounded-[20px] border border-edge"
+          style={{
+            // Lifted surface: clearly lighter than the #0d0d1a page, with a
+            // visible hairline border + drop shadow + inset top highlight so the
+            // dialog reads as an elevated card floating above the page rather
+            // than dissolving into it.
+            background: 'linear-gradient(180deg, #1c1c33 0%, #141426 100%)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
         >
-          {/* ─── BACKGROUND FRAME ─── */}
-          <div className="absolute inset-0 bg-[#0a0f1e] border border-white/[0.06] rounded-[20px]" />
-
           {/* ─── CONTENT ─── */}
           <div className="relative">
 
