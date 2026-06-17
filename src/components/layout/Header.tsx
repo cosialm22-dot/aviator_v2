@@ -30,7 +30,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
   const isMarketer = profile?.role === 'marketer';
 
   return (
-    <header className="bg-[#0d0d1a] border-b border-[#2a2a45] px-4 h-12 flex items-center justify-between relative z-30 flex-shrink-0">
+    <header className="bg-night border-b border-edge px-4 h-12 flex items-center justify-between relative z-30 flex-shrink-0">
       {/* Logo */}
       <div className="flex items-center gap-1">
         <span
@@ -47,7 +47,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
             the Sign In / profile cluster on every screen size. */}
         <div className="flex items-center gap-1.5">
           {mode === 'demo' && (
-            <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-[#1a1a2e] border border-[#2a2a45] px-2 py-1">
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-panel-raised border border-edge px-2 py-1">
               <span className="text-[9px] uppercase tracking-wide text-slate-500 font-bold">Demo</span>
               <span className="text-xs font-bold tabular-nums text-[#60a5fa]">
                 KSh {demoBalance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
@@ -62,7 +62,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
               </button>
             </div>
           )}
-          <div className="flex bg-[#1a1a2e] rounded-full p-0.5" role="tablist" aria-label="Play mode">
+          <div className="flex bg-panel-raised rounded-full p-0.5" role="tablist" aria-label="Play mode">
             {(['real', 'demo'] as const).map((m) => (
               <button
                 key={m}
@@ -71,7 +71,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
                 onClick={() => onSetMode(m)}
                 className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
                   mode === m
-                    ? (m === 'demo' ? 'bg-[#1d4ed8] text-white' : 'bg-[#22c55e] text-white')
+                    ? (m === 'demo' ? 'bg-[#1d4ed8] text-white' : 'bg-win text-white')
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -93,7 +93,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
             {/* Deposit */}
             <button
               onClick={onWalletOpen}
-              className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-white rounded-lg text-xs font-bold transition shadow-lg shadow-green-500/20"
+              className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-win hover:bg-win-dark text-white rounded-lg text-xs font-bold transition shadow-lg shadow-green-500/20"
             >
               <Wallet size={12} />
               Deposit
@@ -105,7 +105,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
                 onClick={() => setProfileOpen(o => !o)}
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[#2a2a45] hover:border-[#3a3a55] transition"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-edge hover:border-[#3a3a55] transition"
               >
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
@@ -121,11 +121,11 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
                 <>
                   {/* click-away backdrop */}
                   <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} />
-                  <div role="menu" className="absolute right-0 top-full mt-1 w-56 bg-[#0d0d1a] border border-[#2a2a45] rounded-xl shadow-2xl z-40 overflow-hidden py-1">
+                  <div role="menu" className="absolute right-0 top-full mt-1 w-56 bg-night border border-edge rounded-xl shadow-2xl z-40 overflow-hidden py-1">
                     <button
                       onClick={() => { setProfileOpen(false); navigate('/profile'); }}
                       role="menuitem"
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-[#1a1a2e] transition"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-panel-raised transition"
                     >
                       <UserCircle size={15} className="text-[#60a5fa]" />
                       My Profile
@@ -134,16 +134,16 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
                       <button
                         onClick={() => { setProfileOpen(false); navigate(MARKETER_DASHBOARD_PATH); }}
                         role="menuitem"
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-[#1a1a2e] transition"
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-panel-raised transition"
                       >
-                        <LayoutDashboard size={15} className="text-[#22c55e]" />
+                        <LayoutDashboard size={15} className="text-win" />
                         Marketer Hub
                       </button>
                     )}
                     <button
                       onClick={() => { setProfileOpen(false); onSignOut(); }}
                       role="menuitem"
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-[#1a1a2e] transition"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-panel-raised transition"
                     >
                       <LogOut size={15} className="text-slate-500" />
                       Sign Out
@@ -169,7 +169,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
             </button>
             <button
               onClick={onRegisterOpen}
-              className="px-4 py-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-white rounded-lg text-sm font-bold transition shadow-lg shadow-green-500/20"
+              className="px-4 py-1.5 bg-win hover:bg-win-dark text-white rounded-lg text-sm font-bold transition shadow-lg shadow-green-500/20"
             >
               Register
             </button>
@@ -179,7 +179,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
 
       {/* Mobile dropdown */}
       {menuOpen && profile && (
-        <div className="sm:hidden absolute top-12 right-0 left-0 bg-[#0d0d1a] border-b border-[#2a2a45] p-4 space-y-3 shadow-xl z-40">
+        <div className="sm:hidden absolute top-12 right-0 left-0 bg-night border-b border-edge p-4 space-y-3 shadow-xl z-40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
@@ -199,7 +199,7 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
 
           <button
             onClick={() => { setMenuOpen(false); navigate('/profile'); }}
-            className="w-full flex items-center justify-center gap-2 py-2 bg-[#1a1a2e] border border-[#2a2a45] text-slate-200 rounded-lg text-sm font-semibold"
+            className="w-full flex items-center justify-center gap-2 py-2 bg-panel-raised border border-edge text-slate-200 rounded-lg text-sm font-semibold"
           >
             <UserCircle size={14} className="text-[#60a5fa]" /> My Profile
           </button>
@@ -207,22 +207,22 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
           {isMarketer && (
             <button
               onClick={() => { setMenuOpen(false); navigate(MARKETER_DASHBOARD_PATH); }}
-              className="w-full flex items-center justify-center gap-2 py-2 bg-[#1a1a2e] border border-[#2a2a45] text-slate-200 rounded-lg text-sm font-semibold"
+              className="w-full flex items-center justify-center gap-2 py-2 bg-panel-raised border border-edge text-slate-200 rounded-lg text-sm font-semibold"
             >
-              <LayoutDashboard size={14} className="text-[#22c55e]" /> Marketer Hub
+              <LayoutDashboard size={14} className="text-win" /> Marketer Hub
             </button>
           )}
 
           <div className="flex gap-2">
             <button
               onClick={() => { onWalletOpen(); setMenuOpen(false); }}
-              className="flex-1 flex items-center justify-center gap-2 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-bold"
+              className="flex-1 flex items-center justify-center gap-2 py-2 bg-win text-white rounded-lg text-sm font-bold"
             >
               <Wallet size={14} /> Deposit
             </button>
             <button
               onClick={() => { onSignOut(); setMenuOpen(false); }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#1a1a2e] text-slate-300 rounded-lg text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-panel-raised text-slate-300 rounded-lg text-sm"
             >
               <LogOut size={14} /> Sign Out
             </button>

@@ -50,7 +50,7 @@ export default function ChatTicker({ messages, onOpenChat }: Props) {
       onClick={onOpenChat}
       title={onOpenChat ? 'Open chat' : undefined}
       aria-label="Latest chat message"
-      className="xl:hidden w-full flex items-center gap-2 px-3 py-1.5 bg-[#0d0d1a] border-t border-[#2a2a45] text-left active:bg-[#12121f] transition-colors"
+      className="xl:hidden w-full flex items-center gap-2 px-3 py-1.5 bg-night border-t border-edge text-left active:bg-[#12121f] transition-colors"
     >
       <MessageSquare size={12} className="text-slate-500 flex-shrink-0" />
       {/* key on id => remount triggers the fade-in each time the message changes */}

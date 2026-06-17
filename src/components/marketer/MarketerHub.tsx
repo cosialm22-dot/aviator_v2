@@ -114,7 +114,7 @@ export default function MarketerHub({ profile, onSignInRequired }: Props) {
           icon={Megaphone}
           title="Sign in to your marketer account"
           sub="Track your referrals, commission and payouts in one place."
-          action={<button onClick={onSignInRequired} className="px-6 py-3 bg-[#22c55e] hover:bg-[#16a34a] text-white rounded-xl text-sm font-bold transition shadow-lg shadow-green-500/20">Sign In</button>}
+          action={<button onClick={onSignInRequired} className="px-6 py-3 bg-win hover:bg-win-dark text-white rounded-xl text-sm font-bold transition shadow-lg shadow-green-500/20">Sign In</button>}
         />
       </Shell>
     );
@@ -126,7 +126,7 @@ export default function MarketerHub({ profile, onSignInRequired }: Props) {
           icon={Megaphone}
           title="This area is for marketers"
           sub="Your account doesn't have a marketer role yet. Ask an admin to enable affiliate marketing for you."
-          action={<Link to="/" className="px-6 py-3 bg-[#1a1a2e] border border-[#2a2a45] text-white rounded-xl text-sm font-bold transition">Back to Game</Link>}
+          action={<Link to="/" className="px-6 py-3 bg-panel-raised border border-edge text-white rounded-xl text-sm font-bold transition">Back to Game</Link>}
         />
       </Shell>
     );
@@ -137,9 +137,9 @@ export default function MarketerHub({ profile, onSignInRequired }: Props) {
       <div className="max-w-3xl mx-auto px-4 py-4 pb-24 space-y-5">
         {/* status line */}
         <div className="flex items-center justify-end gap-2 -mb-1 min-h-[28px]">
-          {notice && <span role="status" className="px-3 py-1.5 bg-[#0f2a1a] border border-[#1f3d2a] rounded-lg text-[#22c55e] text-xs max-w-[260px] truncate" title={notice}>{notice}</span>}
+          {notice && <span role="status" className="px-3 py-1.5 bg-[#0f2a1a] border border-[#1f3d2a] rounded-lg text-win text-xs max-w-[260px] truncate" title={notice}>{notice}</span>}
           {err && <span role="alert" className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-xs max-w-[260px] truncate" title={err}>{err}</span>}
-          <button onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#2a2a45] bg-[#11111f] text-xs text-slate-300 hover:text-white transition disabled:opacity-50">
+          <button onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-edge bg-panel text-xs text-slate-300 hover:text-white transition disabled:opacity-50">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
@@ -203,7 +203,7 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
   return (
     <>
       {/* Hero / income framing */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#11203a] via-[#11111f] to-[#11111f] border border-[#23314d] p-5">
+      <div className="rounded-2xl bg-gradient-to-br from-[#11203a] via-panel to-panel border border-[#23314d] p-5">
         <div className="flex items-center gap-2 text-[#60a5fa]">
           <Rocket size={16} />
           <span className="text-[11px] uppercase tracking-wide font-bold">Your Marketing Business</span>
@@ -226,9 +226,9 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
       </div>
 
       {/* Available to withdraw - prominent */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#0f2a1a] to-[#11111f] border border-[#1f3d2a] p-5 flex items-center justify-between gap-4">
+      <div className="rounded-2xl bg-gradient-to-br from-[#0f2a1a] to-panel border border-[#1f3d2a] p-5 flex items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[#22c55e]">
+          <div className="flex items-center gap-2 text-win">
             <WalletIcon size={16} />
             <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Available to Withdraw</span>
           </div>
@@ -261,7 +261,7 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
       </Card>
 
       {/* Goal + projection (psychology) */}
-      <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] p-5">
+      <div className="rounded-2xl bg-panel border border-edge p-5">
         <div className="flex items-center gap-2 text-[#e0a80b]">
           <Target size={16} />
           <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Next Milestone</span>
@@ -270,21 +270,21 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
           <span className="text-white font-semibold">{d.qualified_count} / {milestoneTarget} qualified players</span>
           <span className="text-slate-500">{Math.max(0, milestoneTarget - d.qualified_count)} to go</span>
         </div>
-        <div className="mt-2 h-2.5 rounded-full bg-[#1a1a2e] overflow-hidden">
-          <div className="h-full rounded-full bg-gradient-to-r from-[#e0a80b] to-[#22c55e] transition-all" style={{ width: `${milestoneProgress}%` }} />
+        <div className="mt-2 h-2.5 rounded-full bg-panel-raised overflow-hidden">
+          <div className="h-full rounded-full bg-gradient-to-r from-[#e0a80b] to-win transition-all" style={{ width: `${milestoneProgress}%` }} />
         </div>
         <p className="text-slate-400 text-xs mt-3 leading-relaxed">{projectionText}</p>
       </div>
 
       {/* Referral link + social share */}
-      <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] p-5">
+      <div className="rounded-2xl bg-panel border border-edge p-5">
         <div className="flex items-center gap-2 text-[#60a5fa]">
           <Share2 size={16} />
           <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Your Referral Link</span>
         </div>
         <div className="mt-3 flex items-center gap-2 flex-wrap">
-          <code className="flex-1 min-w-[200px] px-3 py-2.5 bg-[#0a0a14] border border-[#2a2a45] rounded-lg text-slate-200 text-[13px] font-mono break-all">{referralLink}</code>
-          <button onClick={onCopy} className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-white text-[13px] font-bold transition">
+          <code className="flex-1 min-w-[200px] px-3 py-2.5 bg-night-deep border border-edge rounded-lg text-slate-200 text-[13px] font-mono break-all">{referralLink}</code>
+          <button onClick={onCopy} className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-win hover:bg-win-dark text-white text-[13px] font-bold transition">
             {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
           </button>
         </div>
@@ -300,8 +300,8 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
       </div>
 
       {/* Request payout */}
-      <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] p-5">
-        <div className="flex items-center gap-2 text-[#22c55e]">
+      <div className="rounded-2xl bg-panel border border-edge p-5">
+        <div className="flex items-center gap-2 text-win">
           <WalletIcon size={16} />
           <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Request a Payout</span>
         </div>
@@ -317,7 +317,7 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
                 type="number" inputMode="numeric" min={1} step={1} value={amount}
                 onChange={e => setAmount(e.target.value)} required
                 placeholder={`Up to ${Math.floor(d.commission_available)}`}
-                className="w-full px-3 py-3 bg-[#0a0a14] border border-[#2a2a45] rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-[#22c55e] transition"
+                className="w-full px-3 py-3 bg-night-deep border border-edge rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-win transition"
               />
             </div>
             <div>
@@ -326,10 +326,10 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
                 type="tel" inputMode="numeric" value={phone}
                 onChange={e => setPhone(e.target.value)} required
                 placeholder="0712345678"
-                className="w-full px-3 py-3 bg-[#0a0a14] border border-[#2a2a45] rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-[#22c55e] transition"
+                className="w-full px-3 py-3 bg-night-deep border border-edge rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-win transition"
               />
             </div>
-            <button type="submit" disabled={submitting} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-white text-sm font-bold transition disabled:opacity-50">
+            <button type="submit" disabled={submitting} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-win hover:bg-win-dark text-white text-sm font-bold transition disabled:opacity-50">
               {submitting && <span className="inline-block h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />}
               Request payout
             </button>
@@ -339,14 +339,14 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
       </div>
 
       {/* Payout history */}
-      <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-[#2a2a45]">
+      <div className="rounded-2xl bg-panel border border-edge overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-edge">
           <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Payout History</span>
         </div>
         {d.payouts.length === 0 ? (
           <div className="px-5 py-10 text-center text-slate-600 text-sm">No payout requests yet.</div>
         ) : (
-          <div className="divide-y divide-[#1e1e30]">
+          <div className="divide-y divide-panel-high">
             {d.payouts.map((p: CommissionPayout) => (
               <div key={p.id} className="flex items-center justify-between px-5 py-3.5 gap-3">
                 <div className="min-w-0">
@@ -389,7 +389,7 @@ function FunnelBar({ label, value, widthPct, color }: { label: string; value: nu
         <span className="text-slate-400">{label}</span>
         <span className="text-white font-semibold tabular-nums">{value.toLocaleString('en-KE')}</span>
       </div>
-      <div className="h-3 rounded-full bg-[#1a1a2e] overflow-hidden">
+      <div className="h-3 rounded-full bg-panel-raised overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${widthPct}%`, backgroundColor: color }} />
       </div>
     </div>
@@ -472,7 +472,7 @@ function PayoutTrend({ payouts }: { payouts: CommissionPayout[] }) {
         <path d={area} fill="url(#payoutFill)" />
         <path d={line} fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       </svg>
-      <div className="text-xs text-slate-500 mt-1">Total paid out: <span className="text-[#22c55e] font-semibold">{ksh(maxY)}</span></div>
+      <div className="text-xs text-slate-500 mt-1">Total paid out: <span className="text-win font-semibold">{ksh(maxY)}</span></div>
     </div>
   );
 }
@@ -482,8 +482,8 @@ function PayoutTrend({ payouts }: { payouts: CommissionPayout[] }) {
 // ===========================================================================
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="h-full overflow-y-auto bg-[#0d0d1a] scrollbar-thin">
-      <header className="sticky top-0 z-20 bg-[#0d0d1a]/95 backdrop-blur border-b border-[#2a2a45] h-12 flex items-center px-3 gap-2">
+    <div className="h-full overflow-y-auto bg-night scrollbar-thin">
+      <header className="sticky top-0 z-20 bg-night/95 backdrop-blur border-b border-edge h-12 flex items-center px-3 gap-2">
         <Link to="/" className="p-2 -ml-1 text-slate-400 hover:text-white transition rounded-lg active:scale-90" aria-label="Back to game">
           <ArrowLeft size={20} />
         </Link>
@@ -497,7 +497,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 function Gate({ icon: Icon, title, sub, action }: { icon: typeof Megaphone; title: string; sub: string; action: React.ReactNode }) {
   return (
     <div className="max-w-md mx-auto px-4 py-16 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-[#1a1a2e] border border-[#2a2a45] flex items-center justify-center mx-auto mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-panel-raised border border-edge flex items-center justify-center mx-auto mb-4">
         <Icon size={26} className="text-slate-500" />
       </div>
       <h2 className="text-white font-bold text-lg">{title}</h2>
@@ -509,7 +509,7 @@ function Gate({ icon: Icon, title, sub, action }: { icon: typeof Megaphone; titl
 
 function Kpi({ icon: Icon, label, value, sub, accent }: { icon: typeof Users; label: string; value: string; sub?: string; accent: string }) {
   return (
-    <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] p-4">
+    <div className="rounded-2xl bg-panel border border-edge p-4">
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-bold text-slate-400">
         <Icon size={13} style={{ color: accent }} /> {label}
       </div>
@@ -521,7 +521,7 @@ function Kpi({ icon: Icon, label, value, sub, accent }: { icon: typeof Users; la
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] p-5">
+    <div className="rounded-2xl bg-panel border border-edge p-5">
       <div className="text-[11px] uppercase tracking-wide font-bold text-slate-400 mb-3">{title}</div>
       {children}
     </div>
@@ -532,7 +532,7 @@ function ShareBtn({ onClick, icon: Icon, label, color }: { onClick: () => void; 
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#1a1a2e] border border-[#2a2a45] hover:border-[#3a3a55] text-slate-200 text-xs font-semibold transition active:scale-95"
+      className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-panel-raised border border-edge hover:border-[#3a3a55] text-slate-200 text-xs font-semibold transition active:scale-95"
     >
       <Icon size={15} style={{ color }} /> {label}
     </button>
@@ -561,11 +561,11 @@ function PayoutBadge({ status }: { status: string }) {
 function SkeletonHub() {
   return (
     <div className="space-y-4">
-      <div className="h-28 rounded-2xl bg-[#11111f] border border-[#2a2a45] animate-pulse" />
+      <div className="h-28 rounded-2xl bg-panel border border-edge animate-pulse" />
       <div className="grid grid-cols-2 gap-3">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-[#11111f] border border-[#2a2a45] animate-pulse" />)}
+        {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-panel border border-edge animate-pulse" />)}
       </div>
-      <div className="h-24 rounded-2xl bg-[#11111f] border border-[#2a2a45] animate-pulse" />
+      <div className="h-24 rounded-2xl bg-panel border border-edge animate-pulse" />
     </div>
   );
 }

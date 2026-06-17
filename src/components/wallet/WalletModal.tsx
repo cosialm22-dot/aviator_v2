@@ -51,7 +51,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
   const switchTab = (t: Tab) => { setTab(t); reset(); };
 
   const inputBase =
-    'w-full bg-[#1c2237] border border-[#2a3150] rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#22c55e]/60 focus:ring-1 focus:ring-[#22c55e]/20 transition-all';
+    'w-full bg-[#1c2237] border border-edge-strong rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-win/60 focus:ring-1 focus:ring-win/20 transition-all';
 
   const handleSubmit = async () => {
     setError('');
@@ -105,14 +105,14 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
         {/* ============ SUCCESS ============ */}
         {step === 'success' && (
           <div className="px-8 py-14 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#22c55e]/10 flex items-center justify-center mx-auto mb-5">
-              <CheckCircle size={28} className="text-[#22c55e]" />
+            <div className="w-16 h-16 rounded-full bg-win/10 flex items-center justify-center mx-auto mb-5">
+              <CheckCircle size={28} className="text-win" />
             </div>
             <h3 className="text-white font-bold text-xl">{successTitle}</h3>
             <p className="text-slate-400 text-sm mt-2 leading-relaxed">{successBody}</p>
             <button
               onClick={reset}
-              className="mt-8 px-8 py-3 bg-[#22c55e] hover:bg-[#1eab54] rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.97]"
+              className="mt-8 px-8 py-3 bg-win hover:bg-[#1eab54] rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.97]"
             >
               Done
             </button>
@@ -122,7 +122,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
         {/* ============ PROCESSING ============ */}
         {step === 'processing' && (
           <div className="px-8 py-16 text-center">
-            <Loader size={28} className="text-[#22c55e] animate-spin mx-auto mb-5" />
+            <Loader size={28} className="text-win animate-spin mx-auto mb-5" />
             <p className="text-white font-medium">
               {tab === 'deposit' ? 'Sending M-Pesa prompt…' : 'Submitting your request…'}
             </p>
@@ -144,7 +144,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
               <button
                 onClick={onClose}
                 aria-label="Close"
-                className="w-9 h-9 rounded-full bg-[#1c2237] border border-[#2a3150] flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/50"
+                className="w-9 h-9 rounded-full bg-[#1c2237] border border-edge-strong flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/50"
               >
                 <X size={15} />
               </button>
@@ -152,14 +152,14 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
 
             {/* Tabs */}
             <div className="px-7 pt-5">
-              <div className="flex bg-[#1c2237] border border-[#2a3150] rounded-xl p-1.5 gap-1">
+              <div className="flex bg-[#1c2237] border border-edge-strong rounded-xl p-1.5 gap-1">
                 {(['deposit', 'withdraw'] as Tab[]).map((t) => (
                   <button
                     key={t}
                     onClick={() => switchTab(t)}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                       tab === t
-                        ? 'bg-[#22c55e] text-white shadow-lg shadow-[#22c55e]/20'
+                        ? 'bg-win text-white shadow-lg shadow-win/20'
                         : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                     }`}
                   >
@@ -172,9 +172,9 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
 
             <div className="px-7 pt-6 pb-7 space-y-5">
               {/* Method - M-Pesa only */}
-              <div className="flex items-center gap-3 bg-[#1e2940] border border-[#22c55e]/30 rounded-xl px-4 py-3">
-                <div className="w-9 h-9 rounded-lg bg-[#22c55e]/15 flex items-center justify-center">
-                  <Smartphone size={18} className="text-[#22c55e]" />
+              <div className="flex items-center gap-3 bg-[#1e2940] border border-win/30 rounded-xl px-4 py-3">
+                <div className="w-9 h-9 rounded-lg bg-win/15 flex items-center justify-center">
+                  <Smartphone size={18} className="text-win" />
                 </div>
                 <div className="flex-1">
                   <p className="text-white text-sm font-semibold">M-Pesa</p>
@@ -198,7 +198,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
                     min={minAmount}
                     step={1}
                     aria-label="Amount in Kenyan shillings"
-                    className="w-full bg-[#1c2237] border border-[#2a3150] rounded-xl pl-12 pr-4 py-4 text-white text-xl font-bold tabular-nums placeholder:text-[#2a3150] focus:outline-none focus:border-[#22c55e]/60 focus:ring-1 focus:ring-[#22c55e]/20 transition-all"
+                    className="w-full bg-[#1c2237] border border-edge-strong rounded-xl pl-12 pr-4 py-4 text-white text-xl font-bold tabular-nums placeholder:text-edge-strong focus:outline-none focus:border-win/60 focus:ring-1 focus:ring-win/20 transition-all"
                   />
                 </div>
                 <div className="grid grid-cols-6 gap-1.5 mt-3">
@@ -211,8 +211,8 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
                         onClick={() => setAmount(String(displayQ))}
                         className={`py-2 rounded-lg text-[11px] font-semibold transition-all ${
                           isActive
-                            ? 'bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30'
-                            : 'bg-[#1c2237] border border-[#2a3150] text-slate-400 hover:text-white hover:border-[#3a4160]'
+                            ? 'bg-win/15 text-win border border-win/30'
+                            : 'bg-[#1c2237] border border-edge-strong text-slate-400 hover:text-white hover:border-[#3a4160]'
                         }`}
                       >
                         {q >= 1000 ? `${q / 1000}K` : q}
@@ -223,7 +223,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
                 {tab === 'withdraw' && balance > 0 && (
                   <button
                     onClick={() => setAmount(String(Math.floor(balance)))}
-                    className="mt-2 text-[11px] text-[#22c55e] hover:text-[#4ade80] font-medium transition-colors"
+                    className="mt-2 text-[11px] text-win hover:text-[#4ade80] font-medium transition-colors"
                   >
                     Withdraw all ({formatCurrency(balance)})
                   </button>
@@ -236,7 +236,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
                   {tab === 'deposit' ? 'Pay From' : 'Send To'} - Phone Number
                 </label>
                 <div className="flex gap-2">
-                  <div className="flex items-center bg-[#1c2237] border border-[#2a3150] rounded-xl px-3.5">
+                  <div className="flex items-center bg-[#1c2237] border border-edge-strong rounded-xl px-3.5">
                     <span className="text-slate-300 text-sm font-medium">+254</span>
                   </div>
                   <input
@@ -254,7 +254,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
               {tab === 'withdraw' && (
                 <div>
                   <label className="text-[11px] text-slate-400 uppercase tracking-widest block mb-2 font-medium flex items-center gap-1.5">
-                    <Lock size={11} className="text-[#22c55e]" />
+                    <Lock size={11} className="text-win" />
                     Confirm Password
                   </label>
                   <div className="relative">
@@ -284,7 +284,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
               {/* CTA */}
               <button
                 onClick={handleSubmit}
-                className="w-full py-4 bg-[#22c55e] hover:bg-[#1eab54] rounded-xl font-semibold text-sm text-white transition-all active:scale-[0.98] shadow-lg shadow-[#22c55e]/20"
+                className="w-full py-4 bg-win hover:bg-[#1eab54] rounded-xl font-semibold text-sm text-white transition-all active:scale-[0.98] shadow-lg shadow-win/20"
               >
                 {tab === 'deposit' ? 'Deposit via M-Pesa' : 'Request Withdrawal'}
               </button>

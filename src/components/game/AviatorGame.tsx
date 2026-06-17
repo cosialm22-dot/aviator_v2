@@ -175,9 +175,9 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
   }, [gameStatus, queuedFreeBet, currentRound, activeBets, queuedBets, isDemo, isOperator, placeFreeBetRpc]);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#0d0d1a]">
+    <div className="flex flex-col h-full overflow-hidden bg-night">
       {/* History strip */}
-      <div className="flex-shrink-0 bg-[#0d0d1a] border-b border-[#2a2a45] overflow-x-auto scrollbar-thin">
+      <div className="flex-shrink-0 bg-night border-b border-edge overflow-x-auto scrollbar-thin">
         <div className="flex items-center gap-1 px-3 py-1.5 min-w-max">
           <GameHistory history={history} />
         </div>
@@ -187,14 +187,14 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
       <div className="flex flex-1 min-h-0">
 
         {/* ── Left: Live Bets (lg+) ──────────────────────────────────── */}
-        <div className="hidden lg:flex flex-col w-60 flex-shrink-0 bg-[#0d0d1a] border-r border-[#2a2a45]">
-          <div className="flex border-b border-[#2a2a45] flex-shrink-0">
+        <div className="hidden lg:flex flex-col w-60 flex-shrink-0 bg-night border-r border-edge">
+          <div className="flex border-b border-edge flex-shrink-0">
             {(['allBets', 'previous', 'top'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2.5 text-[11px] font-semibold transition-colors ${
-                  activeTab === tab ? 'text-white border-b-2 border-[#c8001c]' : 'text-slate-500 hover:text-slate-300'
+                  activeTab === tab ? 'text-white border-b-2 border-danger' : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 {tab === 'allBets' ? 'All Bets' : tab === 'previous' ? 'Previous' : 'Top'}
@@ -207,11 +207,11 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
           ) : (
             <>
               {activeTab === 'allBets' && (
-                <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a2a45] flex-shrink-0">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-edge flex-shrink-0">
                   <div className="flex items-center gap-1.5">
                     <div className="flex -space-x-1">
                       {liveBets.slice(0, 3).map((b, i) => (
-                        <div key={i} className="w-5 h-5 rounded-full border border-[#0d0d1a] flex items-center justify-center text-white text-[8px] font-bold" style={{ backgroundColor: b.avatar_color }}>
+                        <div key={i} className="w-5 h-5 rounded-full border border-night flex items-center justify-center text-white text-[8px] font-bold" style={{ backgroundColor: b.avatar_color }}>
                           {b.username[0]?.toUpperCase()}
                         </div>
                       ))}
@@ -226,7 +226,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
                 </div>
               )}
 
-              <div className="grid px-3 py-1 text-[10px] text-slate-500 border-b border-[#2a2a45]/50 flex-shrink-0" style={{ gridTemplateColumns: '1fr auto auto auto' }}>
+              <div className="grid px-3 py-1 text-[10px] text-slate-500 border-b border-edge/50 flex-shrink-0" style={{ gridTemplateColumns: '1fr auto auto auto' }}>
                 <span>Player</span>
                 <span className="px-2">Bet</span>
                 <span className="px-2 text-center">X</span>
@@ -303,13 +303,13 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
             {/* Low-balance psychology nudge */}
             {nudge && profile && (
               <div className="absolute inset-x-3 bottom-12 z-20 md:left-1/2 md:-translate-x-1/2 md:w-80">
-                <div className="bg-gradient-to-br from-[#16a34a] to-[#22c55e] rounded-2xl p-4 shadow-2xl shadow-green-900/60 text-white">
+                <div className="bg-gradient-to-br from-win-dark to-win rounded-2xl p-4 shadow-2xl shadow-green-900/60 text-white">
                   <div className="font-black text-base leading-tight">{nudge.title}</div>
                   <div className="text-xs mt-1 opacity-90">{nudge.sub}</div>
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => { setNudge(null); onDepositOpen(); }}
-                      className="flex-1 py-2.5 bg-white text-[#16a34a] rounded-xl text-sm font-black hover:bg-gray-100 transition active:scale-95"
+                      className="flex-1 py-2.5 bg-white text-win-dark rounded-xl text-sm font-black hover:bg-gray-100 transition active:scale-95"
                     >
                       Deposit Now
                     </button>
@@ -333,7 +333,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
           {/* Operator notice: admins/super_admins manage the platform and cannot
               wager with real money. They may still practise in Demo mode. */}
           {panelOperatorLock && (
-            <div className="flex-shrink-0 border-t border-[#2a2a45] bg-amber-500/10 px-4 py-2 text-center text-amber-300 text-[11px] font-semibold">
+            <div className="flex-shrink-0 border-t border-edge bg-amber-500/10 px-4 py-2 text-center text-amber-300 text-[11px] font-semibold">
               You are signed in as an operator. Operator accounts cannot place real bets - switch to Demo to practise.
             </div>
           )}
@@ -354,8 +354,8 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
               balance + reset are shown there too. */}
 
           {/* Betting panels - two independent dual-bet slots (1 and 2) */}
-          <div className="flex flex-shrink-0 border-t border-[#2a2a45] bg-[#0d0d1a]">
-            <div className="flex-1 border-r border-[#2a2a45]">
+          <div className="flex flex-shrink-0 border-t border-edge bg-night">
+            <div className="flex-1 border-r border-edge">
               <BettingPanel
                 panelIndex={0}
                 status={gameStatus}
@@ -394,12 +394,12 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
           {/* Mobile bottom tab: Bets / Chat. Each tab toggles its sheet open or
               closed, so the default view stays focused on the canvas + bet
               controls and players opt in to secondary content one tap at a time. */}
-          <div className="lg:hidden flex border-t border-[#2a2a45] bg-[#0d0d1a] flex-shrink-0">
+          <div className="lg:hidden flex border-t border-edge bg-night flex-shrink-0">
             <button
               onClick={() => setMobileTab(t => (t === 'bets' ? null : 'bets'))}
               aria-expanded={mobileTab === 'bets'}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-semibold transition-colors ${
-                mobileTab === 'bets' ? 'text-white border-t-2 border-[#c8001c]' : 'text-slate-500'
+                mobileTab === 'bets' ? 'text-white border-t-2 border-danger' : 'text-slate-500'
               }`}
             >
               <Users size={14} />
@@ -409,7 +409,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
               onClick={() => setMobileTab(t => (t === 'chat' ? null : 'chat'))}
               aria-expanded={mobileTab === 'chat'}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-semibold transition-colors ${
-                mobileTab === 'chat' ? 'text-white border-t-2 border-[#c8001c]' : 'text-slate-500'
+                mobileTab === 'chat' ? 'text-white border-t-2 border-danger' : 'text-slate-500'
               }`}
             >
               <MessageSquare size={14} />
@@ -421,7 +421,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
               fraction of the viewport (max-h-[38vh]) so it never pushes the bet
               controls off-screen. Closed by default. */}
           {mobileTab !== null && (
-            <div className="lg:hidden flex-shrink-0 bg-[#0d0d1a] max-h-[38vh] h-[38vh] border-t border-[#2a2a45]">
+            <div className="lg:hidden flex-shrink-0 bg-night max-h-[38vh] h-[38vh] border-t border-edge">
               {mobileTab === 'bets' ? (
                 <div className="h-full overflow-y-auto scrollbar-thin">
                   <LiveBetsTable bets={liveBets} status={gameStatus} />
@@ -436,7 +436,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
         </div>
 
         {/* ── Right: Live Chat (xl+) ────────────────────────────────── */}
-        <div className="hidden xl:flex flex-col w-60 flex-shrink-0 bg-[#0d0d1a] border-l border-[#2a2a45]">
+        <div className="hidden xl:flex flex-col w-60 flex-shrink-0 bg-night border-l border-edge">
           <Chat messages={chat.messages} sending={chat.sending} onSend={chat.send} userId={profile?.id} username={profile?.username} />
         </div>
       </div>

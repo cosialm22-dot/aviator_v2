@@ -68,7 +68,7 @@ export default function Chat({ messages, sending, onSend, userId, username }: Pr
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#2a2a45] flex-shrink-0">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-edge flex-shrink-0">
         <span className="text-xs font-bold text-white uppercase tracking-wider">Live Chat</span>
         <span className="flex items-center gap-1.5 text-[10px] text-green-400 font-semibold">
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -100,7 +100,7 @@ export default function Chat({ messages, sending, onSend, userId, username }: Pr
       </div>
 
       {/* Input */}
-      <div className="px-3 pb-3 pt-2 border-t border-[#2a2a45] flex-shrink-0">
+      <div className="px-3 pb-3 pt-2 border-t border-edge flex-shrink-0">
         {username ? (
           <div className="flex gap-2">
             <input
@@ -110,12 +110,12 @@ export default function Chat({ messages, sending, onSend, userId, username }: Pr
               placeholder="Andika hapa..."
               maxLength={200}
               disabled={sending}
-              className="flex-1 bg-[#1a1a2e] border border-[#2a2a45] rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-[#c8001c]/70 transition-colors disabled:opacity-60"
+              className="flex-1 bg-panel-raised border border-edge rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-danger/70 transition-colors disabled:opacity-60"
             />
             <button
               onClick={sendMessage}
               disabled={!input.trim() || sending}
-              className="w-9 h-9 flex items-center justify-center bg-[#c8001c] rounded-lg text-white disabled:opacity-40 hover:bg-[#a80015] transition active:scale-95 flex-shrink-0"
+              className="w-9 h-9 flex items-center justify-center bg-danger rounded-lg text-white disabled:opacity-40 hover:bg-[#a80015] transition active:scale-95 flex-shrink-0"
             >
               <Send size={14} />
             </button>

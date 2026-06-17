@@ -17,7 +17,7 @@ export default function DemoNudgeToast({ nudge, onPlayReal, onDismiss }: Props) 
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-auto w-full max-w-sm rounded-2xl bg-gradient-to-br from-[#16a34a] to-[#22c55e] p-4 text-white shadow-2xl shadow-green-900/50 ring-1 ring-white/10 animate-fade-in-up"
+        className="pointer-events-auto w-full max-w-sm rounded-2xl bg-gradient-to-br from-win-dark to-win p-4 text-white shadow-2xl shadow-green-900/50 ring-1 ring-white/10 animate-fade-in-up"
       >
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
@@ -34,7 +34,7 @@ export default function DemoNudgeToast({ nudge, onPlayReal, onDismiss }: Props) 
         </div>
         <button
           onClick={onPlayReal}
-          className="mt-3 w-full rounded-xl bg-white py-2.5 text-sm font-black text-[#16a34a] transition active:scale-[0.98] hover:bg-gray-100"
+          className="mt-3 w-full rounded-xl bg-white py-2.5 text-sm font-black text-win-dark transition active:scale-[0.98] hover:bg-gray-100"
         >
           Play for Real →
         </button>

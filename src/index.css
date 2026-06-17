@@ -8,10 +8,13 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Set default text color to white for dark theme */
-html, body {
-  color: #e2e8f0;
-  background-color: #0d0d1a;
+/* Root theme = the PLAYER dark scope, referenced through the design tokens
+   (frost text on night background) so the global theme and the token palette
+   agree. Admin shells opt into the light scope via bg-canvas/text-ink. */
+@layer base {
+  html, body {
+    @apply bg-night text-frost;
+  }
 }
 
 /* Scrollbar styling */

@@ -77,7 +77,7 @@ export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
       >
       <div className="h-14 flex items-center px-5 border-b border-white/10">
         <Link to="/admin" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-[#c8001c] rounded-lg flex items-center justify-center"><span className="text-white text-xs font-black">A</span></div>
+          <div className="w-7 h-7 bg-danger rounded-lg flex items-center justify-center"><span className="text-white text-xs font-black">A</span></div>
           <span className="text-white font-semibold text-sm tracking-tight">Aviator Admin</span>
         </Link>
       </div>

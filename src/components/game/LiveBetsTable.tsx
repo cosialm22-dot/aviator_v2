@@ -19,7 +19,7 @@ interface Props {
 function Avatar({ username, color }: { username: string; color: string }) {
   return (
     <div
-      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 border border-[#2a2a45]"
+      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 border border-edge"
       style={{ backgroundColor: color }}
     >
       {username[0]?.toUpperCase()}
@@ -41,7 +41,7 @@ export default function LiveBetsTable({ bets, status }: Props) {
       {sorted.map(bet => (
         <div
           key={bet.id}
-          className={`grid items-center px-3 py-1.5 text-xs border-b border-[#1e1e30] transition-colors ${
+          className={`grid items-center px-3 py-1.5 text-xs border-b border-panel-high transition-colors ${
             bet.status === 'won' ? 'bg-green-900/10' :
             bet.status === 'lost' ? 'bg-red-900/8' : ''
           }`}
@@ -61,7 +61,7 @@ export default function LiveBetsTable({ bets, status }: Props) {
           {/* Multiplier (X column) */}
           <div className="text-[11px] px-2 min-w-[40px] text-center">
             {bet.status === 'won' && bet.cashout_multiplier !== null ? (
-              <span className="text-[#22c55e] font-bold">{bet.cashout_multiplier.toFixed(2)}x</span>
+              <span className="text-win font-bold">{bet.cashout_multiplier.toFixed(2)}x</span>
             ) : bet.status === 'active' && status === 'flying' ? (
               <span className="text-amber-400 animate-pulse">…</span>
             ) : (
@@ -72,7 +72,7 @@ export default function LiveBetsTable({ bets, status }: Props) {
           {/* Win KShs */}
           <div className="text-[11px] min-w-[48px] text-right">
             {bet.status === 'won' && bet.winnings !== null ? (
-              <span className="text-[#22c55e] font-bold">{bet.winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}</span>
+              <span className="text-win font-bold">{bet.winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}</span>
             ) : (
               <span className="text-slate-600">-</span>
             )}

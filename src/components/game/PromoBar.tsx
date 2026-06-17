@@ -21,7 +21,7 @@ export default function PromoBar({ freeBets, rain, busy, canUseFreeBet, onClaimR
   if (!rain && freeBets.length === 0) return null;
 
   return (
-    <div className="flex flex-shrink-0 flex-col gap-1.5 border-t border-[#2a2a45] bg-[#0d0d1a] px-3 py-2">
+    <div className="flex flex-shrink-0 flex-col gap-1.5 border-t border-edge bg-night px-3 py-2">
       {rain && (
         <button
           onClick={() => onClaimRain(rain.id)}
@@ -41,7 +41,7 @@ export default function PromoBar({ freeBets, rain, busy, canUseFreeBet, onClaimR
       {freeBets.length > 0 && (
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin">
           <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold flex-shrink-0">
-            <Gift size={12} className="text-[#22c55e]" /> Free bets
+            <Gift size={12} className="text-win" /> Free bets
           </span>
           {freeBets.map((fb) => (
             <button
@@ -49,7 +49,7 @@ export default function PromoBar({ freeBets, rain, busy, canUseFreeBet, onClaimR
               onClick={() => onUseFreeBet(fb.id, FREE_BET_DEFAULT_AUTO)}
               disabled={!canUseFreeBet || busy}
               title={canUseFreeBet ? `Stake on slot 1 at ${FREE_BET_DEFAULT_AUTO.toFixed(2)}x` : 'Slot 1 is busy - cash out or clear it first'}
-              className="flex items-center gap-1 flex-shrink-0 rounded-md px-2.5 py-1 bg-[#1a1a2e] border border-[#22c55e]/40 text-[#22c55e] text-[11px] font-bold hover:bg-[#22c55e]/10 disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-95"
+              className="flex items-center gap-1 flex-shrink-0 rounded-md px-2.5 py-1 bg-panel-raised border border-win/40 text-win text-[11px] font-bold hover:bg-win/10 disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-95"
             >
               <Zap size={11} className="fill-current" />
               {ksh(fb.amount)} free

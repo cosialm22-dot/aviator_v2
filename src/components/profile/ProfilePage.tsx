@@ -165,17 +165,17 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
   // showing an empty shell.
   if (!profile || !user) {
     return (
-      <div className="h-full overflow-y-auto bg-[#0d0d1a]">
+      <div className="h-full overflow-y-auto bg-night">
         <TopBar title="My Profile" />
         <div className="max-w-md mx-auto px-4 py-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#1a1a2e] border border-[#2a2a45] flex items-center justify-center mx-auto mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-panel-raised border border-edge flex items-center justify-center mx-auto mb-4">
             <UserIcon size={26} className="text-slate-500" />
           </div>
           <h2 className="text-white font-bold text-lg">Sign in to view your profile</h2>
           <p className="text-slate-400 text-sm mt-2">Your account details, stats, bets and transaction history live here.</p>
           <button
             onClick={onSignInRequired}
-            className="mt-6 px-6 py-3 bg-[#22c55e] hover:bg-[#16a34a] text-white rounded-xl text-sm font-bold transition shadow-lg shadow-green-500/20"
+            className="mt-6 px-6 py-3 bg-win hover:bg-win-dark text-white rounded-xl text-sm font-bold transition shadow-lg shadow-green-500/20"
           >
             Sign In
           </button>
@@ -185,12 +185,12 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0d0d1a] scrollbar-thin">
+    <div className="h-full overflow-y-auto bg-night scrollbar-thin">
       <TopBar title="My Profile" />
 
       {/* Identity banner */}
       <div className="max-w-2xl mx-auto px-4 pt-4">
-        <div className="flex items-center gap-3.5 rounded-2xl bg-[#11111f] border border-[#2a2a45] p-4">
+        <div className="flex items-center gap-3.5 rounded-2xl bg-panel border border-edge p-4">
           <div
             className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0"
             style={{ backgroundColor: profile.avatar_color }}
@@ -200,7 +200,7 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
           <div className="min-w-0">
             <div className="text-white font-bold text-lg truncate">{profile.username}</div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="inline-flex px-2 py-0.5 rounded-full bg-[#1a1a2e] border border-[#2a2a45] text-slate-300 text-[11px] font-semibold">
+              <span className="inline-flex px-2 py-0.5 rounded-full bg-panel-raised border border-edge text-slate-300 text-[11px] font-semibold">
                 {roleLabel(profile.role)}
               </span>
               <span className="text-slate-500 text-xs">Joined {joinedAt ? dateLong(joinedAt) : '-'}</span>
@@ -210,16 +210,16 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
       </div>
 
       {/* Tabs - horizontally scrollable on small screens, large touch targets */}
-      <div className="max-w-2xl mx-auto px-4 pt-4 sticky top-12 z-10 bg-[#0d0d1a]">
-        <div className="flex gap-1.5 bg-[#11111f] border border-[#2a2a45] rounded-xl p-1 overflow-x-auto scrollbar-thin" role="tablist" aria-label="Profile sections">
+      <div className="max-w-2xl mx-auto px-4 pt-4 sticky top-12 z-10 bg-night">
+        <div className="flex gap-1.5 bg-panel border border-edge rounded-xl p-1 overflow-x-auto scrollbar-thin" role="tablist" aria-label="Profile sections">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
               role="tab"
               aria-selected={tab === key}
-              className={`flex-1 min-w-[78px] flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8001c]/50 ${
-                tab === key ? 'bg-[#c8001c] text-white' : 'text-slate-400 hover:text-slate-200'
+              className={`flex-1 min-w-[78px] flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/50 ${
+                tab === key ? 'bg-danger text-white' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Icon size={15} /> {label}
@@ -232,7 +232,7 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
         {error && (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300 text-sm flex items-center justify-between gap-3">
             <span>{error}</span>
-            <button onClick={() => void load()} className="px-3 py-1.5 bg-[#1a1a2e] rounded-lg text-xs font-semibold text-white whitespace-nowrap">Retry</button>
+            <button onClick={() => void load()} className="px-3 py-1.5 bg-panel-raised rounded-lg text-xs font-semibold text-white whitespace-nowrap">Retry</button>
           </div>
         )}
 
@@ -255,7 +255,7 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired }:
 
 function TopBar({ title }: { title: string }) {
   return (
-    <header className="sticky top-0 z-20 bg-[#0d0d1a]/95 backdrop-blur border-b border-[#2a2a45] h-12 flex items-center px-3 gap-2">
+    <header className="sticky top-0 z-20 bg-night/95 backdrop-blur border-b border-edge h-12 flex items-center px-3 gap-2">
       <Link to="/" className="p-2 -ml-1 text-slate-400 hover:text-white transition rounded-lg active:scale-90" aria-label="Back to game">
         <ArrowLeft size={20} />
       </Link>
@@ -274,8 +274,8 @@ function AccountTab({ profile, user, wallet, joinedAt }: { profile: Profile; use
   return (
     <div className="space-y-4 animate-fade-in-up">
       {/* Wallet balance card */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#0f2a1a] to-[#11111f] border border-[#1f3d2a] p-5">
-        <div className="flex items-center gap-2 text-[#22c55e]">
+      <div className="rounded-2xl bg-gradient-to-br from-[#0f2a1a] to-panel border border-[#1f3d2a] p-5">
+        <div className="flex items-center gap-2 text-win">
           <WalletIcon size={16} />
           <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Wallet Balance</span>
         </div>
@@ -285,7 +285,7 @@ function AccountTab({ profile, user, wallet, joinedAt }: { profile: Profile; use
       </div>
 
       {/* Account details */}
-      <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] overflow-hidden divide-y divide-[#1e1e30]">
+      <div className="rounded-2xl bg-panel border border-edge overflow-hidden divide-y divide-panel-high">
         {rows.map((r) => (
           <div key={r.label} className="flex items-center justify-between px-4 py-3.5">
             <span className="text-slate-400 text-sm">{r.label}</span>
@@ -305,7 +305,7 @@ function StatsTab({ stats }: { stats: MyStats | null }) {
   return (
     <div className="space-y-4 animate-fade-in-up">
       {/* Headline: win rate */}
-      <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] p-5 text-center">
+      <div className="rounded-2xl bg-panel border border-edge p-5 text-center">
         <div className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Win Rate</div>
         <div className="mt-1 text-4xl font-extrabold text-white tabular-nums">{stats.win_rate}%</div>
         <div className="mt-1 text-xs text-slate-500">{stats.wins} wins · {stats.losses} losses · {stats.played} rounds</div>
@@ -323,7 +323,7 @@ function StatsTab({ stats }: { stats: MyStats | null }) {
         <StatCard label="Biggest Win" value={ksh(stats.biggest_win, 0)} icon={Trophy} accent="#e0a80b" />
       </div>
 
-      <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] p-5 flex items-center justify-between">
+      <div className="rounded-2xl bg-panel border border-edge p-5 flex items-center justify-between">
         <div>
           <div className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Best Multiplier</div>
           <div className="text-xs text-slate-500 mt-0.5">Your highest cash-out</div>
@@ -338,7 +338,7 @@ function StatsTab({ stats }: { stats: MyStats | null }) {
 
 function StatCard({ label, value, accent = '#ffffff', icon: Icon }: { label: string; value: string; accent?: string; icon?: typeof TrendingUp }) {
   return (
-    <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] p-4">
+    <div className="rounded-2xl bg-panel border border-edge p-4">
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-bold text-slate-400">
         {Icon && <Icon size={13} style={{ color: accent }} />} {label}
       </div>
@@ -357,12 +357,12 @@ function BetsTab({ bets }: { bets: BetRow[] }) {
         const won = b.status === 'won';
         const lost = b.status === 'lost';
         return (
-          <div key={b.id} className="rounded-xl bg-[#11111f] border border-[#2a2a45] px-4 py-3 flex items-center justify-between gap-3">
+          <div key={b.id} className="rounded-xl bg-panel border border-edge px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-white text-sm font-semibold">{ksh(b.amount, 0)}</span>
                 {won && b.cashout_multiplier != null && (
-                  <span className="text-[#22c55e] text-xs font-bold tabular-nums">@ {Number(b.cashout_multiplier).toFixed(2)}x</span>
+                  <span className="text-win text-xs font-bold tabular-nums">@ {Number(b.cashout_multiplier).toFixed(2)}x</span>
                 )}
               </div>
               <div className="text-slate-500 text-xs mt-0.5">
@@ -371,7 +371,7 @@ function BetsTab({ bets }: { bets: BetRow[] }) {
             </div>
             <div className="text-right flex-shrink-0">
               {won ? (
-                <div className="text-[#22c55e] font-bold text-sm tabular-nums">+{ksh(b.winnings ?? 0, 0)}</div>
+                <div className="text-win font-bold text-sm tabular-nums">+{ksh(b.winnings ?? 0, 0)}</div>
               ) : lost ? (
                 <div className="text-[#f6465d] font-bold text-sm tabular-nums">-{ksh(b.amount, 0)}</div>
               ) : (
@@ -396,12 +396,12 @@ function TransactionsTab({ txns }: { txns: TxRow[] }) {
       {txns.map((t) => {
         const isCredit = credit(t);
         return (
-          <div key={t.id} className="rounded-xl bg-[#11111f] border border-[#2a2a45] px-4 py-3 flex items-center gap-3">
+          <div key={t.id} className="rounded-xl bg-panel border border-edge px-4 py-3 flex items-center gap-3">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: isCredit ? 'rgba(34,197,94,0.12)' : 'rgba(246,70,93,0.12)' }}
             >
-              {isCredit ? <ArrowDownLeft size={16} className="text-[#22c55e]" /> : <ArrowUpRight size={16} className="text-[#f6465d]" />}
+              {isCredit ? <ArrowDownLeft size={16} className="text-win" /> : <ArrowUpRight size={16} className="text-[#f6465d]" />}
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-white text-sm font-semibold capitalize">{t.type}</div>
@@ -410,7 +410,7 @@ function TransactionsTab({ txns }: { txns: TxRow[] }) {
               </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <div className={`font-bold text-sm tabular-nums ${isCredit ? 'text-[#22c55e]' : 'text-[#f6465d]'}`}>
+              <div className={`font-bold text-sm tabular-nums ${isCredit ? 'text-win' : 'text-[#f6465d]'}`}>
                 {isCredit ? '+' : '-'}{ksh(Math.abs(t.amount), 0)}
               </div>
               <StatusBadge status={t.status} />
@@ -424,7 +424,7 @@ function TransactionsTab({ txns }: { txns: TxRow[] }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    won: 'text-[#22c55e]', completed: 'text-[#22c55e]', success: 'text-[#22c55e]',
+    won: 'text-win', completed: 'text-win', success: 'text-win',
     lost: 'text-slate-500', failed: 'text-[#f6465d]', rejected: 'text-[#f6465d]',
     pending: 'text-[#e0a80b]', active: 'text-[#60a5fa]',
   };
@@ -433,8 +433,8 @@ function StatusBadge({ status }: { status: string }) {
 
 function Empty({ icon: Icon, title, sub }: { icon: typeof UserIcon; title: string; sub: string }) {
   return (
-    <div className="rounded-2xl bg-[#11111f] border border-[#2a2a45] py-14 px-6 text-center animate-fade-in-up">
-      <div className="w-12 h-12 rounded-xl bg-[#1a1a2e] flex items-center justify-center mx-auto mb-3">
+    <div className="rounded-2xl bg-panel border border-edge py-14 px-6 text-center animate-fade-in-up">
+      <div className="w-12 h-12 rounded-xl bg-panel-raised flex items-center justify-center mx-auto mb-3">
         <Icon size={22} className="text-slate-500" />
       </div>
       <div className="text-white font-semibold text-sm">{title}</div>
@@ -446,9 +446,9 @@ function Empty({ icon: Icon, title, sub }: { icon: typeof UserIcon; title: strin
 function SkeletonGrid() {
   return (
     <div className="space-y-3">
-      <div className="h-24 rounded-2xl bg-[#11111f] border border-[#2a2a45] animate-pulse" />
+      <div className="h-24 rounded-2xl bg-panel border border-edge animate-pulse" />
       <div className="grid grid-cols-2 gap-3">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-[#11111f] border border-[#2a2a45] animate-pulse" />)}
+        {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-panel border border-edge animate-pulse" />)}
       </div>
     </div>
   );
@@ -456,7 +456,7 @@ function SkeletonGrid() {
 function SkeletonList() {
   return (
     <div className="space-y-2">
-      {[...Array(6)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-[#11111f] border border-[#2a2a45] animate-pulse" />)}
+      {[...Array(6)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-panel border border-edge animate-pulse" />)}
     </div>
   );
 }

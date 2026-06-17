@@ -132,7 +132,7 @@ export default function BettingPanel({
         label: 'Operators can\u2019t bet',
         sublabel: '',
         action: () => {},
-        style: 'bg-[#1a1a2e] border border-[#2a2a45] text-white/40 cursor-not-allowed',
+        style: 'bg-panel-raised border border-edge text-white/40 cursor-not-allowed',
         disabled: true,
       };
     }
@@ -177,7 +177,7 @@ export default function BettingPanel({
         label: 'Set auto \u2265 1.01x',
         sublabel: '',
         action: () => {},
-        style: 'bg-[#22c55e]/20 text-white/40 cursor-not-allowed',
+        style: 'bg-win/20 text-white/40 cursor-not-allowed',
         disabled: true,
       };
     }
@@ -188,7 +188,7 @@ export default function BettingPanel({
         label: loading ? 'Placing...' : 'Bet',
         sublabel: `KSh ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}`,
         action: handleBet,
-        style: 'bg-[#22c55e] hover:bg-[#16a34a] text-white shadow-lg shadow-green-500/30',
+        style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-500/30',
         disabled: loading,
       };
     }
@@ -199,7 +199,7 @@ export default function BettingPanel({
         label: 'Bet Next Round',
         sublabel: `KSh ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}`,
         action: handleBet,
-        style: 'bg-[#22c55e]/80 hover:bg-[#22c55e] text-white',
+        style: 'bg-win/80 hover:bg-win text-white',
         icon: Clock,
         disabled: false,
       };
@@ -210,7 +210,7 @@ export default function BettingPanel({
       label: status === 'flying' ? 'In flight' : 'Next round',
       sublabel: '',
       action: () => {},
-      style: 'bg-[#22c55e]/20 text-white/40 cursor-not-allowed',
+      style: 'bg-win/20 text-white/40 cursor-not-allowed',
       disabled: true,
     };
   };
@@ -219,10 +219,10 @@ export default function BettingPanel({
   const autoFieldId = (key: string) => `autobet-${panelIndex}-${key}`;
 
   return (
-    <div className="flex flex-col bg-[#0d0d1a] select-none">
+    <div className="flex flex-col bg-night select-none">
       {/* Bet / Auto tabs */}
       <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-        <div className="flex bg-[#1a1a2e] rounded-full p-0.5">
+        <div className="flex bg-panel-raised rounded-full p-0.5">
           {(['Bet', 'Auto'] as const).map(tab => (
             <button
               key={tab}
@@ -230,7 +230,7 @@ export default function BettingPanel({
               disabled={isOperator || locked}
               className={`px-4 py-1 text-xs font-semibold rounded-full transition-all disabled:opacity-50 ${
                 (tab === 'Auto') === autoMode
-                  ? 'bg-[#2a2a45] text-white'
+                  ? 'bg-edge text-white'
                   : 'text-slate-500 hover:text-slate-300'
               }`}
             >
@@ -247,11 +247,11 @@ export default function BettingPanel({
       {autoMode && (
         <div className="flex items-center gap-2 px-3 pb-1.5">
           <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide w-[88px]">Auto cashout</span>
-          <div className="flex items-center bg-[#1a1a2e] rounded-lg border border-[#2a2a45] flex-1">
+          <div className="flex items-center bg-panel-raised rounded-lg border border-edge flex-1">
             <button
               onClick={() => adjustAuto(-0.1)}
               disabled={isOperator || locked || parsedAuto <= MIN_AUTO}
-              className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-l-lg transition disabled:opacity-40 active:scale-95"
+              className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-edge rounded-l-lg transition disabled:opacity-40 active:scale-95"
             >
               <Minus size={13} />
             </button>
@@ -273,7 +273,7 @@ export default function BettingPanel({
             <button
               onClick={() => adjustAuto(0.1)}
               disabled={isOperator || locked}
-              className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-r-lg transition disabled:opacity-40 active:scale-95"
+              className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-edge rounded-r-lg transition disabled:opacity-40 active:scale-95"
             >
               <Plus size={13} />
             </button>
@@ -284,11 +284,11 @@ export default function BettingPanel({
       {/* Amount stepper + action button */}
       <div className="flex items-stretch gap-2 px-3 pb-2">
         {/* Editable amount field with +/- */}
-        <div className="flex items-center bg-[#1a1a2e] rounded-lg border border-[#2a2a45] flex-shrink-0">
+        <div className="flex items-center bg-panel-raised rounded-lg border border-edge flex-shrink-0">
           <button
             onClick={() => adjust(-50)}
             disabled={isOperator || locked || amount <= MIN_BET}
-            className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-l-lg transition disabled:opacity-40 active:scale-95"
+            className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-edge rounded-l-lg transition disabled:opacity-40 active:scale-95"
           >
             <Minus size={14} />
           </button>
@@ -313,7 +313,7 @@ export default function BettingPanel({
           <button
             onClick={() => adjust(50)}
             disabled={isOperator || locked}
-            className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2a2a45] rounded-r-lg transition disabled:opacity-40 active:scale-95"
+            className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-edge rounded-r-lg transition disabled:opacity-40 active:scale-95"
           >
             <Plus size={14} />
           </button>
@@ -323,7 +323,7 @@ export default function BettingPanel({
         {isCashable ? (
           <button
             onClick={onCashOut}
-            className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-white font-black transition-all active:scale-95 shadow-lg shadow-green-500/30"
+            className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-95 shadow-lg shadow-green-500/30"
           >
             <div className="flex items-center gap-1 text-sm leading-tight">
               <Zap size={14} className="fill-current" />
@@ -357,7 +357,7 @@ export default function BettingPanel({
             key={q}
             onClick={() => setRawAmount(String(q))}
             disabled={isOperator || locked}
-            className="flex-1 py-1 text-[11px] font-semibold bg-[#1a1a2e] border border-[#2a2a45] rounded text-slate-400 hover:text-white hover:bg-[#2a2a45] transition disabled:opacity-40 active:scale-95"
+            className="flex-1 py-1 text-[11px] font-semibold bg-panel-raised border border-edge rounded text-slate-400 hover:text-white hover:bg-edge transition disabled:opacity-40 active:scale-95"
           >
             {q >= 1000 ? `${q / 1000}K` : q}
           </button>
@@ -366,7 +366,7 @@ export default function BettingPanel({
 
       {/* Auto-bet sequencer (Auto mode) */}
       {showAutoBet && (
-        <div className="px-3 pb-2.5 pt-2 border-t border-[#1a1a2e] space-y-2">
+        <div className="px-3 pb-2.5 pt-2 border-t border-panel-raised space-y-2">
           <div className="grid grid-cols-3 gap-2">
             {AUTO_FIELDS.map(f => (
               <label key={f.key} htmlFor={autoFieldId(f.key)} className="flex flex-col gap-1" title={f.hint}>
@@ -380,7 +380,7 @@ export default function BettingPanel({
                   disabled={autoBet.running}
                   onChange={e => autoBet.setConfig(c => ({ ...c, [f.key]: Math.max(f.min, Math.floor(Number(e.target.value) || 0)) }))}
                   aria-label={f.label}
-                  className="w-full bg-[#1a1a2e] border border-[#2a2a45] rounded-md px-2 py-1.5 text-white text-xs font-semibold tabular-nums text-center focus:outline-none focus:border-[#22c55e]/50 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full bg-panel-raised border border-edge rounded-md px-2 py-1.5 text-white text-xs font-semibold tabular-nums text-center focus:outline-none focus:border-win/50 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </label>
             ))}
@@ -399,7 +399,7 @@ export default function BettingPanel({
             <div className="space-y-1.5">
               <button
                 onClick={autoBet.stop}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#c8001c] hover:bg-[#a50018] text-white text-xs font-bold transition active:scale-[0.98]"
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-danger hover:bg-[#a50018] text-white text-xs font-bold transition active:scale-[0.98]"
               >
                 <Square size={11} className="fill-current" />
                 Stop ({autoBet.stats.remaining} left)
@@ -420,7 +420,7 @@ export default function BettingPanel({
       {/* Active auto-cashout target indicator (while the bet is in flight) */}
       {activeBet?.status === 'active' && activeBet.autoCashout && (
         <div className="px-3 pb-2 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-          <Zap size={11} className="text-[#22c55e]" />
+          <Zap size={11} className="text-win" />
           <span>Auto cashout at <span className="text-white font-semibold">{activeBet.autoCashout.toFixed(2)}x</span></span>
         </div>
       )}
