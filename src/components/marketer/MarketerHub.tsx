@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Copy, Check, RefreshCw, Users, BadgeCheck, TrendingUp, Wallet as WalletIcon,
-  Target, Rocket, Trophy, Share2, MessageCircle, Send, Facebook, Megaphone,
+  Target, Trophy, Share2, MessageCircle, Send, Facebook, Megaphone,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { buildShareUrl, type SharePlatform } from '../../lib/share';
@@ -188,129 +188,43 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
   const conversion = d.referred_count > 0 ? (d.qualified_count / d.referred_count) * 100 : 0;
   const hasPending = d.commission_pending > 0;
 
-  // --- psychology: milestone + projection (grounded in the marketer's own data) ---
-  const { milestoneTarget, milestoneProgress, projectionText } = useMemo(() => {
-    const target = Math.max(5, Math.ceil((d.qualified_count + 1) / 5) * 5); // next multiple of 5, min 5
+  // Next round-number milestone (next multiple of 5 qualified players) + progress.
+  const { milestoneTarget, milestoneProgress } = useMemo(() => {
+    const target = Math.max(5, Math.ceil((d.qualified_count + 1) / 5) * 5);
     const progress = target > 0 ? Math.min(100, (d.qualified_count / target) * 100) : 0;
-    const perQualified = d.qualified_count > 0 ? d.commission_earned / d.qualified_count : 0;
-    const remaining = Math.max(0, target - d.qualified_count);
-    const projection = perQualified > 0
-      ? `Reaching ${target} qualified players could add about ${ksh(perQualified * remaining)} to your earnings, based on your current average of ${ksh(perQualified)} per qualified player.`
-      : `Each qualified player you refer earns you ${ratePct}% of the revenue they generate — forever. Get your first qualified referral to unlock your earnings rate.`;
-    return { milestoneTarget: target, milestoneProgress: progress, projectionText: projection };
-  }, [d.qualified_count, d.commission_earned, ratePct]);
+    return { milestoneTarget: target, milestoneProgress: progress };
+  }, [d.qualified_count]);
 
   return (
     <>
-      {/* Hero / income framing */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#11203a] via-panel to-panel border border-[#23314d] p-5">
-        <div className="flex items-center gap-2 text-[#60a5fa]">
-          <Rocket size={16} />
-          <span className="text-[11px] uppercase tracking-wide font-bold">Your Marketing Business</span>
-        </div>
-        <h1 className="mt-1.5 text-white font-extrabold text-xl leading-tight">
-          {username}, you've earned {ksh(d.commission_earned)} so far.
-        </h1>
-        <p className="text-slate-400 text-sm mt-1.5">
-          This is real income. Every player you bring in keeps earning you {ratePct}% of the revenue they
-          generate — month after month. Treat it like the business it is: share daily, grow your network, watch it compound.
-        </p>
+      {/* Greeting */}
+      <div>
+        <h1 className="text-white font-bold text-lg">Hi {username}</h1>
+        <p className="text-slate-400 text-sm">Your referrals, commission and payouts at a glance.</p>
       </div>
 
-      {/* Headline KPIs */}
-      <div className="grid grid-cols-2 gap-3">
-        <Kpi icon={Users} label="Referred Players" value={d.referred_count.toLocaleString('en-KE')} accent="#60a5fa" />
-        <Kpi icon={BadgeCheck} label="Qualified" value={d.qualified_count.toLocaleString('en-KE')} sub={`${conversion.toFixed(0)}% conversion`} accent="#22c55e" />
-        <Kpi icon={TrendingUp} label="Revenue Generated" value={ksh(d.lifetime_ggr)} accent="#e0a80b" />
-        <Kpi icon={Trophy} label="Commission Earned" value={ksh(d.commission_earned)} accent="#22c55e" />
-      </div>
-
-      {/* Available to withdraw - prominent */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#0f2a1a] to-panel border border-[#1f3d2a] p-5 flex items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-win">
-            <WalletIcon size={16} />
-            <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Available to Withdraw</span>
+      {/* 1. Cash out -- the money and the one action that matters, together. */}
+      <div className="rounded-2xl bg-gradient-to-br from-[#0f2a1a] to-panel border border-[#1f3d2a] p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-win">
+              <WalletIcon size={16} />
+              <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Available to withdraw</span>
+            </div>
+            <div className="mt-1 text-3xl font-extrabold tabular-nums text-win">{ksh(d.commission_available)}</div>
           </div>
-          <div className="mt-1 text-3xl font-extrabold tabular-nums" style={{ color: '#22c55e' }}>{ksh(d.commission_available)}</div>
+          <div className="text-right text-xs text-slate-500 leading-relaxed">
+            <div>Paid: <span className="text-slate-300 font-semibold">{ksh(d.commission_paid)}</span></div>
+            <div>Pending: <span className="text-slate-300 font-semibold">{ksh(d.commission_pending + d.commission_approved)}</span></div>
+          </div>
         </div>
-        <div className="text-right text-xs text-slate-500 leading-relaxed">
-          <div>Paid: <span className="text-slate-300 font-semibold">{ksh(d.commission_paid)}</span></div>
-          <div>Pending: <span className="text-slate-300 font-semibold">{ksh(d.commission_pending + d.commission_approved)}</span></div>
-        </div>
-      </div>
 
-      {/* Charts: funnel + commission donut */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Card title="Referral Funnel">
-          <FunnelChart referred={d.referred_count} qualified={d.qualified_count} />
-        </Card>
-        <Card title="Commission Breakdown">
-          <CommissionDonut
-            paid={d.commission_paid}
-            approved={d.commission_approved}
-            pending={d.commission_pending}
-            available={d.commission_available}
-          />
-        </Card>
-      </div>
-
-      {/* Cumulative payouts trend */}
-      <Card title="Payouts Over Time">
-        <PayoutTrend payouts={d.payouts} />
-      </Card>
-
-      {/* Goal + projection (psychology) */}
-      <div className="rounded-2xl bg-panel border border-edge p-5">
-        <div className="flex items-center gap-2 text-[#e0a80b]">
-          <Target size={16} />
-          <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Next Milestone</span>
-        </div>
-        <div className="mt-2 flex items-center justify-between text-sm">
-          <span className="text-white font-semibold">{d.qualified_count} / {milestoneTarget} qualified players</span>
-          <span className="text-slate-500">{Math.max(0, milestoneTarget - d.qualified_count)} to go</span>
-        </div>
-        <div className="mt-2 h-2.5 rounded-full bg-panel-raised overflow-hidden">
-          <div className="h-full rounded-full bg-gradient-to-r from-[#e0a80b] to-win transition-all" style={{ width: `${milestoneProgress}%` }} />
-        </div>
-        <p className="text-slate-400 text-xs mt-3 leading-relaxed">{projectionText}</p>
-      </div>
-
-      {/* Referral link + social share */}
-      <div className="rounded-2xl bg-panel border border-edge p-5">
-        <div className="flex items-center gap-2 text-[#60a5fa]">
-          <Share2 size={16} />
-          <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Your Referral Link</span>
-        </div>
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
-          <code className="flex-1 min-w-[200px] px-3 py-2.5 bg-night-deep border border-edge rounded-lg text-slate-200 text-[13px] font-mono break-all">{referralLink}</code>
-          <button onClick={onCopy} className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-win hover:bg-win-dark text-white text-[13px] font-bold transition">
-            {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
-          </button>
-        </div>
-        <p className="text-slate-500 text-xs mt-2">
-          Share everywhere. New players who sign up through your link are attributed to you and qualify on their first M-Pesa deposit.
-        </p>
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <ShareBtn onClick={() => onShare('whatsapp')} icon={MessageCircle} label="WhatsApp" color="#25D366" />
-          <ShareBtn onClick={() => onShare('telegram')} icon={Send} label="Telegram" color="#229ED9" />
-          <ShareBtn onClick={() => onShare('x')} icon={XLogo} label="X" color="#e2e8f0" />
-          <ShareBtn onClick={() => onShare('facebook')} icon={Facebook} label="Facebook" color="#1877F2" />
-        </div>
-      </div>
-
-      {/* Request payout */}
-      <div className="rounded-2xl bg-panel border border-edge p-5">
-        <div className="flex items-center gap-2 text-win">
-          <WalletIcon size={16} />
-          <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Request a Payout</span>
-        </div>
         {hasPending ? (
-          <p className="mt-3 text-slate-400 text-sm">You have a pending payout request. You can submit a new one once it's been reviewed.</p>
+          <p className="mt-4 text-slate-400 text-sm">You have a pending payout request. You can submit a new one once it&rsquo;s been reviewed.</p>
         ) : d.commission_available <= 0 ? (
-          <p className="mt-3 text-slate-400 text-sm">No commission available to withdraw yet. Keep referring — commission accrues as your qualified players play.</p>
+          <p className="mt-4 text-slate-400 text-sm">Nothing to withdraw yet &mdash; commission accrues as your qualified players play.</p>
         ) : (
-          <form onSubmit={onSubmitPayout} className="mt-4 flex flex-col gap-3">
+          <form onSubmit={onSubmitPayout} className="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 sm:items-end">
             <div>
               <label className="text-[11px] font-medium text-slate-400 block mb-1.5">Amount (KSh)</label>
               <input
@@ -331,14 +245,59 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
             </div>
             <button type="submit" disabled={submitting} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-win hover:bg-win-dark text-white text-sm font-bold transition disabled:opacity-50">
               {submitting && <span className="inline-block h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />}
-              Request payout
+              Withdraw
             </button>
           </form>
         )}
-        <p className="text-slate-600 text-xs mt-3">Every payout is reviewed and verified by an admin before settlement via M-Pesa.</p>
+        <p className="text-slate-600 text-xs mt-3">Every payout is reviewed by an admin before settlement via M-Pesa.</p>
       </div>
 
-      {/* Payout history */}
+      {/* 2. Stats -- the four numbers that tell the whole story, shown once each. */}
+      <div className="grid grid-cols-2 gap-3">
+        <Kpi icon={Users} label="Referred Players" value={d.referred_count.toLocaleString('en-KE')} accent="#60a5fa" />
+        <Kpi icon={BadgeCheck} label="Qualified" value={d.qualified_count.toLocaleString('en-KE')} sub={`${conversion.toFixed(0)}% conversion`} accent="#22c55e" />
+        <Kpi icon={TrendingUp} label="Revenue Generated" value={ksh(d.lifetime_ggr)} accent="#e0a80b" />
+        <Kpi icon={Trophy} label="Commission Earned" value={ksh(d.commission_earned)} sub={`${ratePct}% revenue share`} accent="#22c55e" />
+      </div>
+
+      {/* 3. Growth -- referral funnel + next milestone in a single card. */}
+      <Card title="Your Growth">
+        <FunnelChart referred={d.referred_count} qualified={d.qualified_count} />
+        <div className="mt-5 pt-4 border-t border-edge">
+          <div className="flex items-center justify-between text-sm">
+            <span className="inline-flex items-center gap-1.5 text-slate-400"><Target size={14} style={{ color: '#e0a80b' }} /> Next milestone</span>
+            <span className="text-white font-semibold tabular-nums">{d.qualified_count} / {milestoneTarget} qualified</span>
+          </div>
+          <div className="mt-2 h-2.5 rounded-full bg-panel-raised overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-[#e0a80b] to-win transition-all" style={{ width: `${milestoneProgress}%` }} />
+          </div>
+        </div>
+      </Card>
+
+      {/* 4. Referral link + social share -- how marketers grow. */}
+      <div className="rounded-2xl bg-panel border border-edge p-5">
+        <div className="flex items-center gap-2 text-[#60a5fa]">
+          <Share2 size={16} />
+          <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Your Referral Link</span>
+        </div>
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <code className="flex-1 min-w-[200px] px-3 py-2.5 bg-night-deep border border-edge rounded-lg text-slate-200 text-[13px] font-mono break-all">{referralLink}</code>
+          <button onClick={onCopy} className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-win hover:bg-win-dark text-white text-[13px] font-bold transition">
+            {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
+          </button>
+        </div>
+        <p className="text-slate-500 text-xs mt-2">
+          New players who sign up through your link are attributed to you and qualify on their first M-Pesa deposit.
+        </p>
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <ShareBtn onClick={() => onShare('whatsapp')} icon={MessageCircle} label="WhatsApp" color="#25D366" />
+          <ShareBtn onClick={() => onShare('telegram')} icon={Send} label="Telegram" color="#229ED9" />
+          <ShareBtn onClick={() => onShare('x')} icon={XLogo} label="X" color="#e2e8f0" />
+          <ShareBtn onClick={() => onShare('facebook')} icon={Facebook} label="Facebook" color="#1877F2" />
+        </div>
+      </div>
+
+      {/* 5. Payout history */}
       <div className="rounded-2xl bg-panel border border-edge overflow-hidden">
         <div className="px-5 py-3.5 border-b border-edge">
           <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Payout History</span>
@@ -351,7 +310,7 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
               <div key={p.id} className="flex items-center justify-between px-5 py-3.5 gap-3">
                 <div className="min-w-0">
                   <div className="text-white font-semibold text-sm tabular-nums">{ksh(p.amount)}</div>
-                  <div className="text-slate-500 text-xs mt-0.5">{p.phone_number} · {new Date(p.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                  <div className="text-slate-500 text-xs mt-0.5">{p.phone_number} &middot; {new Date(p.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                   {p.status === 'rejected' && p.rejection_reason && (
                     <div className="text-slate-500 text-xs mt-0.5 max-w-[220px] truncate" title={p.rejection_reason}>{p.rejection_reason}</div>
                   )}
@@ -377,7 +336,7 @@ function FunnelChart({ referred, qualified }: { referred: number; qualified: num
       <FunnelBar label="Referred" value={referred} widthPct={100} color="#60a5fa" />
       <FunnelBar label="Qualified" value={qualified} widthPct={Math.max(qPct, qualified > 0 ? 8 : 0)} color="#22c55e" />
       <div className="text-xs text-slate-500 pt-1">
-        {referred > 0 ? `${((qualified / referred) * 100).toFixed(0)}% of referrals qualified` : 'No referrals yet — share your link to begin.'}
+        {referred > 0 ? `${((qualified / referred) * 100).toFixed(0)}% of referrals qualified` : 'No referrals yet \u2014 share your link to begin.'}
       </div>
     </div>
   );
@@ -392,87 +351,6 @@ function FunnelBar({ label, value, widthPct, color }: { label: string; value: nu
       <div className="h-3 rounded-full bg-panel-raised overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${widthPct}%`, backgroundColor: color }} />
       </div>
-    </div>
-  );
-}
-
-function CommissionDonut({ paid, approved, pending, available }: { paid: number; approved: number; pending: number; available: number }) {
-  const segs = [
-    { label: 'Paid', value: paid, color: '#22c55e' },
-    { label: 'Approved', value: approved, color: '#60a5fa' },
-    { label: 'Pending', value: pending, color: '#e0a80b' },
-    { label: 'Available', value: available, color: '#a78bfa' },
-  ].filter(s => s.value > 0);
-  const total = segs.reduce((s, x) => s + x.value, 0);
-
-  const R = 34, C = 2 * Math.PI * R;
-  let offset = 0;
-
-  return (
-    <div className="flex items-center gap-4">
-      <svg width="84" height="84" viewBox="0 0 84 84" className="flex-shrink-0 -rotate-90">
-        <circle cx="42" cy="42" r={R} fill="none" stroke="#1a1a2e" strokeWidth="12" />
-        {total > 0 && segs.map((s) => {
-          const len = (s.value / total) * C;
-          const dash = `${len} ${C - len}`;
-          const el = <circle key={s.label} cx="42" cy="42" r={R} fill="none" stroke={s.color} strokeWidth="12" strokeDasharray={dash} strokeDashoffset={-offset} />;
-          offset += len;
-          return el;
-        })}
-      </svg>
-      <div className="space-y-1.5 text-xs min-w-0">
-        {total === 0 ? (
-          <span className="text-slate-500">No commission recorded yet.</span>
-        ) : segs.map((s) => (
-          <div key={s.label} className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: s.color }} />
-            <span className="text-slate-400">{s.label}</span>
-            <span className="text-white font-semibold ml-auto tabular-nums">{ksh(s.value)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PayoutTrend({ payouts }: { payouts: CommissionPayout[] }) {
-  // Cumulative PAID amount over time (chronological).
-  const points = useMemo(() => {
-    const paid = payouts
-      .filter(p => p.status === 'paid')
-      .map(p => ({ t: new Date(p.paid_at ?? p.created_at).getTime(), amt: p.amount }))
-      .sort((a, b) => a.t - b.t);
-    let cum = 0;
-    return paid.map(p => ({ t: p.t, cum: (cum += p.amt) }));
-  }, [payouts]);
-
-  if (points.length < 2) {
-    return <div className="text-slate-500 text-sm py-4 text-center">Your paid-out earnings will chart here once you've received at least two payouts.</div>;
-  }
-
-  const W = 520, H = 120, pad = 8;
-  const xs = points.map(p => p.t);
-  const ys = points.map(p => p.cum);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const maxY = Math.max(...ys);
-  const sx = (t: number) => pad + ((t - minX) / (maxX - minX || 1)) * (W - 2 * pad);
-  const sy = (v: number) => H - pad - (v / (maxY || 1)) * (H - 2 * pad);
-  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${sx(p.t).toFixed(1)} ${sy(p.cum).toFixed(1)}`).join(' ');
-  const area = `${line} L ${sx(points[points.length - 1].t).toFixed(1)} ${H - pad} L ${sx(points[0].t).toFixed(1)} ${H - pad} Z`;
-
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-28" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="payoutFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#payoutFill)" />
-        <path d={line} fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      </svg>
-      <div className="text-xs text-slate-500 mt-1">Total paid out: <span className="text-win font-semibold">{ksh(maxY)}</span></div>
     </div>
   );
 }
