@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import { getMultiplierAtTime, formatMultiplier } from '../../lib/gameEngine';
@@ -16,7 +17,6 @@ function elapsed(iso:string|null):number{return iso?Math.floor((Date.now()-new D
 
 
 const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
-function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }
 
 export default function GameControlPage(){
 const[tab,setTab]=useState<Tab>('monitor');

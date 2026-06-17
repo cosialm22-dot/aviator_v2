@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 
@@ -100,9 +101,6 @@ async function extractFnError(error: unknown): Promise<string> {
   return 'network';
 }
 
-function Spin() {
-  return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />;
-}
 
 function statusBadge(s: string): string {
   switch (s) {

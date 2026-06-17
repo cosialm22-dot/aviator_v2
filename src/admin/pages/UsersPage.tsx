@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
@@ -14,7 +15,6 @@ interface PlayerRow {
   created_at: string;
 }
 
-function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }
 function friendly(code: string): string {
   if (code.includes('FORBIDDEN_TARGET')) return 'Only a super admin can act on an admin account.';
   if (code.includes('CANNOT_TARGET_SELF')) return 'You cannot ban your own account.';

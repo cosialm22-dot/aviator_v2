@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import type { AdminCommissionOverview, AdminCommissionPayoutRow } from '../../types/marketing';
@@ -44,9 +45,6 @@ function friendly(code: string): string {
   };
   for (const k of Object.keys(map)) if (code.includes(k)) return map[k];
   return code || 'Action failed. Please try again.';
-}
-function Spin() {
-  return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />;
 }
 function relTime(iso: string): string {
   const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));

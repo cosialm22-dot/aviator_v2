@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import { DonutChart, CompareBars } from '../components/charts';
@@ -108,9 +109,6 @@ function friendly(code: string): string {
   return code || 'Action failed. Please try again.';
 }
 
-function Spin() {
-  return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />;
-}
 
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());

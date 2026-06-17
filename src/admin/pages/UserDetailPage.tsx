@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -49,7 +50,6 @@ const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
 const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
 
 function fmtKES(n: number): string { return 'KSh ' + Math.round(n).toLocaleString('en-KE'); }
-function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }
 
 function friendly(code: string): string {
   const map: Record<string, string> = {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -43,7 +44,6 @@ const FLAG_LABEL: Record<string, string> = {
   rapid_deposit_withdraw: 'Rapid deposit-withdraw',
 };
 
-function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }
 const ksh = (n: number | null | undefined) => `KSh ${Number(n ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
 
 export default function RiskPage() {
