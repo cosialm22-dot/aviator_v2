@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
-import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone, Lock, Eye, EyeOff } from 'lucide-react';
+import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone, Lock, Eye, EyeOff, Gift } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
 import { isValidKenyanPhone } from '../../lib/phone';
 import { useModalA11y } from '../../hooks/useModalA11y';
+import type { FirstDepositBonus } from '../../hooks/useBonus';
 
 /*
  * WALLET MODAL - M-Pesa cashier (server-authoritative).
@@ -22,6 +23,9 @@ interface Props {
   onDeposit: (amount: number, method: 'mpesa', details: Record<string, string>) => Promise<boolean>;
   onWithdraw: (amount: number, method: 'mpesa', details: Record<string, string>) => Promise<void>;
   onClose: () => void;
+  // First-deposit match bonus context (server-tracked; see useBonus).
+  eligibleForFirstDeposit?: boolean;
+  activeBonus?: FirstDepositBonus | null;
 }
 
 type Tab = 'deposit' | 'withdraw';
@@ -31,7 +35,7 @@ const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000, 10000];
 const MIN_DEPOSIT = 50;
 const MIN_WITHDRAWAL = 100;
 
-export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }: Props) {
+export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, eligibleForFirstDeposit = false, activeBonus = null }: Props) {
   const [tab, setTab] = useState<Tab>('deposit');
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState('');
@@ -183,6 +187,38 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
                   </p>
                 </div>
               </div>
+
+              {/* First-deposit match: offer (eligible) or progress (active) */}
+              {tab === 'deposit' && eligibleForFirstDeposit && (
+                <div className="flex items-center gap-3 rounded-xl border border-win/30 bg-win/[0.07] px-4 py-3">
+                  <div className="w-9 h-9 rounded-lg bg-win/15 flex items-center justify-center flex-shrink-0">
+                    <Gift size={18} className="text-win" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-bold leading-tight">Double your first deposit</p>
+                    <p className="text-slate-400 text-[11px] mt-0.5">100% match up to KSh 500 free. Wager 3&times; to unlock for withdrawal.</p>
+                  </div>
+                </div>
+              )}
+              {activeBonus && activeBonus.status === 'active' && activeBonus.wageringRequired > 0 && (
+                <div className="rounded-xl border border-edge-strong bg-[#1c2237] px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-white text-xs font-semibold">
+                      <Lock size={12} className="text-amber-400" /> Bonus locked: {formatCurrency(activeBonus.amount)}
+                    </span>
+                    <span className="text-slate-400 text-[11px] tabular-nums">
+                      {formatCurrency(Math.min(activeBonus.wageringProgress, activeBonus.wageringRequired))} / {formatCurrency(activeBonus.wageringRequired)}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#0f1424]">
+                    <div
+                      className="h-full rounded-full bg-win transition-all"
+                      style={{ width: `${Math.min(100, Math.round((activeBonus.wageringProgress / activeBonus.wageringRequired) * 100))}%` }}
+                    />
+                  </div>
+                  <p className="text-slate-500 text-[10px] mt-1.5">Wager the remaining amount in real bets to unlock this bonus for withdrawal.</p>
+                </div>
+              )}
 
               {/* Amount */}
               <div>

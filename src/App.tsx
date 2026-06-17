@@ -9,6 +9,7 @@ import WalletModal from './components/wallet/WalletModal';
 import DemoNudgeToast from './components/game/DemoNudgeToast';
 import { useAuth } from './hooks/useAuth';
 import { useWallet } from './hooks/useWallet';
+import { useBonus } from './hooks/useBonus';
 import { useDemoGame } from './hooks/useDemoGame';
 import { useDemoNudges } from './hooks/useDemoNudges';
 
@@ -29,6 +30,7 @@ function PlayerApp() {
 
   const { user, profile, wallet, loading, signUp, signIn, signOut, refreshWallet } = useAuth();
   const { deposit, withdraw, depositing, withdrawing } = useWallet(user?.id, refreshWallet);
+  const { activeLocked, eligibleForFirstDeposit } = useBonus(user?.id);
 
   // The demo engine (and its nudges/toast) only make sense on the game screen.
   // Off the game route (e.g. /profile, /marketer) the rigged loop is paused so
@@ -140,6 +142,8 @@ function PlayerApp() {
           onDeposit={deposit}
           onWithdraw={withdraw}
           onClose={() => setWalletOpen(false)}
+          eligibleForFirstDeposit={eligibleForFirstDeposit}
+          activeBonus={activeLocked}
         />
       )}
 
