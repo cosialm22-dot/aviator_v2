@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Minus, Plus, Zap, Clock, Play, Square } from 'lucide-react';
+import { Minus, Plus, Zap, Clock, Play, Square, ChevronDown, ChevronUp } from 'lucide-react';
 import type { GameStatus } from '../../types';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { ActiveBet } from '../../hooks/useGame';
@@ -56,6 +56,7 @@ export default function BettingPanel({
   const [rawAmount, setRawAmount] = useState(String(MIN_BET));
   const [autoMode, setAutoMode]   = useState(false);
   const [autoStr, setAutoStr]     = useState(DEFAULT_AUTO);
+  const [showLimits, setShowLimits] = useState(false); // optional auto-bet limits, collapsed by default
   const [loading, setLoading]     = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -68,7 +69,6 @@ export default function BettingPanel({
 
   // Auto-bet sequencer for THIS panel/slot (settlement stays server-authoritative).
   const autoBet = useAutoBet({ status, activeBet, balance, isOperator, placeBet: onPlaceBet });
-  const showAutoBet = autoMode && !isOperator;
 
   // amount/target are immutable once a bet is committed, queued, or a sequence runs
   const locked = !!activeBet || !!queuedBet || autoBet.running;
@@ -220,15 +220,15 @@ export default function BettingPanel({
 
   return (
     <div className="flex flex-col bg-night select-none">
-      {/* Bet / Auto tabs */}
-      <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-        <div className="flex bg-panel-raised rounded-full p-0.5">
+      {/* Bet / Auto mode toggle */}
+      <div className="px-3 pt-2 pb-2">
+        <div className="flex bg-panel-raised rounded-full p-0.5 w-full max-w-[200px]">
           {(['Bet', 'Auto'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setAutoMode(tab === 'Auto')}
               disabled={isOperator || locked}
-              className={`px-4 py-1 text-xs font-semibold rounded-full transition-all disabled:opacity-50 ${
+              className={`flex-1 px-4 py-1.5 text-xs font-semibold rounded-full transition-all disabled:opacity-50 ${
                 (tab === 'Auto') === autoMode
                   ? 'bg-edge text-white'
                   : 'text-slate-500 hover:text-slate-300'
@@ -238,48 +238,7 @@ export default function BettingPanel({
             </button>
           ))}
         </div>
-        {autoMode && (
-          <span className="text-[10px] text-slate-500 font-medium">Auto cashes out at your target</span>
-        )}
       </div>
-
-      {/* Auto-cashout target row (Auto mode only) */}
-      {autoMode && (
-        <div className="flex items-center gap-2 px-3 pb-1.5">
-          <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide w-[88px]">Auto cashout</span>
-          <div className="flex items-center bg-panel-raised rounded-lg border border-edge flex-1">
-            <button
-              onClick={() => adjustAuto(-0.1)}
-              disabled={isOperator || locked || parsedAuto <= MIN_AUTO}
-              className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-edge rounded-l-lg transition disabled:opacity-40 active:scale-95"
-            >
-              <Minus size={13} />
-            </button>
-            <div className="flex items-center justify-center flex-1 h-9">
-              <input
-                type="number"
-                inputMode="decimal"
-                step={0.1}
-                min={MIN_AUTO}
-                value={autoStr}
-                onChange={e => setAutoStr(e.target.value)}
-                onBlur={handleAutoBlur}
-                disabled={isOperator || locked}
-                aria-label="Auto cashout multiplier"
-                className={`w-full bg-transparent font-bold text-sm tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${autoValid ? 'text-white' : 'text-red-400'}`}
-              />
-              <span className="text-slate-500 text-xs font-bold pr-1">x</span>
-            </div>
-            <button
-              onClick={() => adjustAuto(0.1)}
-              disabled={isOperator || locked}
-              className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-edge rounded-r-lg transition disabled:opacity-40 active:scale-95"
-            >
-              <Plus size={13} />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Amount stepper — full width, large touch targets (48px) */}
       <div className="px-3 pb-2">
@@ -336,9 +295,80 @@ export default function BettingPanel({
         ))}
       </div>
 
-      {/* Primary action — full width, large and unmissable */}
+      {/* Auto cash-out target (Auto mode) — the single extra control auto needs */}
+      {autoMode && !isOperator && (
+        <div className="px-3 pb-2">
+          <div className="flex items-center justify-between bg-panel-raised rounded-xl border border-edge pl-3 pr-1">
+            <span className="text-[11px] font-semibold text-slate-400">Cash out at</span>
+            <div className="flex items-center">
+              <button
+                onClick={() => adjustAuto(-0.1)}
+                disabled={locked || parsedAuto <= MIN_AUTO}
+                aria-label="Lower auto cashout"
+                className="w-10 h-11 flex items-center justify-center text-slate-300 hover:text-white hover:bg-edge rounded-lg transition disabled:opacity-40 active:scale-95"
+              >
+                <Minus size={16} />
+              </button>
+              <div className="flex items-baseline justify-center min-w-[58px]">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step={0.1}
+                  min={MIN_AUTO}
+                  value={autoStr}
+                  onChange={e => setAutoStr(e.target.value)}
+                  onBlur={handleAutoBlur}
+                  disabled={locked}
+                  aria-label="Auto cashout multiplier"
+                  className={`w-11 bg-transparent font-bold text-lg tabular-nums text-right leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${autoValid ? 'text-white' : 'text-red-400'}`}
+                />
+                <span className="text-slate-400 text-sm font-bold pl-0.5">x</span>
+              </div>
+              <button
+                onClick={() => adjustAuto(0.1)}
+                disabled={locked}
+                aria-label="Raise auto cashout"
+                className="w-10 h-11 flex items-center justify-center text-slate-300 hover:text-white hover:bg-edge rounded-lg transition disabled:opacity-40 active:scale-95"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Primary action — ONE button. Manual: Bet / Cash Out. Auto: Start / Stop. */}
       <div className="px-3 pb-2.5">
-        {isCashable ? (
+        {autoMode && !isOperator ? (
+          !autoBet.running ? (
+            <button
+              onClick={() => autoBet.start(amount, autoTarget)}
+              disabled={!autoValid || amount < MIN_BET || amount > balance}
+              className="w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-500/30 disabled:opacity-40 disabled:shadow-none"
+            >
+              <div className="flex items-center gap-1.5 text-base leading-tight">
+                <Play size={15} className="fill-current" />
+                <span>Start auto-bet</span>
+              </div>
+              <div className="text-sm font-semibold opacity-90">
+                KSh {amount.toLocaleString('en-KE')}{autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}
+              </div>
+            </button>
+          ) : (
+            <button
+              onClick={autoBet.stop}
+              className="w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl bg-danger hover:bg-[#a50018] text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-red-900/30"
+            >
+              <div className="flex items-center gap-1.5 text-base leading-tight">
+                <Square size={14} className="fill-current" />
+                <span>Stop auto-bet</span>
+              </div>
+              <div className="text-xs font-semibold opacity-90">
+                {autoBet.stats.remaining} left · Net {autoBet.stats.net >= 0 ? '+' : '\u2212'}KSh {Math.abs(autoBet.stats.net).toLocaleString('en-KE', { maximumFractionDigits: 0 })}
+              </div>
+            </button>
+          )
+        ) : isCashable ? (
           <button
             onClick={onCashOut}
             className="w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-500/30 animate-pulse-cashout"
@@ -368,54 +398,37 @@ export default function BettingPanel({
         )}
       </div>
 
-      {/* Auto-bet sequencer (Auto mode) */}
-      {showAutoBet && (
-        <div className="px-3 pb-2.5 pt-2 border-t border-panel-raised space-y-2">
-          <div className="grid grid-cols-3 gap-2">
-            {AUTO_FIELDS.map(f => (
-              <label key={f.key} htmlFor={autoFieldId(f.key)} className="flex flex-col gap-1" title={f.hint}>
-                <span className="text-[9px] text-slate-500 uppercase tracking-wide">{f.label}</span>
-                <input
-                  id={autoFieldId(f.key)}
-                  type="number"
-                  min={f.min}
-                  step={1}
-                  value={autoBet.config[f.key]}
-                  disabled={autoBet.running}
-                  onChange={e => autoBet.setConfig(c => ({ ...c, [f.key]: Math.max(f.min, Math.floor(Number(e.target.value) || 0)) }))}
-                  aria-label={f.label}
-                  className="w-full bg-panel-raised border border-edge rounded-md px-2 py-1.5 text-white text-xs font-semibold tabular-nums text-center focus:outline-none focus:border-win/50 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-              </label>
-            ))}
-          </div>
-
-          {!autoBet.running ? (
-            <button
-              onClick={() => autoBet.start(amount, autoTarget)}
-              disabled={!autoValid || amount < MIN_BET || amount > balance}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-bold transition disabled:opacity-40 active:scale-[0.98]"
-            >
-              <Play size={12} className="fill-current" />
-              Start auto-bet{autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}
-            </button>
-          ) : (
-            <div className="space-y-1.5">
-              <button
-                onClick={autoBet.stop}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-danger hover:bg-[#a50018] text-white text-xs font-bold transition active:scale-[0.98]"
-              >
-                <Square size={11} className="fill-current" />
-                Stop ({autoBet.stats.remaining} left)
-              </button>
-              <div className="flex items-center justify-center gap-3 text-[10px] text-slate-400">
-                <span>Played <span className="text-white font-semibold tabular-nums">{autoBet.stats.played}</span></span>
-                <span>Net{' '}
-                  <span className={'font-semibold tabular-nums ' + (autoBet.stats.net >= 0 ? 'text-green-400' : 'text-red-400')}>
-                    {autoBet.stats.net >= 0 ? '+' : '\u2212'}KSh {Math.abs(autoBet.stats.net).toLocaleString('en-KE', { maximumFractionDigits: 0 })}
-                  </span>
-                </span>
-              </div>
+      {/* Auto: optional limits (rounds / stop loss / stop win) — collapsed by default */}
+      {autoMode && !isOperator && (
+        <div className="px-3 pb-2.5">
+          <button
+            type="button"
+            onClick={() => setShowLimits(v => !v)}
+            disabled={autoBet.running}
+            aria-expanded={showLimits}
+            className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-300 transition disabled:opacity-40"
+          >
+            {showLimits ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            <span>{showLimits ? 'Hide limits' : 'Set limits (optional)'}</span>
+          </button>
+          {showLimits && (
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {AUTO_FIELDS.map(f => (
+                <label key={f.key} htmlFor={autoFieldId(f.key)} className="flex flex-col gap-1" title={f.hint}>
+                  <span className="text-[9px] text-slate-500 uppercase tracking-wide">{f.label}</span>
+                  <input
+                    id={autoFieldId(f.key)}
+                    type="number"
+                    min={f.min}
+                    step={1}
+                    value={autoBet.config[f.key]}
+                    disabled={autoBet.running}
+                    onChange={e => autoBet.setConfig(c => ({ ...c, [f.key]: Math.max(f.min, Math.floor(Number(e.target.value) || 0)) }))}
+                    aria-label={f.label}
+                    className="w-full bg-panel-raised border border-edge rounded-md px-2 py-1.5 text-white text-xs font-semibold tabular-nums text-center focus:outline-none focus:border-win/50 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </label>
+              ))}
             </div>
           )}
         </div>

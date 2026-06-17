@@ -27,7 +27,9 @@ const X_B       = 0.147;   // ln(m=1) intercept
 const X_MIN     = 0.04;
 const X_MAX     = 0.93;
 const PLOT_TOP    = 0.07;   // curve ceiling (fraction of height, from top)
-const PLOT_BOTTOM = 0.95;   // baseline (fraction of height, from top)
+const PLOT_BOTTOM = 1.0;    // baseline = the x-axis, at the true bottom edge, so
+                            // the flight line originates exactly at (0,0) (the
+                            // bottom-left corner) rather than floating above it.
 
 function xTipNorm(m: number): number {
   const x = X_B + X_A * Math.log(Math.max(1.0001, m));
@@ -261,10 +263,14 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
   }
 }
 
-// ── Resting plane (idle/waiting): parked at the origin with a gentle bob ──────
+// ── Resting plane (idle/waiting): parked at the origin corner, fully visible ──
 function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
+  const pw = Math.max(64, Math.min(W * 0.11, 150));
+  const ph = pw / PLANE_ASPECT;
   const x = curveX(W, X_MIN + 0.01);
-  const y = PLOT_BOTTOM * H + Math.sin(now * 0.0018) * H * 0.01;
+  // Baseline now sits on the bottom edge; lift the sprite by ~half its height so
+  // the parked plane rests on the corner without being clipped off-canvas.
+  const y = PLOT_BOTTOM * H - ph * 0.45 + Math.sin(now * 0.0018) * H * 0.01;
   drawPlane(ctx, x, y, -0.05, W);
 }
 
