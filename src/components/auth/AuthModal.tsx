@@ -69,7 +69,10 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     // Scrollable overlay: the dialog stays centred when it fits and the whole
     // overlay scrolls when the form is taller than the viewport (short / landscape
     // phones) so the CTA is always reachable.
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#eef1f6]">
+    // Dark scrim (player `night` token at 80% + blur) dims the page behind the
+    // modal. This keeps the app's dark theme consistent while the elevated card
+    // below still reads as distinct via its lighter gradient, border and shadow.
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-night/80 backdrop-blur-sm">
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           ref={dialogRef}
@@ -78,10 +81,11 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
           aria-labelledby="auth-title"
           className="w-full max-w-[380px] relative overflow-hidden rounded-[20px] border border-edge"
           style={{
-            // Dark form card on a light page: maximum separation. The strong dark
-            // drop shadow lifts the card off the white backdrop.
+            // Elevated card: its gradient sits a step lighter than the `night`
+            // page/scrim, and the deep drop shadow lifts it off the dimmed
+            // backdrop for clear separation without breaking the dark theme.
             background: 'linear-gradient(180deg, #1c1c33 0%, #141426 100%)',
-            boxShadow: '0 30px 80px rgba(15, 23, 42, 0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
+            boxShadow: '0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06)',
           }}
         >
           {/* ─── CONTENT ─── */}
@@ -143,7 +147,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                       minLength={3}
                       maxLength={20}
                       autoComplete="username"
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-500"
                     />
                   </div>
                 )}
@@ -152,7 +156,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                 <div>
                   <label htmlFor="auth-phone" className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Phone Number</label>
                   <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
                       <Phone size={15} strokeWidth={1.5} />
                     </div>
                     <input
@@ -166,7 +170,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                       maxLength={13}
                       autoComplete="tel"
                       inputMode="numeric"
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-11 pr-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-11 pr-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-500"
                     />
                   </div>
                 </div>
@@ -184,13 +188,13 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                       required
                       minLength={isSignup ? 6 : undefined}
                       autoComplete={isSignup ? 'new-password' : 'current-password'}
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-700"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-500"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPass(!showPass)}
                       aria-label={showPass ? 'Hide password' : 'Show password'}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/60 rounded"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/60 rounded"
                     >
                       {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
                     </button>
@@ -220,7 +224,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
 
               {/* ─── MODE TOGGLE ─── */}
               <div className="mt-6 text-center">
-                <span className="text-slate-600 text-[13px]">
+                <span className="text-slate-400 text-[13px]">
                   {isSignup ? 'Have an account?' : 'New here?'}
                 </span>
                 <button
