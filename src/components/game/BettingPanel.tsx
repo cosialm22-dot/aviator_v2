@@ -28,6 +28,9 @@ interface Props {
   onCancelQueue: () => void;
   onCashOut: () => void;
   onAuthRequired: () => void;
+  // Opens the deposit flow. Used to turn the otherwise-dead "can't bet, no funds"
+  // state into the actual money action (Deposit) for signed-in players.
+  onDeposit?: () => void;
   isAuthenticated: boolean;
   // True for admin/super_admin accounts. Operators run the platform and must
   // never wager (enforced authoritatively by the DB place_bet guard + the
@@ -50,7 +53,7 @@ const AUTO_FIELDS: { key: keyof AutoBetConfig; label: string; min: number; hint:
 
 export default function BettingPanel({
   panelIndex, status, multiplier, balance, activeBet, queuedBet,
-  onPlaceBet, onQueueBet, onCancelQueue, onCashOut, onAuthRequired, isAuthenticated,
+  onPlaceBet, onQueueBet, onCancelQueue, onCashOut, onAuthRequired, onDeposit, isAuthenticated,
   isOperator = false,
 }: Props) {
   const [rawAmount, setRawAmount] = useState(String(MIN_BET));
@@ -137,6 +140,20 @@ export default function BettingPanel({
       };
     }
 
+    // Signed-out (real-money) visitor: the single highest-value action is to
+    // create an account, not to stare at a dead "Next round" button. Always a
+    // vivid, clickable CTA that opens sign-up. (Demo passes isAuthenticated=true,
+    // so this never blocks free play.)
+    if (!isAuthenticated) {
+      return {
+        label: 'Register to play',
+        sublabel: 'Get KSh 500 free on signup',
+        action: onAuthRequired,
+        style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-500/30',
+        disabled: false,
+      };
+    }
+
     // Queued bet: show "Queued" with cancel option
     if (queuedBet) {
       return {
@@ -205,12 +222,25 @@ export default function BettingPanel({
       };
     }
 
-    // Default: disabled
+    // Signed-in but the wallet can't cover this stake: the blocker is money, so
+    // the button becomes the money action (Deposit) instead of a dead control.
+    if (!locked && amount > balance && onDeposit) {
+      return {
+        label: 'Deposit to bet',
+        sublabel: balance > 0 ? `Balance KSh ${balance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}` : 'Top up to start playing',
+        action: onDeposit,
+        style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-500/30',
+        disabled: false,
+      };
+    }
+
+    // Default: genuinely not bettable right now (e.g. round in flight). This is a
+    // true waiting state, so the control is intentionally quiet but legible.
     return {
       label: status === 'flying' ? 'In flight' : 'Next round',
-      sublabel: '',
+      sublabel: status === 'flying' ? 'Bet opens at next round' : '',
       action: () => {},
-      style: 'bg-win/20 text-white/40 cursor-not-allowed',
+      style: 'bg-panel-raised border border-edge text-slate-400 cursor-not-allowed',
       disabled: true,
     };
   };
@@ -342,8 +372,12 @@ export default function BettingPanel({
         {autoMode && !isOperator ? (
           !autoBet.running ? (
             <button
-              onClick={() => autoBet.start(amount, autoTarget)}
-              disabled={!autoValid || amount < MIN_BET || amount > balance}
+              onClick={() => {
+                if (!isAuthenticated) { onAuthRequired(); return; }
+                if (amount > balance && onDeposit) { onDeposit(); return; }
+                autoBet.start(amount, autoTarget);
+              }}
+              disabled={!autoValid || amount < MIN_BET}
               className="w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-500/30 disabled:opacity-40 disabled:shadow-none"
             >
               <div className="flex items-center gap-1.5 text-base leading-tight">

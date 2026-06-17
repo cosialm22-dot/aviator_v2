@@ -453,6 +453,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
                 onCancelQueue={handleCancelQueue(1)}
                 onCashOut={() => { void panelCashOut(1); }}
                 onAuthRequired={onAuthRequired}
+                onDeposit={onDepositOpen}
                 isAuthenticated={panelAuthed}
                 isOperator={panelOperatorLock}
               />
@@ -470,6 +471,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
                 onCancelQueue={handleCancelQueue(2)}
                 onCashOut={() => { void panelCashOut(2); }}
                 onAuthRequired={onAuthRequired}
+                onDeposit={onDepositOpen}
                 isAuthenticated={panelAuthed}
                 isOperator={panelOperatorLock}
               />
