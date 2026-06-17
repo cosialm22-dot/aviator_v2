@@ -36,8 +36,12 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
       setError('Enter a valid Kenyan phone number (e.g. 0712345678)');
       return;
     }
-    if (password.length < 4) {
-      setError('Password must be at least 4 characters');
+    // Enforce the minimum only on sign-up (account creation). Supabase enforces
+    // a 6-char minimum server-side, so no existing account can be weaker; on
+    // sign-in we stay permissive and let the server authenticate whatever the
+    // user has, rather than risk locking anyone out with a new client rule.
+    if (isSignup && password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
@@ -173,9 +177,9 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                       type={showPass ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      placeholder="Min 4 characters"
+                      placeholder={isSignup ? 'Min 6 characters' : 'Your password'}
                       required
-                      minLength={4}
+                      minLength={isSignup ? 6 : undefined}
                       autoComplete={isSignup ? 'new-password' : 'current-password'}
                       className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-700"
                     />
