@@ -40,6 +40,10 @@ function friendly(code: string): string {
   return code || 'Action failed. Please try again.';
 }
 
+// Design-token hexes for the JS/SVG color props that can't take Tailwind classes
+// (kept in one place so the hub stays single-source with tailwind.config.js).
+const C = { info: '#60a5fa', win: '#22c55e', gold: '#e0a80b', frost: '#e2e8f0' } as const;
+
 interface Props {
   profile: Profile | null;
   onSignInRequired: () => void;
@@ -137,7 +141,7 @@ export default function MarketerHub({ profile, onSignInRequired }: Props) {
       <div className="max-w-3xl mx-auto px-4 py-4 pb-24 space-y-5">
         {/* status line */}
         <div className="flex items-center justify-end gap-2 -mb-1 min-h-[28px]">
-          {notice && <span role="status" className="px-3 py-1.5 bg-[#0f2a1a] border border-[#1f3d2a] rounded-lg text-win text-xs max-w-[260px] truncate" title={notice}>{notice}</span>}
+          {notice && <span role="status" className="px-3 py-1.5 bg-win/10 border border-win/30 rounded-lg text-win text-xs max-w-[260px] truncate" title={notice}>{notice}</span>}
           {err && <span role="alert" className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-xs max-w-[260px] truncate" title={err}>{err}</span>}
           <button onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-edge bg-panel text-xs text-slate-300 hover:text-white transition disabled:opacity-50">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -204,7 +208,7 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
       </div>
 
       {/* 1. Cash out -- the money and the one action that matters, together. */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#0f2a1a] to-panel border border-[#1f3d2a] p-5">
+      <div className="rounded-2xl bg-gradient-to-br from-win/10 to-panel border border-win/30 p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-win">
@@ -254,10 +258,10 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
 
       {/* 2. Stats -- the four numbers that tell the whole story, shown once each. */}
       <div className="grid grid-cols-2 gap-3">
-        <Kpi icon={Users} label="Referred Players" value={d.referred_count.toLocaleString('en-KE')} accent="#60a5fa" />
-        <Kpi icon={BadgeCheck} label="Qualified" value={d.qualified_count.toLocaleString('en-KE')} sub={`${conversion.toFixed(0)}% conversion`} accent="#22c55e" />
-        <Kpi icon={TrendingUp} label="Revenue Generated" value={ksh(d.lifetime_ggr)} accent="#e0a80b" />
-        <Kpi icon={Trophy} label="Commission Earned" value={ksh(d.commission_earned)} sub={`${ratePct}% revenue share`} accent="#22c55e" />
+        <Kpi icon={Users} label="Referred Players" value={d.referred_count.toLocaleString('en-KE')} accent={C.info} />
+        <Kpi icon={BadgeCheck} label="Qualified" value={d.qualified_count.toLocaleString('en-KE')} sub={`${conversion.toFixed(0)}% conversion`} accent={C.win} />
+        <Kpi icon={TrendingUp} label="Revenue Generated" value={ksh(d.lifetime_ggr)} accent={C.gold} />
+        <Kpi icon={Trophy} label="Commission Earned" value={ksh(d.commission_earned)} sub={`${ratePct}% revenue share`} accent={C.win} />
       </div>
 
       {/* 3. Growth -- referral funnel + next milestone in a single card. */}
@@ -265,18 +269,18 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
         <FunnelChart referred={d.referred_count} qualified={d.qualified_count} />
         <div className="mt-5 pt-4 border-t border-edge">
           <div className="flex items-center justify-between text-sm">
-            <span className="inline-flex items-center gap-1.5 text-slate-400"><Target size={14} style={{ color: '#e0a80b' }} /> Next milestone</span>
+            <span className="inline-flex items-center gap-1.5 text-slate-400"><Target size={14} style={{ color: C.gold }} /> Next milestone</span>
             <span className="text-white font-semibold tabular-nums">{d.qualified_count} / {milestoneTarget} qualified</span>
           </div>
           <div className="mt-2 h-2.5 rounded-full bg-panel-raised overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-[#e0a80b] to-win transition-all" style={{ width: `${milestoneProgress}%` }} />
+            <div className="h-full rounded-full bg-gradient-to-r from-gold to-win transition-all" style={{ width: `${milestoneProgress}%` }} />
           </div>
         </div>
       </Card>
 
       {/* 4. Referral link + social share -- how marketers grow. */}
       <div className="rounded-2xl bg-panel border border-edge p-5">
-        <div className="flex items-center gap-2 text-[#60a5fa]">
+        <div className="flex items-center gap-2 text-info">
           <Share2 size={16} />
           <span className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Your Referral Link</span>
         </div>
@@ -292,7 +296,7 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
           <ShareBtn onClick={() => onShare('whatsapp')} icon={MessageCircle} label="WhatsApp" color="#25D366" />
           <ShareBtn onClick={() => onShare('telegram')} icon={Send} label="Telegram" color="#229ED9" />
-          <ShareBtn onClick={() => onShare('x')} icon={XLogo} label="X" color="#e2e8f0" />
+          <ShareBtn onClick={() => onShare('x')} icon={XLogo} label="X" color={C.frost} />
           <ShareBtn onClick={() => onShare('facebook')} icon={Facebook} label="Facebook" color="#1877F2" />
         </div>
       </div>
@@ -333,8 +337,8 @@ function FunnelChart({ referred, qualified }: { referred: number; qualified: num
   const qPct = (qualified / max) * 100;
   return (
     <div className="space-y-3">
-      <FunnelBar label="Referred" value={referred} widthPct={100} color="#60a5fa" />
-      <FunnelBar label="Qualified" value={qualified} widthPct={Math.max(qPct, qualified > 0 ? 8 : 0)} color="#22c55e" />
+      <FunnelBar label="Referred" value={referred} widthPct={100} color={C.info} />
+      <FunnelBar label="Qualified" value={qualified} widthPct={Math.max(qPct, qualified > 0 ? 8 : 0)} color={C.win} />
       <div className="text-xs text-slate-500 pt-1">
         {referred > 0 ? `${((qualified / referred) * 100).toFixed(0)}% of referrals qualified` : 'No referrals yet \u2014 share your link to begin.'}
       </div>
@@ -410,7 +414,7 @@ function ShareBtn({ onClick, icon: Icon, label, color }: { onClick: () => void; 
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-panel-raised border border-edge hover:border-[#3a3a55] text-slate-200 text-xs font-semibold transition active:scale-95"
+      className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-panel-raised border border-edge hover:border-edge-strong text-slate-200 text-xs font-semibold transition active:scale-95"
     >
       <Icon size={15} style={{ color }} /> {label}
     </button>

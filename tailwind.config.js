@@ -22,6 +22,7 @@ export default {
         frost: '#e2e8f0',                                        // dark-theme primary text
         win: { DEFAULT: '#22c55e', dark: '#16a34a' },            // success / primary CTA green
         danger: '#c8001c',                                       // player brand-red accent
+        info: '#60a5fa',                                         // player accent-blue (referrals/marketing)
 
         // ── ADMIN (light) theme — institutional base + trading semantics ────
         brand: { DEFAULT: '#015d72', dark: '#013e4c' }, // deep teal-navy (structure/nav)
