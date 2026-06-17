@@ -2,9 +2,7 @@
 // from React components so it stays Fast-Refresh friendly and is the single home
 // for these utilities within the settings area.
 
-export function errMsg(e: unknown, fallback = 'Something went wrong'): string {
-  return e instanceof Error ? e.message : fallback;
-}
+export { errMsg } from '../../../lib/errors';
 
 export function fmtKES(v: unknown): string {
   const n = typeof v === 'number' ? v : Number(v);

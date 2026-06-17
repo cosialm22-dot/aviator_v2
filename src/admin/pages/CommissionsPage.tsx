@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import type { AdminCommissionOverview, AdminCommissionPayoutRow } from '../../types/marketing';
 
@@ -30,9 +31,6 @@ const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
 
 function fmtKsh(n: number): string {
   return 'KSh ' + Number(n).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function errMsg(e: unknown, fallback = 'Something went wrong'): string {
-  return e instanceof Error ? e.message : fallback;
 }
 function friendly(code: string): string {
   const map: Record<string, string> = {

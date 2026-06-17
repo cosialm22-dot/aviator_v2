@@ -36,9 +36,7 @@ export function relTime(iso: string | null): string {
   return Math.floor(s / 86400) + 'd ago';
 }
 
-export function errMsg(e: unknown, fallback = 'Something went wrong'): string {
-  return e instanceof Error ? e.message : fallback;
-}
+export { errMsg } from '../../../lib/errors';
 
 // Maps raw RPC error codes (RAISE EXCEPTION '<CODE>') to operator-friendly copy.
 // Falls back to the raw code so nothing is ever silently swallowed.

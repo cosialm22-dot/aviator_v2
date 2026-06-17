@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { errMsg } from '../../lib/errors';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -42,7 +43,6 @@ const FLAG_LABEL: Record<string, string> = {
   rapid_deposit_withdraw: 'Rapid deposit-withdraw',
 };
 
-function errMsg(e: unknown, fallback = 'Action failed'): string { return e instanceof Error ? e.message : fallback; }
 function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }
 const ksh = (n: number | null | undefined) => `KSh ${Number(n ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
 
@@ -69,7 +69,7 @@ export default function RiskPage() {
       const { error } = await supabase.rpc('admin_assess_player_risk', { p_user_id: userId });
       if (error) throw new Error(error.message);
       await load(minLevel);
-    } catch (e) { setErr(errMsg(e)); }
+    } catch (e) { setErr(errMsg(e, 'Action failed')); }
     finally { setBusyId(null); }
   }
 

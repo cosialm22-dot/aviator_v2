@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 
 // ============================================================================
@@ -58,9 +59,6 @@ function fmtKES(n: number): string {
   return 'KSh ' + Math.round(n).toLocaleString('en-KE');
 }
 
-function errMsg(e: unknown, fallback = 'Something went wrong'): string {
-  return e instanceof Error ? e.message : fallback;
-}
 
 function relTime(iso: string): string {
   const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));

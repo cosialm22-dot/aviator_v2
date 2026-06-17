@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { errMsg } from '../../lib/errors';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Copy, Check, RefreshCw, Users, BadgeCheck, TrendingUp, Wallet as WalletIcon,
@@ -23,9 +24,6 @@ import type { MarketerDashboard, CommissionPayout } from '../../types/marketing'
 
 function ksh(n: number, dp = 0): string {
   return 'KSh ' + Number(n).toLocaleString('en-KE', { minimumFractionDigits: dp, maximumFractionDigits: dp });
-}
-function errMsg(e: unknown, fallback = 'Something went wrong'): string {
-  return e instanceof Error ? e.message : fallback;
 }
 function friendly(code: string): string {
   const map: Record<string, string> = {

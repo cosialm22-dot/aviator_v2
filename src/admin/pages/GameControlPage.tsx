@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import { getMultiplierAtTime, formatMultiplier } from '../../lib/gameEngine';
 import { Activity, Target, Settings } from 'lucide-react';
@@ -13,9 +14,6 @@ type Tab='monitor'|'queue'|'params';
 function fmtKES(n:number):string{return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toLocaleString('en-KE')}
 function elapsed(iso:string|null):number{return iso?Math.floor((Date.now()-new Date(iso).getTime())/1e3):0}
 
-function errMsg(e: unknown, fallback = 'Something went wrong'): string {
-  return e instanceof Error ? e.message : fallback;
-}
 
 const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
 function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }

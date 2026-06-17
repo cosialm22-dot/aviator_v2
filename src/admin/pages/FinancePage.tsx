@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import { DonutChart, CompareBars } from '../components/charts';
 
@@ -96,9 +97,6 @@ function fmtKES(n: number): string {
   return 'KSh ' + Number(n).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function errMsg(e: unknown, fallback = 'Something went wrong'): string {
-  return e instanceof Error ? e.message : fallback;
-}
 
 function friendly(code: string): string {
   const map: Record<string, string> = {

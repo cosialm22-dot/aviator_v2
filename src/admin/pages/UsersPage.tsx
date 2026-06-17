@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { errMsg } from '../../lib/errors';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -13,7 +14,6 @@ interface PlayerRow {
   created_at: string;
 }
 
-function errMsg(e: unknown, fallback = 'Action failed'): string { return e instanceof Error ? e.message : fallback; }
 function Spin() { return <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />; }
 function friendly(code: string): string {
   if (code.includes('FORBIDDEN_TARGET')) return 'Only a super admin can act on an admin account.';
@@ -57,7 +57,7 @@ export default function UsersPage() {
       if (error) throw new Error(friendly(error.message));
       setBanRow(null); setBanReason('');
       await runSearch(search);
-    } catch (e) { setErr(errMsg(e)); }
+    } catch (e) { setErr(errMsg(e, 'Action failed')); }
     finally { setBusyId(null); }
   }
 
