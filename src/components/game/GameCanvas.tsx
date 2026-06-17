@@ -152,7 +152,22 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       // flying | crashed ────────────────────────────────────────────────────
       const isCrashed   = status === 'crashed';
       const displayMult = isCrashed ? crashPoint : mult;
-      const xt = xTipNorm(displayMult);
+      const parkFactor  = isCrashed ? 0 : planeParkFactor(displayMult);
+
+      // Right-wall safety: the plane sprite is centred on the trail tip, so the
+      // tip's x must leave room for the plane's half-width (incl. its maximum
+      // tilt) plus the worst-case rightward hover plus a clear gap — otherwise the
+      // parked plane touches or is clipped by the right edge. Derive the largest
+      // normalised tip x that keeps the WHOLE plane on-screen and clamp to it (in
+      // addition to the artistic X_MAX cap inside xTipNorm). This guarantees
+      // (tip.x + planeRightExt) <= W - wallGap for every W, multiplier and hover
+      // phase, since tip.x <= xt*W + maxHoverRight.
+      const planeW        = Math.max(64, Math.min(W * 0.11, 150)); // must match drawPlane()
+      const planeRightExt = planeW * 0.56;            // sprite half-width at max tilt
+      const wallGap       = Math.max(10, W * 0.02);   // never-touch clearance
+      const maxHoverRight = W * 0.04 * parkFactor;    // worst-case rightward wander
+      const xMaxFit       = Math.max(X_MIN, 1 - (maxHoverRight + planeRightExt + wallGap) / W);
+      const xt            = Math.min(xTipNorm(displayMult), xMaxFit);
 
       // Crash flash (brief red wash).
       if (isCrashed && flashRef.current > 0 && flashRef.current < 16) {
@@ -165,10 +180,9 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       }
 
       // Parked-plane hover: once the multiplier is high the plane no longer
-      // climbs (x is clamped at X_MAX); instead it wanders along a NW–SE diagonal
+      // climbs (xt is clamped above); instead it wanders along a NW–SE diagonal
       // — as it drifts up its x decreases, as it drifts down its x increases (and
       // back), so it keeps fluctuating. parkFactor ramps the wander in from 2x to 10x.
-      const parkFactor = isCrashed ? 0 : planeParkFactor(displayMult);
       const ht   = now * 0.0016;
       const hOsc = Math.sin(ht) * 0.6 + Math.sin(ht * 0.61 + 1.3) * 0.4; // organic ~[-1,1]
       const hoverX = -hOsc * (W * 0.04)  * parkFactor;   // up ⇒ left, down ⇒ right
