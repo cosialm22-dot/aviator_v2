@@ -39,7 +39,10 @@ type MobileTab = 'bets' | 'chat';
 
 export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
   const [activeTab, setActiveTab] = useState<'allBets' | 'previous' | 'top'>('allBets');
-  const [mobileTab, setMobileTab] = useState<MobileTab>('bets');
+  // Mobile Bets/Chat sheet. Closed by default (null) so the canvas + betting
+  // controls own the small-screen viewport and the primary bet action is always
+  // reachable. Tapping a tab opens that sheet; tapping the open tab closes it.
+  const [mobileTab, setMobileTab] = useState<MobileTab | null>(null);
   const [nudge, setNudge] = useState<{ title: string; sub: string } | null>(null);
   const nudgeShownRef = useRef(false);
   // One queued bet per slot (dual-bet): each panel can independently queue a bet
@@ -240,7 +243,12 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
         </div>
 
         {/* ── Center: Canvas + Betting ───────────────────────────────── */}
-        <div className="flex flex-col flex-1 min-w-0">
+        {/* min-h-0 is essential: without it the column's default min-height:auto
+            stops its flex children from shrinking, so on short viewports the
+            stack overflows and the (bottom-anchored) betting controls get clipped
+            out of reach. With min-h-0 the canvas absorbs the shrink and the bet
+            controls stay visible on every device. */}
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
 
           {/* Canvas - takes most vertical space */}
           <div className="relative flex-1 min-h-0 bg-[#111118] overflow-hidden">
@@ -383,10 +391,13 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
             </div>
           </div>
 
-          {/* Mobile bottom tab: Bets / Chat */}
+          {/* Mobile bottom tab: Bets / Chat. Each tab toggles its sheet open or
+              closed, so the default view stays focused on the canvas + bet
+              controls and players opt in to secondary content one tap at a time. */}
           <div className="lg:hidden flex border-t border-[#2a2a45] bg-[#0d0d1a] flex-shrink-0">
             <button
-              onClick={() => setMobileTab('bets')}
+              onClick={() => setMobileTab(t => (t === 'bets' ? null : 'bets'))}
+              aria-expanded={mobileTab === 'bets'}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-semibold transition-colors ${
                 mobileTab === 'bets' ? 'text-white border-t-2 border-[#c8001c]' : 'text-slate-500'
               }`}
@@ -395,7 +406,8 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
               <span>Bets ({liveBets.length})</span>
             </button>
             <button
-              onClick={() => setMobileTab('chat')}
+              onClick={() => setMobileTab(t => (t === 'chat' ? null : 'chat'))}
+              aria-expanded={mobileTab === 'chat'}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-semibold transition-colors ${
                 mobileTab === 'chat' ? 'text-white border-t-2 border-[#c8001c]' : 'text-slate-500'
               }`}
@@ -405,18 +417,22 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
             </button>
           </div>
 
-          {/* Mobile panel - 220px high */}
-          <div className="lg:hidden flex-shrink-0 bg-[#0d0d1a]" style={{ height: '200px' }}>
-            {mobileTab === 'bets' ? (
-              <div className="h-full overflow-y-auto scrollbar-thin">
-                <LiveBetsTable bets={liveBets} status={gameStatus} />
-              </div>
-            ) : (
-              <div className="h-full">
-                <Chat messages={chat.messages} sending={chat.sending} onSend={chat.send} userId={profile?.id} username={profile?.username} />
-              </div>
-            )}
-          </div>
+          {/* Mobile sheet: rendered only when a tab is open, and bounded by a
+              fraction of the viewport (max-h-[38vh]) so it never pushes the bet
+              controls off-screen. Closed by default. */}
+          {mobileTab !== null && (
+            <div className="lg:hidden flex-shrink-0 bg-[#0d0d1a] max-h-[38vh] h-[38vh] border-t border-[#2a2a45]">
+              {mobileTab === 'bets' ? (
+                <div className="h-full overflow-y-auto scrollbar-thin">
+                  <LiveBetsTable bets={liveBets} status={gameStatus} />
+                </div>
+              ) : (
+                <div className="h-full">
+                  <Chat messages={chat.messages} sending={chat.sending} onSend={chat.send} userId={profile?.id} username={profile?.username} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Right: Live Chat (xl+) ────────────────────────────────── */}
