@@ -43,7 +43,12 @@ export default function UsersPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void runSearch(''); }, [runSearch]);
+  // Live search: debounce keystrokes into a query (runs on mount with '' too).
+  // No Enter key or button needed -- results follow as you type.
+  useEffect(() => {
+    const id = setTimeout(() => void runSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search, runSearch]);
 
   async function setBan(row: PlayerRow, ban: boolean, reason?: string) {
     setBusyId(row.id); setErr(null);
@@ -78,7 +83,6 @@ export default function UsersPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && runSearch(search)}
             placeholder="Search username..."
             className="w-full pl-9 pr-4 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition-colors"
           />
