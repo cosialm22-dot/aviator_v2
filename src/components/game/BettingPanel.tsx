@@ -281,20 +281,20 @@ export default function BettingPanel({
         </div>
       )}
 
-      {/* Amount stepper + action button */}
-      <div className="flex items-stretch gap-2 px-3 pb-2">
-        {/* Editable amount field with +/- */}
-        <div className="flex items-center bg-panel-raised rounded-lg border border-edge flex-shrink-0">
+      {/* Amount stepper — full width, large touch targets (48px) */}
+      <div className="px-3 pb-2">
+        <div className="flex items-center bg-panel-raised rounded-xl border border-edge">
           <button
             onClick={() => adjust(-50)}
             disabled={isOperator || locked || amount <= MIN_BET}
-            className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-edge rounded-l-lg transition disabled:opacity-40 active:scale-95"
+            aria-label="Decrease bet by 50"
+            className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-white hover:bg-edge rounded-l-xl transition disabled:opacity-40 active:scale-95"
           >
-            <Minus size={14} />
+            <Minus size={18} />
           </button>
 
           <div
-            className="flex flex-col items-center justify-center px-1 h-11 min-w-[62px] cursor-text"
+            className="flex flex-col items-center justify-center flex-1 h-12 cursor-text"
             onClick={() => inputRef.current?.focus()}
           >
             <input
@@ -305,31 +305,49 @@ export default function BettingPanel({
               onChange={e => handleRawChange(e.target.value)}
               onBlur={handleBlur}
               disabled={isOperator || locked}
-              className="w-full bg-transparent text-white font-bold text-sm tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              aria-label="Bet amount in KSh"
+              className="w-full bg-transparent text-white font-bold text-lg tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <span className="text-slate-500 text-[9px] leading-none mt-0.5">KShs</span>
+            <span className="text-slate-500 text-[10px] leading-none mt-0.5">KShs</span>
           </div>
 
           <button
             onClick={() => adjust(50)}
             disabled={isOperator || locked}
-            className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-edge rounded-r-lg transition disabled:opacity-40 active:scale-95"
+            aria-label="Increase bet by 50"
+            className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-white hover:bg-edge rounded-r-xl transition disabled:opacity-40 active:scale-95"
           >
-            <Plus size={14} />
+            <Plus size={18} />
           </button>
         </div>
+      </div>
 
-        {/* Action button */}
+      {/* Quick amounts */}
+      <div className="flex gap-1.5 px-3 pb-2">
+        {QUICK_AMOUNTS.map(q => (
+          <button
+            key={q}
+            onClick={() => setRawAmount(String(q))}
+            disabled={isOperator || locked}
+            className="flex-1 py-1.5 text-xs font-semibold bg-panel-raised border border-edge rounded-lg text-slate-300 hover:text-white hover:bg-edge transition disabled:opacity-40 active:scale-95"
+          >
+            {q >= 1000 ? `${q / 1000}K` : q}
+          </button>
+        ))}
+      </div>
+
+      {/* Primary action — full width, large and unmissable */}
+      <div className="px-3 pb-2.5">
         {isCashable ? (
           <button
             onClick={onCashOut}
-            className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-95 shadow-lg shadow-green-500/30"
+            className="w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-500/30 animate-pulse-cashout"
           >
-            <div className="flex items-center gap-1 text-sm leading-tight">
-              <Zap size={14} className="fill-current" />
+            <div className="flex items-center gap-1.5 text-base leading-tight">
+              <Zap size={16} className="fill-current" />
               <span>Cash Out</span>
             </div>
-            <div className="text-xs font-semibold opacity-90">
+            <div className="text-sm font-semibold opacity-90">
               KSh {winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
             </div>
           </button>
@@ -337,31 +355,17 @@ export default function BettingPanel({
           <button
             onClick={btnConfig.action}
             disabled={btnConfig.disabled}
-            className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl font-black transition-all active:scale-95 ${btnConfig.style}`}
+            className={`w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl font-black transition-all active:scale-[0.98] ${btnConfig.style}`}
           >
-            <div className="flex items-center gap-1 text-sm leading-tight">
-              {btnConfig.icon && <btnConfig.icon size={13} />}
+            <div className="flex items-center gap-1.5 text-base leading-tight">
+              {btnConfig.icon && <btnConfig.icon size={16} />}
               <span>{btnConfig.label}</span>
             </div>
             {btnConfig.sublabel && (
-              <div className="text-xs font-semibold opacity-90">{btnConfig.sublabel}</div>
+              <div className="text-sm font-semibold opacity-90">{btnConfig.sublabel}</div>
             )}
           </button>
         )}
-      </div>
-
-      {/* Quick amounts */}
-      <div className="flex gap-1.5 px-3 pb-2.5">
-        {QUICK_AMOUNTS.map(q => (
-          <button
-            key={q}
-            onClick={() => setRawAmount(String(q))}
-            disabled={isOperator || locked}
-            className="flex-1 py-1 text-[11px] font-semibold bg-panel-raised border border-edge rounded text-slate-400 hover:text-white hover:bg-edge transition disabled:opacity-40 active:scale-95"
-          >
-            {q >= 1000 ? `${q / 1000}K` : q}
-          </button>
-        ))}
       </div>
 
       {/* Auto-bet sequencer (Auto mode) */}

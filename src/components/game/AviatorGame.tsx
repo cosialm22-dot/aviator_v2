@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Users } from 'lucide-react';
+import { MessageSquare, Users, Plus, X } from 'lucide-react';
 import GameCanvas from './GameCanvas';
 import BettingPanel, { type QueuedBet } from './BettingPanel';
 import LiveBetsTable from './LiveBetsTable';
@@ -43,6 +43,10 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
   // controls own the small-screen viewport and the primary bet action is always
   // reachable. Tapping a tab opens that sheet; tapping the open tab closes it.
   const [mobileTab, setMobileTab] = useState<MobileTab | null>(null);
+  // Second simultaneous bet (dual-bet) is a power-user feature. On mobile it is
+  // hidden by default so the primary bet stays the single, obvious action; one
+  // tap reveals it. On desktop both panels are always shown side by side.
+  const [showSecondBet, setShowSecondBet] = useState(false);
   const [nudge, setNudge] = useState<{ title: string; sub: string } | null>(null);
   const nudgeShownRef = useRef(false);
   // One queued bet per slot (dual-bet): each panel can independently queue a bet
@@ -353,9 +357,12 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
           {/* Real / Demo switch lives in the header (left of Sign In); demo
               balance + reset are shown there too. */}
 
-          {/* Betting panels - two independent dual-bet slots (1 and 2) */}
-          <div className="flex flex-shrink-0 border-t border-edge bg-night">
-            <div className="flex-1 border-r border-edge">
+          {/* Betting panels. Mobile (default): a single full-width panel so the
+              bet action is the one obvious thing on screen. The second dual-bet
+              slot is opt-in via the toggle below. Desktop (lg+): both side by
+              side. flex-col -> lg:flex-row gives full width on phones. */}
+          <div className="flex flex-col lg:flex-row flex-shrink-0 border-t border-edge bg-night">
+            <div className="flex-1 lg:border-r border-edge">
               <BettingPanel
                 panelIndex={0}
                 status={gameStatus}
@@ -372,7 +379,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
                 isOperator={panelOperatorLock}
               />
             </div>
-            <div className="flex-1">
+            <div className={`flex-1 border-t border-edge lg:border-t-0 ${showSecondBet ? 'block' : 'hidden'} lg:block`}>
               <BettingPanel
                 panelIndex={1}
                 status={gameStatus}
@@ -390,6 +397,15 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
               />
             </div>
           </div>
+
+          {/* Mobile-only: opt in / out of the second simultaneous bet. */}
+          <button
+            onClick={() => setShowSecondBet(v => !v)}
+            className="lg:hidden flex-shrink-0 flex items-center justify-center gap-1.5 py-2 border-t border-edge bg-night text-[11px] font-semibold text-slate-400 hover:text-white transition-colors active:scale-[0.99]"
+          >
+            {showSecondBet ? <X size={13} /> : <Plus size={13} />}
+            <span>{showSecondBet ? 'Remove second bet' : 'Add a second bet'}</span>
+          </button>
 
           {/* Mobile bottom tab: Bets / Chat. Each tab toggles its sheet open or
               closed, so the default view stays focused on the canvas + bet
