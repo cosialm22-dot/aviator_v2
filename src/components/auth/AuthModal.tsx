@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Eye, EyeOff, Phone } from 'lucide-react';
 
 interface Props {
@@ -27,6 +27,44 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+  // Hold the latest onClose so the key/focus effect can arm exactly once without
+  // re-running (and re-capturing focus state) when the parent re-renders.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const isSignup = mode === 'signup';
+
+  // Modal focus contract: remember the trigger, trap Tab inside the dialog, close
+  // on Escape, and restore focus to the trigger on unmount. Armed once on mount.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); return; }
+      if (e.key !== 'Tab') return;
+      const root = dialogRef.current;
+      if (!root) return;
+      const focusable = root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus?.();
+    };
+  }, []);
+
+  // Move focus to the first field on open and whenever the mode flips (the first
+  // field changes: username for sign-up, phone for sign-in).
+  useEffect(() => { firstFieldRef.current?.focus(); }, [mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,158 +99,171 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     }
   };
 
-  const isSignup = mode === 'signup';
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div
-        className="w-full max-w-[380px] relative overflow-hidden"
-        style={{ borderRadius: '20px' }}
-      >
-        {/* ─── BACKGROUND FRAME ─── */}
-        <div className="absolute inset-0 bg-[#0a0f1e] border border-white/[0.06]" style={{ borderRadius: '20px' }} />
+    // Scrollable overlay: the dialog stays centred when it fits and the whole
+    // overlay scrolls when the form is taller than the viewport (short / landscape
+    // phones) so the CTA is always reachable.
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auth-title"
+          className="w-full max-w-[380px] relative overflow-hidden rounded-[20px]"
+        >
+          {/* ─── BACKGROUND FRAME ─── */}
+          <div className="absolute inset-0 bg-[#0a0f1e] border border-white/[0.06] rounded-[20px]" />
 
-        {/* ─── CONTENT ─── */}
-        <div className="relative">
+          {/* ─── CONTENT ─── */}
+          <div className="relative">
 
-          {/* ─── CLOSE BUTTON (Isolation: floats alone in top-right) ─── */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-500 hover:text-white transition-all"
-          >
-            <X size={15} />
-          </button>
+            {/* ─── CLOSE BUTTON ─── */}
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-500 hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+            >
+              <X size={15} />
+            </button>
 
-          {/* ─── HEADER (Tension: large title vs small subtitle) ─── */}
-          <div className="px-8 pt-10 pb-2">
-            <h1 className="text-[22px] font-bold text-white tracking-tight">
-              {isSignup ? 'Create Account' : 'Welcome back'}
-            </h1>
-            <p className="text-slate-500 text-[13px] mt-1">
-              {isSignup ? 'Start playing in 30 seconds' : 'Sign in to continue'}
-            </p>
-          </div>
-
-          {/* ─── BONUS BANNER (Accent + Framing + Isolation) ─── */}
-          {isSignup && (
-            <div className="mx-8 mt-5 mb-1">
-              <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/30 px-5 py-4">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/[0.04] rounded-full -translate-y-1/2 translate-x-1/2" />
-                <div className="relative flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">+</span>
-                  </div>
-                  <div>
-                    <div className="text-emerald-400 font-bold text-[15px] leading-tight">KSh 500</div>
-                    <div className="text-slate-500 text-[11px] mt-0.5">Free credits on signup</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─── FORM (Grouping + Movement: fields flow → CTA) ─── */}
-          <form onSubmit={handleSubmit} className="px-8 pt-6 pb-8">
-            <div className="space-y-4">
-
-              {/* Username (signup only) */}
-              {isSignup && (
-                <div>
-                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Username</label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={e => setUsername(e.target.value)}
-                    placeholder="e.g. Kamau_254"
-                    required
-                    minLength={3}
-                    maxLength={20}
-                    autoComplete="username"
-                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
-                  />
-                </div>
-              )}
-
-              {/* Phone */}
-              <div>
-                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Phone Number</label>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600">
-                    <Phone size={15} strokeWidth={1.5} />
-                  </div>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    placeholder="0712 345 678"
-                    required
-                    maxLength={13}
-                    autoComplete="tel"
-                    inputMode="numeric"
-                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-11 pr-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div>
-                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Min 4 characters"
-                    required
-                    minLength={4}
-                    autoComplete={isSignup ? 'new-password' : 'current-password'}
-                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-700"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition"
-                  >
-                    {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
-                  </button>
-                </div>
-              </div>
+            {/* ─── HEADER ─── */}
+            <div className="px-8 pt-10 pb-2">
+              <h1 id="auth-title" className="text-[22px] font-bold text-white tracking-tight">
+                {isSignup ? 'Create Account' : 'Welcome back'}
+              </h1>
+              <p className="text-slate-500 text-[13px] mt-1">
+                {isSignup ? 'Start playing in 30 seconds' : 'Sign in to continue'}
+              </p>
             </div>
 
-            {/* ─── ERROR (Accent: red against dark) ─── */}
-            {error && (
-              <div className="mt-4 rounded-xl bg-red-500/[0.08] border border-red-500/20 px-4 py-3 text-red-400 text-[13px] leading-snug">
-                {error}
+            {/* ─── BONUS BANNER ─── */}
+            {isSignup && (
+              <div className="mx-8 mt-5 mb-1">
+                <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/30 px-5 py-4">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/[0.04] rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <div className="relative flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xl text-emerald-400">+</span>
+                    </div>
+                    <div>
+                      <div className="text-emerald-400 font-bold text-[15px] leading-tight">KSh 500</div>
+                      <div className="text-slate-500 text-[11px] mt-0.5">Free credits on signup</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* ─── CTA BUTTON (Movement endpoint + Accent) ─── */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-6 py-4 rounded-xl font-semibold text-[15px] text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                background: loading ? '#1e293b' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                boxShadow: loading ? 'none' : '0 8px 32px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
-              }}
-            >
-              {loading ? 'Please wait...' : isSignup ? 'Create Account' : 'Sign In'}
-            </button>
+            {/* ─── FORM ─── */}
+            <form onSubmit={handleSubmit} className="px-8 pt-6 pb-8">
+              <div className="space-y-4">
 
-            {/* ─── MODE TOGGLE (Symmetry: centered, balanced) ─── */}
-            <div className="mt-6 text-center">
-              <span className="text-slate-600 text-[13px]">
-                {isSignup ? 'Have an account?' : 'New here?'}
-              </span>
+                {/* Username (signup only) */}
+                {isSignup && (
+                  <div>
+                    <label htmlFor="auth-username" className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Username</label>
+                    <input
+                      id="auth-username"
+                      ref={firstFieldRef}
+                      type="text"
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      placeholder="e.g. Kamau_254"
+                      required
+                      minLength={3}
+                      maxLength={20}
+                      autoComplete="username"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
+                    />
+                  </div>
+                )}
+
+                {/* Phone */}
+                <div>
+                  <label htmlFor="auth-phone" className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Phone Number</label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none">
+                      <Phone size={15} strokeWidth={1.5} />
+                    </div>
+                    <input
+                      id="auth-phone"
+                      ref={isSignup ? undefined : firstFieldRef}
+                      type="tel"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="0712 345 678"
+                      required
+                      maxLength={13}
+                      autoComplete="tel"
+                      inputMode="numeric"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-11 pr-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-700"
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label htmlFor="auth-password" className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Password</label>
+                  <div className="relative">
+                    <input
+                      id="auth-password"
+                      type={showPass ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Min 4 characters"
+                      required
+                      minLength={4}
+                      autoComplete={isSignup ? 'new-password' : 'current-password'}
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(!showPass)}
+                      aria-label={showPass ? 'Hide password' : 'Show password'}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 rounded"
+                    >
+                      {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── ERROR ─── */}
+              {error && (
+                <div role="alert" className="mt-4 rounded-xl bg-red-500/[0.08] border border-red-500/20 px-4 py-3 text-red-400 text-[13px] leading-snug">
+                  {error}
+                </div>
+              )}
+
+              {/* ─── CTA BUTTON ─── */}
               <button
-                type="button"
-                onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(''); }}
-                className="ml-2 text-blue-400 hover:text-blue-300 text-[13px] font-medium transition"
+                type="submit"
+                disabled={loading}
+                className="w-full mt-6 py-4 rounded-xl font-semibold text-[15px] text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70"
+                style={{
+                  background: loading ? '#1e293b' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  boxShadow: loading ? 'none' : '0 8px 32px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
+                }}
               >
-                {isSignup ? 'Sign In' : 'Create Account'}
+                {loading ? 'Please wait...' : isSignup ? 'Create Account' : 'Sign In'}
               </button>
-            </div>
-          </form>
+
+              {/* ─── MODE TOGGLE ─── */}
+              <div className="mt-6 text-center">
+                <span className="text-slate-600 text-[13px]">
+                  {isSignup ? 'Have an account?' : 'New here?'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(''); }}
+                  className="ml-2 text-blue-400 hover:text-blue-300 text-[13px] font-medium transition rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                >
+                  {isSignup ? 'Sign In' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
