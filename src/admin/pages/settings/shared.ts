@@ -12,7 +12,17 @@ export function fmtKES(v: unknown): string {
 // Maps RAISE EXCEPTION codes from the settings/staff RPCs to operator copy.
 // Falls back to the raw code so nothing is silently swallowed.
 export function friendly(code: string): string {
+  // admin_set_setting raises descriptive 'INVALID_RANGE: <reason>' messages -
+  // surface the reason directly so the operator sees exactly what was wrong.
+  const range = /INVALID_RANGE:\s*(.+)/i.exec(code);
+  if (range) {
+    const r = range[1].trim();
+    return r.charAt(0).toUpperCase() + r.slice(1);
+  }
   const map: Record<string, string> = {
+    NOT_AUTHORIZED: 'Only a super admin can change system settings.',
+    UNKNOWN_SETTING: 'That setting no longer exists. Refresh and try again.',
+    SETTING_NOT_EDITABLE: 'That setting is not editable here.',
     FORBIDDEN: 'You do not have permission for this action.',
     NOT_FOUND: 'That account no longer exists. Refresh and try again.',
     CANNOT_TARGET_SELF: 'You cannot change your own role.',

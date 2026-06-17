@@ -8,6 +8,12 @@
 //
 // This metadata is intentionally declarative and pure (no React) so the tabs and
 // the field renderer share one contract and stay consistent.
+//
+// IMPORTANT: only keys the engine actually consumes live here. Dead/duplicated
+// controls (the analytics-only crash-distribution bands, the `crash_source`
+// select that duplicated `queue_enabled`, and `growth_rate_per_ms` - a protocol
+// constant hardcoded in the client + server curve functions) were removed so the
+// page can never present a control that does nothing.
 // ============================================================================
 
 export type FieldType = 'toggle' | 'number' | 'select' | 'text';
@@ -26,14 +32,13 @@ export interface FieldDef {
   max?: number;
   step?: number;
   options?: { value: string; label: string }[];
-  distribution?: boolean;        // part of the crash-distribution group (sum must = 100)
 }
 
 // Ordered list. Tab + group order is derived from first appearance here.
 export const FIELDS: FieldDef[] = [
   // ---- General -------------------------------------------------------------
   { key: 'system.maintenance_mode', label: 'Maintenance mode', type: 'toggle', tab: 'general', group: 'Availability',
-    help: 'When enabled, players are blocked from the game while staff retain access.' },
+    help: 'When enabled, players are blocked from placing bets (in-flight bets still settle); staff retain access.' },
 
   // ---- Game: round timing --------------------------------------------------
   { key: 'game.betting_ms', label: 'Betting window', type: 'number', tab: 'game', group: 'Round timing',
@@ -43,46 +48,34 @@ export const FIELDS: FieldDef[] = [
 
   // ---- Game: bet limits ----------------------------------------------------
   { key: 'game.min_bet', label: 'Minimum bet', type: 'number', tab: 'game', group: 'Bet limits',
-    unit: 'KES', unitPos: 'prefix', min: 1, step: 1 },
+    unit: 'KES', unitPos: 'prefix', min: 1, step: 1, help: 'Must be <= the maximum bet.' },
   { key: 'game.max_bet', label: 'Maximum bet', type: 'number', tab: 'game', group: 'Bet limits',
-    unit: 'KES', unitPos: 'prefix', min: 1, step: 1 },
+    unit: 'KES', unitPos: 'prefix', min: 1, step: 1, help: 'Must be >= the minimum bet.' },
   { key: 'game.max_payout', label: 'Per-bet payout cap', type: 'number', tab: 'game', group: 'Bet limits',
     unit: 'KES', unitPos: 'prefix', min: 0, step: 1000, help: 'Maximum payout a single bet can win.' },
 
   // ---- Game: RTP / house edge ---------------------------------------------
+  // The crash engine is PARAMETRIC: P(crash >= x) = (1 - edge)/x, so this single
+  // lever sets the whole crash-point distribution AND the target RTP. There is
+  // deliberately no editable "distribution band" group - the bands were unused by
+  // the engine and only invited inconsistent (non-100%) configs.
   { key: 'game.house_edge_percent', label: 'House edge', type: 'number', tab: 'game', group: 'House edge & RTP',
-    unit: '%', unitPos: 'suffix', min: 0, max: 100, step: 0.1, help: 'Target RTP = 100 \u2212 this. Recommended band 18\u201320%.' },
-
-  // ---- Game: crash distribution (sum must equal 100) -----------------------
-  { key: 'game.instant_crash_pct', label: 'Instant (1.00x)', type: 'number', tab: 'game', group: 'Crash distribution',
-    unit: '%', unitPos: 'suffix', min: 0, max: 100, step: 1, distribution: true },
-  { key: 'game.low_crash_pct', label: 'Low (1.01\u20131.49x)', type: 'number', tab: 'game', group: 'Crash distribution',
-    unit: '%', unitPos: 'suffix', min: 0, max: 100, step: 1, distribution: true },
-  { key: 'game.mid_crash_pct', label: 'Mid (1.50\u20132.49x)', type: 'number', tab: 'game', group: 'Crash distribution',
-    unit: '%', unitPos: 'suffix', min: 0, max: 100, step: 1, distribution: true },
-  { key: 'game.high_crash_pct', label: 'High (2.50\u20136x)', type: 'number', tab: 'game', group: 'Crash distribution',
-    unit: '%', unitPos: 'suffix', min: 0, max: 100, step: 1, distribution: true },
-  { key: 'game.epic_crash_pct', label: 'Epic (6\u201320x)', type: 'number', tab: 'game', group: 'Crash distribution',
-    unit: '%', unitPos: 'suffix', min: 0, max: 100, step: 1, distribution: true },
-  { key: 'game.jackpot_crash_pct', label: 'Jackpot (20x+)', type: 'number', tab: 'game', group: 'Crash distribution',
-    unit: '%', unitPos: 'suffix', min: 0, max: 100, step: 1, distribution: true },
+    unit: '%', unitPos: 'suffix', min: 0, max: 40, step: 0.1,
+    help: 'Sets RTP (= 100 minus this) and the entire crash-point distribution. Recommended band 18-20%.' },
 
   // ---- Game: crash engine --------------------------------------------------
-  { key: 'game.crash_source', label: 'Crash source', type: 'select', tab: 'game', group: 'Crash engine',
-    options: [{ value: 'algorithm', label: 'Algorithm (random)' }, { value: 'queue', label: 'Queue (pre-set)' }],
-    help: 'Where crash points come from. Queue overrides the algorithm when items exist.' },
-  { key: 'game.queue_enabled', label: 'Enable crash queue', type: 'toggle', tab: 'game', group: 'Crash engine',
-    help: 'When on, queued crash points take priority over the algorithm.' },
-  { key: 'game.growth_rate_per_ms', label: 'Growth rate (per ms)', type: 'number', tab: 'game', group: 'Crash engine',
-    min: 0, step: 0.00001, help: 'Multiplier curve m(t)=exp(rate\u00b7ms). MUST match the client gameEngine.ts.' },
+  // `queue_enabled` is the single source of truth for whether pre-set crash points
+  // override the parametric algorithm.
+  { key: 'game.queue_enabled', label: 'Use preset crash queue', type: 'toggle', tab: 'game', group: 'Crash engine',
+    help: 'When on, queued crash points take priority over the random algorithm.' },
   { key: 'game.max_crash_point', label: 'Max crash point', type: 'number', tab: 'game', group: 'Crash engine',
     unit: 'x', unitPos: 'suffix', min: 1, step: 1, help: 'Upper bound on any generated crash multiplier.' },
 
   // ---- Game: bots ----------------------------------------------------------
   { key: 'game.bots_min', label: 'Minimum bots / round', type: 'number', tab: 'game', group: 'Simulated bots',
-    min: 0, step: 1 },
+    min: 0, step: 1, help: 'Must be <= the maximum.' },
   { key: 'game.bots_max', label: 'Maximum bots / round', type: 'number', tab: 'game', group: 'Simulated bots',
-    min: 0, step: 1 },
+    min: 0, step: 1, help: 'Must be >= the minimum.' },
 
   // ---- Finance -------------------------------------------------------------
   { key: 'finance.min_withdrawal', label: 'Minimum withdrawal', type: 'number', tab: 'finance', group: 'Withdrawals',
@@ -111,8 +104,6 @@ export function resolveField(key: string, category: string): FieldDef {
     group: 'Advanced',
   };
 }
-
-export const DISTRIBUTION_KEYS = FIELDS.filter(f => f.distribution).map(f => f.key);
 
 // Coerce an editor's working value into the JSON value persisted to jsonb.
 export function serialize(type: FieldType, raw: string | boolean): string | number | boolean {

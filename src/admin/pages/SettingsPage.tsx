@@ -68,26 +68,18 @@ export default function SettingsPage() {
 
   useEffect(() => { void loadSettings(); }, [loadSettings]);
 
-  // Persist a single system_settings value (jsonb) and record it in the audit
-  // log. Returns a structured result so the field renderer can show inline state.
+  // Persist a single system_settings value through the server-authoritative
+  // admin_set_setting RPC. The RPC is the SOLE write path: it enforces the
+  // super_admin gate, validates type/bounds/cross-field invariants (e.g.
+  // min_bet <= max_bet, house edge band), and writes the value + audit row
+  // atomically. Direct table writes are revoked, so a bad value can never be
+  // saved silently. Returns a structured result for inline field state.
   const saveSetting = useCallback(async (key: string, value: string | number | boolean): Promise<{ ok: boolean; error?: string }> => {
-    const original = rows.find(r => r.key === key);
-    const { data: { session } } = await supabase.auth.getSession();
-    const { error } = await supabase
-      .from('system_settings')
-      .update({ value, updated_by: session?.user.id ?? null, updated_at: new Date().toISOString() })
-      .eq('key', key);
+    const { error } = await supabase.rpc('admin_set_setting', { p_key: key, p_value: value });
     if (error) return { ok: false, error: friendly(error.message) };
-    if (session) {
-      // Best-effort audit; never fail the save if the log insert is rejected.
-      await supabase.from('admin_audit_log').insert({
-        admin_id: session.user.id, action: 'setting_updated', target_type: 'setting', target_id: key,
-        details: { old: original?.value ?? null, new: value },
-      });
-    }
     setRows(rs => rs.map(r => (r.key === key ? { ...r, value, updated_at: new Date().toISOString() } : r)));
     return { ok: true };
-  }, [rows]);
+  }, []);
 
   const isSystemTab = SYSTEM_TABS.includes(tab);
 

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Check, AlertTriangle } from 'lucide-react';
-import { resolveField, serialize, DISTRIBUTION_KEYS, type FieldDef, type SettingsTabId } from './registry';
+import { Check } from 'lucide-react';
+import { resolveField, serialize, type FieldDef, type SettingsTabId } from './registry';
 
 // Renders the system_settings for one tab (general / game / finance) with a
 // typed control per setting, grouped into labelled sections. Editing is local
-// (draft) until Save; the actual persistence + audit lives in SettingsPage and
-// is passed in as `onSave`. The crash-distribution group shows a running total
-// because those six percentages must sum to 100.
+// (draft) until Save; the actual persistence + validation + audit lives in the
+// server RPC (admin_set_setting), invoked via the `onSave` callback passed in
+// from SettingsPage. Only engine-consumed keys are registered, so every control
+// shown here has a real effect.
 
 export interface SettingRecord {
   key: string;
@@ -81,11 +82,6 @@ export default function SystemSettingsTab({
     }
   }
 
-  // Crash-distribution running total (uses current working values).
-  const distRows = fields.filter(x => x.field.distribution);
-  const distTotal = distRows.reduce((sum, x) => sum + (Number(workingOf(x.field, x.row)) || 0), 0);
-  const distComplete = distRows.length === DISTRIBUTION_KEYS.length;
-
   if (fields.length === 0) {
     return <div className="rounded-xl border border-line bg-surface p-10 text-center text-faint text-[13px]">No settings in this section.</div>;
   }
@@ -94,24 +90,11 @@ export default function SystemSettingsTab({
     <div className="space-y-6">
       {groups.map(group => {
         const groupFields = fields.filter(x => x.field.group === group);
-        const isDist = group === 'Crash distribution';
         return (
           <section key={group} className="rounded-xl border border-line bg-surface overflow-hidden">
             <div className="px-5 py-3.5 border-b border-line flex items-center justify-between gap-3">
               <h3 className="text-[11px] font-semibold text-muted uppercase tracking-[0.1em]">{group}</h3>
-              {isDist && distComplete && (
-                <span className={'inline-flex items-center gap-1.5 text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded border ' +
-                  (distTotal === 100 ? 'bg-up/10 text-up border-up/30' : 'bg-amber-500/10 text-amber-400 border-amber-500/30')}>
-                  {distTotal !== 100 && <AlertTriangle size={12} />}
-                  Total {distTotal}%
-                </span>
-              )}
             </div>
-            {isDist && distComplete && distTotal !== 100 && (
-              <p className="px-5 pt-3 text-[12px] text-amber-400">
-                Crash-distribution percentages should sum to exactly 100%. They currently total {distTotal}%.
-              </p>
-            )}
             <div className="divide-y divide-line">
               {groupFields.map(({ field, row }) => (
                 <SettingRow

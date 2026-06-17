@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Users, Plus, X } from 'lucide-react';
+import { MessageSquare, Users, Plus, X, Wrench } from 'lucide-react';
 import GameCanvas from './GameCanvas';
 import BettingPanel, { type QueuedBet } from './BettingPanel';
 import LiveBetsTable from './LiveBetsTable';
@@ -10,6 +10,7 @@ import Chat from './Chat';
 import ChatTicker from './ChatTicker';
 import { useChatStream } from '../../hooks/useChatStream';
 import { useGame, BET_SLOTS, type BetSlot } from '../../hooks/useGame';
+import { useMaintenance } from '../../hooks/useMaintenance';
 import type { DemoGame } from '../../hooks/useDemoGame';
 import { usePromos } from '../../hooks/usePromos';
 import { useOnlineCount } from '../../hooks/useOnlineCount';
@@ -60,6 +61,13 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
   // and players are unaffected. The DB is the authoritative gate (place_bet +
   // block_operator_bets trigger); this only keeps the UI honest.
   const isOperator = profile?.role === 'admin' || profile?.role === 'super_admin';
+
+  // Maintenance mode (real-money only). The DB place_bet RPC is the authoritative
+  // gate; this flag locks the UI so players can't tap into a server rejection.
+  // Operators retain the live view (they can't wager anyway) and demo is exempt
+  // since it's client-only play money.
+  const maintenance = useMaintenance();
+  const maintenanceLock = maintenance && !isDemo && !isOperator;
 
   // Real game (server-authoritative). Always mounted so switching back to Real is
   // instant; it simply isn't the active view while in demo.
@@ -342,6 +350,22 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
             </div>
           )}
 
+          {/* Maintenance: staff keep the live view (they can't wager anyway) but
+              are told players are locked out. */}
+          {maintenance && !isDemo && isOperator && (
+            <div className="flex-shrink-0 border-t border-edge bg-amber-500/15 px-4 py-2 text-center text-amber-300 text-[11px] font-semibold">
+              Maintenance mode is ON - players are blocked from placing bets. You are viewing as staff.
+            </div>
+          )}
+
+          {/* Maintenance: a player with a bet already in flight keeps the panels
+              so they can cash out, but new bets are closed. */}
+          {maintenanceLock && anyBetThisRound && (
+            <div className="flex-shrink-0 border-t border-edge bg-amber-500/15 px-4 py-2 text-center text-amber-300 text-[11px] font-semibold">
+              New bets are closed for maintenance. You can still cash out your active bet.
+            </div>
+          )}
+
           {/* Player promotions: free bets + rain (real-money mode only) */}
           {!isDemo && profile && !isOperator && (
             <PromoBar
@@ -361,6 +385,19 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
               bet action is the one obvious thing on screen. The second dual-bet
               slot is opt-in via the toggle below. Desktop (lg+): both side by
               side. flex-col -> lg:flex-row gives full width on phones. */}
+          {maintenanceLock && !anyBetThisRound ? (
+            <div className="flex-shrink-0 border-t border-edge bg-night px-4 py-8">
+              <div className="mx-auto max-w-sm text-center">
+                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-amber-500/15 text-amber-400">
+                  <Wrench size={20} />
+                </div>
+                <div className="text-white font-bold text-sm">Game under maintenance</div>
+                <p className="text-slate-400 text-xs mt-1 leading-relaxed">
+                  Betting is paused while we carry out scheduled maintenance. Your balance is safe - please check back shortly.
+                </p>
+              </div>
+            </div>
+          ) : (
           <div className="flex flex-col lg:flex-row flex-shrink-0 border-t border-edge bg-night">
             <div className="flex-1 lg:border-r border-edge">
               <BettingPanel
@@ -397,6 +434,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
               />
             </div>
           </div>
+          )}
 
           {/* Mobile-only: opt in / out of the second simultaneous bet. */}
           <button
