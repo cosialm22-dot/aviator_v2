@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { buildShareUrl, type SharePlatform } from '../../lib/share';
+import { isValidKenyanPhone, normalizeKenyanPhone } from '../../lib/phone';
 import type { Profile } from '../../types';
 import type { MarketerDashboard, CommissionPayout } from '../../types/marketing';
 
@@ -90,9 +91,10 @@ export default function MarketerHub({ profile, onSignInRequired }: Props) {
     const amt = Number(amount);
     if (!Number.isInteger(amt) || amt <= 0) { setErr('Enter a whole number greater than zero.'); return; }
     if (data && amt > data.commission_available) { setErr('That exceeds your available commission.'); return; }
+    if (!isValidKenyanPhone(phone)) { setErr('Enter a valid Kenyan phone number (e.g. 0712345678).'); return; }
     setSubmitting(true);
     try {
-      const { error } = await supabase.rpc('request_commission_payout', { p_amount: amt, p_phone: phone });
+      const { error } = await supabase.rpc('request_commission_payout', { p_amount: amt, p_phone: normalizeKenyanPhone(phone) });
       if (error) throw new Error(friendly(error.message));
       setNotice('Payout request submitted. An admin will review it shortly.');
       setAmount(''); setPhone('');
