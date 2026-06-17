@@ -1,22 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Eye, EyeOff, Phone } from 'lucide-react';
+import { normalizeKenyanPhone, isValidKenyanPhone } from '../../lib/phone';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 interface Props {
   initialMode: 'signin' | 'signup';
   onSignUp: (phone: string, password: string, username: string) => Promise<unknown>;
   onSignIn: (phone: string, password: string) => Promise<unknown>;
   onClose: () => void;
-}
-
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/[^0-9]/g, '');
-  if (digits.startsWith('254') && digits.length === 12) return digits;
-  if (digits.startsWith('0') && digits.length === 10) return '254' + digits.slice(1);
-  return digits;
-}
-
-function isValidKenyanPhone(phone: string): boolean {
-  return /^254(7|1)[0-9]{8}$/.test(normalizePhone(phone));
 }
 
 export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: Props) {
@@ -28,42 +19,13 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const dialogRef = useRef<HTMLDivElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
-  // Hold the latest onClose so the key/focus effect can arm exactly once without
-  // re-running (and re-capturing focus state) when the parent re-renders.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  const dialogRef = useModalA11y(onClose, firstFieldRef);
 
   const isSignup = mode === 'signup';
 
-  // Modal focus contract: remember the trigger, trap Tab inside the dialog, close
-  // on Escape, and restore focus to the trigger on unmount. Armed once on mount.
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); return; }
-      if (e.key !== 'Tab') return;
-      const root = dialogRef.current;
-      if (!root) return;
-      const focusable = root.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      previouslyFocused?.focus?.();
-    };
-  }, []);
-
-  // Move focus to the first field on open and whenever the mode flips (the first
-  // field changes: username for sign-up, phone for sign-in).
+  // Re-focus the first field when the mode flips (username for sign-up, phone for
+  // sign-in). Initial focus on open is handled by useModalA11y.
   useEffect(() => { firstFieldRef.current?.focus(); }, [mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,7 +43,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
 
     setLoading(true);
     try {
-      const normalized = normalizePhone(phone);
+      const normalized = normalizeKenyanPhone(phone);
       if (mode === 'signup') {
         if (username.trim().length < 3) throw new Error('Username must be at least 3 characters');
         await onSignUp(normalized, password, username.trim());

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone, Lock, Eye, EyeOff } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
+import { isValidKenyanPhone } from '../../lib/phone';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 /*
  * WALLET MODAL - M-Pesa cashier (server-authoritative).
@@ -39,6 +41,9 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
   const [error, setError] = useState('');
   const [depositConfirmed, setDepositConfirmed] = useState(false);
 
+  const amountRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useModalA11y(onClose, amountRef);
+
   const parsedAmount = parseFloat(amount) || 0;
   const minAmount = tab === 'deposit' ? MIN_DEPOSIT : MIN_WITHDRAWAL;
 
@@ -53,7 +58,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
     if (!Number.isInteger(parsedAmount) || parsedAmount < minAmount) {
       setError(`Enter a whole amount of at least ${formatCurrency(minAmount)}`); return;
     }
-    if (phone.replace(/\D/g, '').length < 9) { setError('Enter a valid phone number'); return; }
+    if (!isValidKenyanPhone('254' + phone)) { setError('Enter a valid M-Pesa phone number'); return; }
     if (tab === 'withdraw' && parsedAmount > balance) { setError('Insufficient balance'); return; }
     if (tab === 'withdraw' && !password.trim()) { setError('Enter your password to confirm this withdrawal'); return; }
 
@@ -82,16 +87,21 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
       : `Approve the M-Pesa prompt on +254${phone} to add ${formatCurrency(parsedAmount)}. Your balance updates automatically once confirmed.`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-      <div
-        className="w-full max-w-[400px] overflow-hidden"
-        style={{
-          background: '#161b2e',
-          borderRadius: '20px',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset',
-        }}
-      >
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Wallet"
+          className="w-full max-w-[400px] overflow-hidden"
+          style={{
+            background: '#161b2e',
+            borderRadius: '20px',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset',
+          }}
+        >
         {/* ============ SUCCESS ============ */}
         {step === 'success' && (
           <div className="px-8 py-14 text-center">
@@ -133,7 +143,8 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
               </div>
               <button
                 onClick={onClose}
-                className="w-9 h-9 rounded-full bg-[#1c2237] border border-[#2a3150] flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all"
+                aria-label="Close"
+                className="w-9 h-9 rounded-full bg-[#1c2237] border border-[#2a3150] flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/50"
               >
                 <X size={15} />
               </button>
@@ -179,19 +190,21 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold">KSh</span>
                   <input
+                    ref={amountRef}
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0"
                     min={minAmount}
                     step={1}
+                    aria-label="Amount in Kenyan shillings"
                     className="w-full bg-[#1c2237] border border-[#2a3150] rounded-xl pl-12 pr-4 py-4 text-white text-xl font-bold tabular-nums placeholder:text-[#2a3150] focus:outline-none focus:border-[#22c55e]/60 focus:ring-1 focus:ring-[#22c55e]/20 transition-all"
                   />
                 </div>
                 <div className="grid grid-cols-6 gap-1.5 mt-3">
                   {QUICK_AMOUNTS.map((q) => {
-                    const isActive = parseFloat(amount) === q;
                     const displayQ = tab === 'withdraw' ? Math.min(q, Math.floor(balance)) : q;
+                    const isActive = parseFloat(amount) === displayQ && displayQ > 0;
                     return (
                       <button
                         key={q}
@@ -266,7 +279,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
                 </div>
               )}
 
-              {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+              {error && <p role="alert" className="text-red-400 text-xs text-center">{error}</p>}
 
               {/* CTA */}
               <button
@@ -278,6 +291,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose }:
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { toDarajaMsisdn } from '../lib/phone';
 
 // ============================================================================
 // useWallet - SERVER-AUTHORITATIVE CASHIER (Phase 5b)
@@ -16,17 +17,6 @@ import { supabase } from '../lib/supabase';
 
 const DEPOSIT_POLL_MS = 3000;
 const DEPOSIT_TIMEOUT_MS = 90_000; // Daraja STK prompts expire ~60s; allow margin
-
-/** Normalise a Kenyan MSISDN to Daraja format 254XXXXXXXXX, or null if invalid. */
-function normalizePhone(raw: string): string | null {
-  const d = (raw || '').replace(/\D/g, '');
-  let n: string;
-  if (d.length === 9) n = '254' + d;                          // 7XXXXXXXX
-  else if (d.length === 10 && d.startsWith('0')) n = '254' + d.slice(1); // 07XXXXXXXX
-  else if (d.length === 12 && d.startsWith('254')) n = d;      // 2547XXXXXXXX
-  else return null;
-  return /^254[0-9]{9}$/.test(n) ? n : null;
-}
 
 /** Map raw backend error codes to safe, user-facing copy. Never leak internals. */
 function friendly(code: string, op: 'deposit' | 'withdrawal'): string {
@@ -79,7 +69,7 @@ export function useWallet(userId: string | undefined, onRefresh: () => Promise<v
   ): Promise<boolean> => {
     if (!userId) throw new Error('Please sign in to continue.');
     if (method !== 'mpesa') throw new Error('Only M-Pesa is currently supported.');
-    const phone = normalizePhone(details.phone || '');
+    const phone = toDarajaMsisdn(details.phone || '');
     if (!phone) throw new Error('Enter a valid M-Pesa phone number.');
     if (!Number.isInteger(amount) || amount <= 0) throw new Error('Enter a whole-number amount.');
 
@@ -132,7 +122,7 @@ export function useWallet(userId: string | undefined, onRefresh: () => Promise<v
   ): Promise<void> => {
     if (!userId) throw new Error('Please sign in to continue.');
     if (method !== 'mpesa') throw new Error('Only M-Pesa withdrawals are currently supported.');
-    const phone = normalizePhone(details.phone || '');
+    const phone = toDarajaMsisdn(details.phone || '');
     if (!phone) throw new Error('Enter a valid M-Pesa phone number.');
     if (!Number.isInteger(amount) || amount <= 0) throw new Error('Enter a whole-number amount.');
 
