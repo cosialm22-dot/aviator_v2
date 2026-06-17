@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Eye, EyeOff, Phone } from 'lucide-react';
+import { X, Eye, EyeOff, Phone, Gift } from 'lucide-react';
 import { normalizeKenyanPhone, isValidKenyanPhone } from '../../lib/phone';
 import { useModalA11y } from '../../hooks/useModalA11y';
 
@@ -110,11 +110,11 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
                   <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/[0.04] rounded-full -translate-y-1/2 translate-x-1/2" />
                   <div className="relative flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xl text-emerald-400">+</span>
+                      <Gift size={18} className="text-emerald-400" />
                     </div>
                     <div>
-                      <div className="text-emerald-400 font-bold text-[15px] leading-tight">KSh 500</div>
-                      <div className="text-slate-500 text-[11px] mt-0.5">Free credits on signup</div>
+                      <div className="text-emerald-400 font-bold text-[15px] leading-tight">100% first-deposit match</div>
+                      <div className="text-slate-400 text-[11px] mt-0.5">Double your first deposit up to KSh 500 &mdash; plus KSh 500 free to start</div>
                     </div>
                   </div>
                 </div>
