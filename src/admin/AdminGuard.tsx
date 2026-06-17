@@ -65,6 +65,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen bg-night-deep flex items-center justify-center p-4">
       <form onSubmit={handleLogin} className="w-full max-w-sm bg-[#111122] border border-edge rounded-2xl p-8">
         <div className="text-center mb-8">
+          <img src="/plane.png" alt="" aria-hidden="true" className="h-7 w-auto mx-auto mb-3 -rotate-12 drop-shadow-[0_0_10px_rgba(200,0,24,0.5)]" />
           <div className="text-2xl font-black text-white mb-1">Aviator Admin</div>
           <div className="text-sm text-slate-500">Sign in to continue</div>
         </div>

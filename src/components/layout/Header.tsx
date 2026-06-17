@@ -32,7 +32,8 @@ export default function Header({ profile, balance, mode, onSetMode, demoBalance,
   return (
     <header className="bg-night border-b border-edge px-4 h-12 flex items-center justify-between relative z-30 flex-shrink-0">
       {/* Logo */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
+        <img src="/plane.png" alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_8px_rgba(200,0,24,0.55)]" />
         <span
           className="font-black italic text-xl tracking-tight"
           style={{ color: '#cc0018', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(200,0,24,0.5)' }}

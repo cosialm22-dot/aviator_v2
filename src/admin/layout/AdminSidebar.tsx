@@ -77,7 +77,7 @@ export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
       >
       <div className="h-14 flex items-center px-5 border-b border-line">
         <Link to="/admin" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-danger rounded-lg flex items-center justify-center"><span className="text-white text-xs font-black">A</span></div>
+          <img src="/plane.png" alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_6px_rgba(200,0,24,0.5)]" />
           <span className="text-white font-semibold text-sm tracking-tight">Aviator Admin</span>
         </Link>
       </div>
