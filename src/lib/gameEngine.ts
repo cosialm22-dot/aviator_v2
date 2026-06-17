@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-
 /**
  * Crash point generator with elevated house edge (~18-20%).
  *
@@ -91,43 +89,4 @@ export function getCrashColor(value: number): string {
   if (value < 5)   return 'bg-green-600 text-white';
   if (value < 10)  return 'bg-cyan-600 text-white';
   return 'bg-amber-500 text-black';
-}
-
-/**
- * Gets the next crash point from the crash_queue if enabled, otherwise generates randomly.
- * Reads game.queue_enabled from system_settings. Consumes queue items (marks them used).
- */
-export async function getNextCrashPoint(supabase: SupabaseClient): Promise<{
-  point: number;
-  source: 'algorithm' | 'queue';
-  queueId: string | null;
-}> {
-  try {
-    const { data: settings } = await supabase
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'game.queue_enabled')
-      .maybeSingle();
-
-    if (settings?.value === true || settings?.value === 'true') {
-      const { data: items } = await supabase
-        .from('crash_queue')
-        .select('id, crash_point')
-        .eq('status', 'pending')
-        .order('position', { ascending: true })
-        .limit(1);
-
-      if (items && items.length > 0) {
-        await supabase
-          .from('crash_queue')
-          .update({ status: 'used', used_at: new Date().toISOString() })
-          .eq('id', items[0].id);
-        return { point: Number(items[0].crash_point), source: 'queue', queueId: items[0].id };
-      }
-    }
-  } catch {
-    // Queue fetch failed - fall back to random generation
-  }
-
-  return { point: generateCrashPoint(), source: 'algorithm', queueId: null };
 }

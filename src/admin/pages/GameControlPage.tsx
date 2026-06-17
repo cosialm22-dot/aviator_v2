@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
+import { useAdmin } from '../roleContext';
 import { getMultiplierAtTime, formatMultiplier } from '../../lib/gameEngine';
-import { Activity, Target } from 'lucide-react';
+import { Activity, Target, Power } from 'lucide-react';
 
 interface GameRoundRow { id:string; crash_multiplier:number; status:string; started_at:string|null; crashed_at:string|null; source:string; queue_id:string|null }
-interface CQItem { id:string; crash_point:number; position:number; status:string; created_at:string }
+interface CQItem { id:string; crash_multiplier:number; position:number; status:string; created_at:string }
 
 const POLL_MS=3000; const TICK_MS=150; const ZOMBIE_MS=12e4; const MIN_C=1; const MAX_C=80;
 type Tab='monitor'|'queue';
@@ -18,7 +19,9 @@ function elapsed(iso:string|null):number{return iso?Math.floor((Date.now()-new D
 const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
 
 export default function GameControlPage(){
+const{isSuperAdmin}=useAdmin();
 const[tab,setTab]=useState<Tab>('monitor');
+const[qEnabled,setQEnabled]=useState<boolean>(false);
 const[round,setRound]=useState<GameRoundRow|null>(null);
 const[bCnt,setBCnt]=useState(0);const[bTot,setBTot]=useState(0);
 const[mult,setMult]=useState(1);
@@ -37,21 +40,23 @@ const fetchAll=useCallback(async()=>{try{aRef.current?.abort();const ac=new Abor
 
 useEffect(()=>{if(round?.status!=='flying'||!round.started_at){setMult(1);return}const st=new Date(round.started_at).getTime();const tick=()=>{const m=getMultiplierAtTime(Date.now()-st);setMult(m>=Number(round.crash_multiplier)?Number(round.crash_multiplier):m)};tick();tRef.current=setInterval(tick,TICK_MS);return()=>clearInterval(tRef.current)},[round?.status,round?.started_at,round?.crash_multiplier]);
 
-useEffect(()=>{fetchAll();pRef.current=setInterval(fetchAll,POLL_MS);return()=>{clearInterval(pRef.current);clearInterval(tRef.current);aRef.current?.abort()}},[fetchAll]);
+const loadQEnabled=useCallback(async()=>{const{data}=await supabase.from('system_settings').select('value').eq('key','game.queue_enabled').maybeSingle();setQEnabled(Boolean(data?.value))},[]);
 
-const audit=useCallback(async(action:string,tid?:string|null,dt?:Record<string,unknown>)=>{try{const{data:{session}}=await supabase.auth.getSession();if(!session?.user?.id)return;await supabase.from('admin_audit_log').insert({admin_id:session.user.id,action,target_type:'game',target_id:tid||null,details:dt||null})}catch{ /* best-effort: never block the action on audit failure */ }},[]);
+useEffect(()=>{fetchAll();loadQEnabled();pRef.current=setInterval(fetchAll,POLL_MS);return()=>{clearInterval(pRef.current);clearInterval(tRef.current);aRef.current?.abort()}},[fetchAll,loadQEnabled]);
+
+const toggleQueue=async()=>{if(lock)return;setLock('qe');try{const{error:qeErr}=await supabase.rpc('admin_set_setting',{p_key:'game.queue_enabled',p_value:!qEnabled});if(qeErr)throw qeErr;await loadQEnabled();setErr(null)}catch(e){setErr(errMsg(e,'Failed'))}finally{setLock(null)}};
 
 const forceCrash=async()=>{if(!round||round.status!=='flying'||lock)return;setLock('fc');try{const{error:fcErr}=await supabase.rpc('admin_force_crash',{p_round_id:round.id});if(fcErr)throw fcErr;setShFC(false);fetchAll()}catch(e){setErr(errMsg(e,'Failed'))}finally{setLock(null)}};
 
 const recoverZ=async()=>{if(lock)return;setLock('rc');try{const{error:rzErr}=await supabase.rpc('admin_recover_zombies',{p_older_than_seconds:Math.round(ZOMBIE_MS/1000)});if(rzErr)throw rzErr;setShRc(false);fetchAll()}catch(e){setErr(errMsg(e,'Failed'))}finally{setLock(null)}};
 
-const addSingle=async()=>{if(lock)return;const v=parseFloat(sVal);if(isNaN(v)||v<MIN_C||v>MAX_C){setErr('Must be '+MIN_C+'-'+MAX_C);return}setLock('as');try{const pos=queue.length>0?Math.max(...queue.map(q=>q.position))+1:1;await supabase.from('crash_queue').insert({crash_point:v,position:pos,status:'pending',created_at:new Date().toISOString()});await audit('queue_add',null,{crash_point:v,position:pos});setSVal('');setErr(null);fetchAll()}catch(e){setErr(errMsg(e,'Add failed'))}finally{setLock(null)}};
+const addSingle=async()=>{if(lock)return;const v=parseFloat(sVal);if(isNaN(v)||v<MIN_C||v>MAX_C){setErr('Must be '+MIN_C+'-'+MAX_C);return}setLock('as');try{const{error:aErr}=await supabase.rpc('admin_queue_add',{p_crash:v});if(aErr)throw aErr;setSVal('');setErr(null);fetchAll()}catch(e){setErr(errMsg(e,'Add failed'))}finally{setLock(null)}};
 
-const addBatch=async()=>{if(lock)return;const lines=bVal.split(/[\n,]+/).map((l:string)=>l.trim()).filter((l:string)=>l);const vals:number[]=[];const errs:string[]=[];for(const l of lines){const v=parseFloat(l);if(isNaN(v)||v<MIN_C||v>MAX_C)errs.push('Invalid: '+l);else vals.push(v)}if(errs.length){setErr(errs.join('; '));return}if(!vals.length)return;setLock('ab');try{const bp=queue.length>0?Math.max(...queue.map(q=>q.position))+1:1;const rows=vals.map((v,i)=>({crash_point:v,position:bp+i,status:'pending',created_at:new Date().toISOString()}));await supabase.from('crash_queue').insert(rows);await audit('queue_batch_add',null,{count:vals.length});setBVal('');setErr(null);fetchAll()}catch(e){setErr(errMsg(e,'Batch failed'))}finally{setLock(null)}};
+const addBatch=async()=>{if(lock)return;const lines=bVal.split(/[\n,]+/).map((l:string)=>l.trim()).filter((l:string)=>l);const vals:number[]=[];const errs:string[]=[];for(const l of lines){const v=parseFloat(l);if(isNaN(v)||v<MIN_C||v>MAX_C)errs.push('Invalid: '+l);else vals.push(v)}if(errs.length){setErr(errs.join('; '));return}if(!vals.length)return;setLock('ab');try{const{error:bErr}=await supabase.rpc('admin_queue_add_batch',{p_points:vals});if(bErr)throw bErr;setBVal('');setErr(null);fetchAll()}catch(e){setErr(errMsg(e,'Batch failed'))}finally{setLock(null)}};
 
-const removeQ=async(id:string,cp:number)=>{if(lock)return;setLock('rm-'+id);try{await supabase.from('crash_queue').delete().eq('id',id);await audit('queue_remove',id,{crash_point:cp});fetchAll()}catch(e){setErr(errMsg(e,'Remove failed'))}finally{setLock(null)}};
+const removeQ=async(id:string)=>{if(lock)return;setLock('rm-'+id);try{const{error:rErr}=await supabase.rpc('admin_queue_remove',{p_id:id});if(rErr)throw rErr;setErr(null);fetchAll()}catch(e){setErr(errMsg(e,'Remove failed'))}finally{setLock(null)}};
 
-const clearQ=async()=>{if(lock)return;setLock('cq');try{const ids=queue.filter(q=>q.status==='pending').map(q=>q.id);for(const id of ids)await supabase.from('crash_queue').delete().eq('id',id);await audit('queue_clear',null,{count:ids.length});setShCl(false);fetchAll()}catch(e){setErr(errMsg(e,'Clear failed'))}finally{setLock(null)}};
+const clearQ=async()=>{if(lock)return;setLock('cq');try{const{error:cErr}=await supabase.rpc('admin_queue_clear');if(cErr)throw cErr;setShCl(false);setErr(null);fetchAll()}catch(e){setErr(errMsg(e,'Clear failed'))}finally{setLock(null)}};
 
 const isF=round?.status==='flying';const pendingQ=queue.filter(q=>q.status==='pending');
 const TABS=[{k:'monitor'as Tab,l:'Live Monitor',i:Activity},{k:'queue'as Tab,l:'Crash Queue',i:Target}];
@@ -100,7 +105,7 @@ return(
           </div>
         </div>
         {isF&&(<div className="rounded-xl border border-down/30 bg-down/5 p-5 flex items-center justify-between gap-4 flex-wrap">
-          <div><div className="text-ink font-semibold text-sm">Emergency: Force Crash</div><p className="text-[12px] text-muted mt-1">Crashes at current multiplier. All active bets lose. Audited.</p></div>
+          <div><div className="text-ink font-semibold text-sm">Emergency: Force Crash</div><p className="text-[12px] text-muted mt-1">Crashes the round now at the current multiplier. All active bets lose. Recorded as an override and audited.</p></div>
           <button onClick={()=>setShFC(true)} className="px-4 py-2.5 bg-down hover:brightness-95 text-white font-semibold text-sm rounded-lg transition flex-shrink-0">Force Crash Now</button>
         </div>)}
         {!round&&!loading&&(<div className="rounded-xl border border-line bg-surface p-16 text-center"><div className="text-ink font-semibold text-lg">Waiting for game activity</div><div className="text-[13px] text-muted mt-1">Open the game in another tab to start a round</div></div>)}
@@ -111,16 +116,31 @@ return(
       </div>)}
 
       {tab==='queue'&&(<div className="space-y-6">
+        <div className={'rounded-xl border p-5 flex items-center justify-between gap-4 flex-wrap '+(qEnabled?'border-up/30 bg-up/5':'border-line bg-surface')}>
+          <div className="flex items-start gap-3">
+            <span className={'mt-1 h-2 w-2 rounded-full flex-shrink-0 '+(qEnabled?'bg-up animate-pulse':'bg-faint')} />
+            <div>
+              <div className="text-ink font-semibold text-sm">Preset queue {qEnabled?'ACTIVE':'INACTIVE'}</div>
+              <p className="text-[12px] text-muted mt-0.5 max-w-md">{qEnabled?'Each round uses the next pending crash point below; the random algorithm is bypassed.':'Crash points come from the random algorithm. Queued points are ignored until you activate the queue.'}</p>
+            </div>
+          </div>
+          {isSuperAdmin?(
+            <button onClick={toggleQueue} disabled={lock==='qe'} className={'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 flex-shrink-0 '+(qEnabled?'border border-down/30 bg-down/10 text-down hover:bg-down/20':'bg-brand text-white hover:bg-brand-dark')}>{lock==='qe'?<Spin />:<Power size={14} />}{qEnabled?'Deactivate':'Activate queue'}</button>
+          ):(
+            <span className="text-[11px] text-muted flex-shrink-0">Only a super admin can change this.</span>
+          )}
+        </div>
+        {!isSuperAdmin&&(<div className="rounded-xl border border-line bg-surface px-5 py-3 text-[12px] text-muted">You can view the crash queue. Editing crash points requires a super admin.</div>)}
         <div className="rounded-xl border border-line bg-surface p-6 space-y-4">
           <div className="flex gap-3">
-            <input type="number" value={sVal} onChange={e=>setSVal(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addSingle()} placeholder="1-80" min={MIN_C} max={MAX_C} step="0.01" className="flex-1 px-4 py-3 bg-surface border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
-            <button onClick={addSingle} disabled={lock==='as'||!sVal.trim()} className="inline-flex items-center gap-2 px-5 py-3 bg-brand hover:bg-brand-dark text-white font-semibold text-sm rounded-lg transition-colors disabled:opacity-40 flex-shrink-0">{lock==='as'&&<Spin />}Add</button>
+            <input type="number" value={sVal} onChange={e=>setSVal(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addSingle()} placeholder="1-80" min={MIN_C} max={MAX_C} step="0.01" disabled={!isSuperAdmin} className="flex-1 px-4 py-3 bg-surface border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition disabled:opacity-50" />
+            <button onClick={addSingle} disabled={lock==='as'||!sVal.trim()||!isSuperAdmin} className="inline-flex items-center gap-2 px-5 py-3 bg-brand hover:bg-brand-dark text-white font-semibold text-sm rounded-lg transition-colors disabled:opacity-40 flex-shrink-0">{lock==='as'&&<Spin />}Add</button>
           </div>
           <details className="group">
             <summary className="text-[12px] text-muted cursor-pointer hover:text-ink">Batch add (one per line, comma-separated)</summary>
             <div className="mt-3 space-y-3">
-              <textarea value={bVal} onChange={e=>setBVal(e.target.value)} placeholder="1.23,4.56,12.00" rows={3} className="w-full px-4 py-3 bg-surface border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 resize-none transition" />
-              <button onClick={addBatch} disabled={lock==='ab'||!bVal.trim()} className="inline-flex items-center gap-2 px-4 py-2.5 border border-line bg-surface hover:border-brand/40 hover:text-brand text-ink font-semibold text-sm rounded-lg transition-colors disabled:opacity-40">{lock==='ab'&&<Spin />}Add {bVal.trim()?bVal.split(/[\n,]+/).filter((l:string)=>l.trim()).length:0} items</button>
+              <textarea value={bVal} onChange={e=>setBVal(e.target.value)} placeholder="1.23,4.56,12.00" rows={3} disabled={!isSuperAdmin} className="w-full px-4 py-3 bg-surface border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 resize-none transition disabled:opacity-50" />
+              <button onClick={addBatch} disabled={lock==='ab'||!bVal.trim()||!isSuperAdmin} className="inline-flex items-center gap-2 px-4 py-2.5 border border-line bg-surface hover:border-brand/40 hover:text-brand text-ink font-semibold text-sm rounded-lg transition-colors disabled:opacity-40">{lock==='ab'&&<Spin />}Add {bVal.trim()?bVal.split(/[\n,]+/).filter((l:string)=>l.trim()).length:0} items</button>
             </div>
           </details>
         </div>
@@ -134,16 +154,16 @@ return(
                 {queue.length===0?(<tr><td colSpan={5} className="px-5 py-16 text-center text-faint text-[12px]">Queue empty - crash points come from algorithm</td></tr>):queue.map(q=>(
                   <tr key={q.id} className="hover:bg-canvas transition-colors">
                     <td className="px-5 py-3 text-muted font-mono text-xs">{q.position}</td>
-                    <td className="px-5 py-3 text-ink font-mono font-semibold">{Number(q.crash_point).toFixed(2)}x</td>
+                    <td className="px-5 py-3 text-ink font-mono font-semibold">{Number(q.crash_multiplier).toFixed(2)}x</td>
                     <td className="px-5 py-3"><span className={'inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold '+(q.status==='pending'?'bg-brand/10 text-brand':q.status==='used'?'bg-up/10 text-up':'bg-white/[0.06] text-muted')}>{q.status}</span></td>
                     <td className="px-5 py-3 text-muted text-xs hidden lg:table-cell">{new Date(q.created_at).toLocaleTimeString()}</td>
-                    <td className="px-5 py-3 text-right"><button onClick={()=>removeQ(q.id,q.crash_point)} disabled={lock==='rm-'+q.id||q.status!=='pending'} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted hover:text-down disabled:opacity-30 transition-colors">{lock==='rm-'+q.id&&<Spin />}Remove</button></td>
+                    <td className="px-5 py-3 text-right"><button onClick={()=>removeQ(q.id)} disabled={lock==='rm-'+q.id||q.status!=='pending'||!isSuperAdmin} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted hover:text-down disabled:opacity-30 transition-colors">{lock==='rm-'+q.id&&<Spin />}Remove</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {pendingQ.length>0&&(<div className="px-5 py-3 border-t border-line flex items-center justify-between"><span className="text-[11px] text-muted">{pendingQ.length} pending</span><button onClick={()=>setShCl(true)} className="px-3 py-1.5 rounded-lg border border-down/30 bg-down/10 text-down text-[11px] font-medium hover:bg-down/20 transition-colors">Clear All</button></div>)}
+          {pendingQ.length>0&&(<div className="px-5 py-3 border-t border-line flex items-center justify-between"><span className="text-[11px] text-muted">{pendingQ.length} pending</span><button onClick={()=>setShCl(true)} disabled={!isSuperAdmin} className="px-3 py-1.5 rounded-lg border border-down/30 bg-down/10 text-down text-[11px] font-medium hover:bg-down/20 transition-colors disabled:opacity-40">Clear All</button></div>)}
         </div>
       </div>)}
 
