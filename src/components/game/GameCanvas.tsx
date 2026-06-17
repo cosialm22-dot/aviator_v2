@@ -57,6 +57,19 @@ if (planeSprite) {
   planeSprite.src = PLANE_IMG_SRC;
 }
 
+// ── Partner splash (UFC × Aviator "official partners" card) ────────────────────
+// Drawn on the canvas ONLY during the waiting phase — i.e. after a round crashes
+// and before the next flight starts — as a between-rounds branding interstitial.
+const PARTNER_IMG_SRC = '/partners-ufc-aviator.png';
+const partnerSprite: HTMLImageElement | null =
+  typeof Image !== 'undefined' ? new Image() : null;
+let partnerSpriteReady = false;
+if (partnerSprite) {
+  partnerSprite.onload  = () => { partnerSpriteReady = true; };
+  partnerSprite.onerror = () => { partnerSpriteReady = false; };
+  partnerSprite.src = PARTNER_IMG_SRC;
+}
+
 // ── Palette (sampled from the reference recording) ───────────────────────────
 const C_BG          = '#07080c';
 const C_SPOKE_LIGHT = '#181d26';
@@ -294,6 +307,48 @@ function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, n
 
 // ── Waiting overlay: "WAITING FOR NEXT ROUND" + animated loader bar ───────────
 function drawWaiting(ctx: CanvasRenderingContext2D, W: number, H: number, now: number, countdown: number, status: GameStatus) {
+  // Between-rounds partner splash: drawn only during the waiting phase (after a
+  // crash, before the next flight). The artwork carries its own background, so we
+  // frame it with a rounded mask, soft shadow and a thin brand-red border so it
+  // reads as a deliberate "official partners" card rather than a pasted rectangle.
+  // The waiting label + loader + countdown then stack below the card.
+  let anchorY = H * 0.42;
+  if (status === 'waiting' && partnerSprite && partnerSpriteReady && partnerSprite.naturalWidth > 0) {
+    const aspect = partnerSprite.naturalWidth / partnerSprite.naturalHeight;
+    let cardW = Math.min(W * 0.6, 400);
+    let cardH = cardW / aspect;
+    const maxCardH = H * 0.5;
+    if (cardH > maxCardH) { cardH = maxCardH; cardW = cardH * aspect; }
+    const cardX = (W - cardW) / 2;
+    const cardY = H * 0.07;
+    const radius = Math.min(18, cardW * 0.05);
+
+    // Soft drop shadow behind an opaque backing (keeps edges clean over the spokes).
+    ctx.save();
+    ctx.shadowBlur = 26; ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    roundRect(ctx, cardX, cardY, cardW, cardH, radius);
+    ctx.fillStyle = '#0a0b12';
+    ctx.fill();
+    ctx.restore();
+
+    // Artwork, clipped to the rounded card.
+    ctx.save();
+    roundRect(ctx, cardX, cardY, cardW, cardH, radius);
+    ctx.clip();
+    ctx.drawImage(partnerSprite, cardX, cardY, cardW, cardH);
+    ctx.restore();
+
+    // Thin brand-red border.
+    ctx.save();
+    roundRect(ctx, cardX, cardY, cardW, cardH, radius);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(232,18,60,0.45)';
+    ctx.stroke();
+    ctx.restore();
+
+    anchorY = Math.min(cardY + cardH + H * 0.085, H * 0.82);
+  }
+
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -302,12 +357,12 @@ function drawWaiting(ctx: CanvasRenderingContext2D, W: number, H: number, now: n
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
   ctx.shadowBlur = 12; ctx.shadowColor = 'rgba(0,0,0,0.6)';
   const label = status === 'idle' ? 'CONNECTING…' : 'WAITING FOR NEXT ROUND';
-  ctx.fillText(label, W / 2, H * 0.42);
+  ctx.fillText(label, W / 2, anchorY);
   ctx.shadowBlur = 0;
 
   // Loader bar: indeterminate sweep, tinted red. Shows the countdown when known.
   const bw = Math.min(W * 0.42, 320), bh = Math.max(4, H * 0.012);
-  const bx = (W - bw) / 2, by = H * 0.42 + fs * 1.4;
+  const bx = (W - bw) / 2, by = anchorY + fs * 1.4;
   ctx.fillStyle = 'rgba(255,255,255,0.10)';
   roundRect(ctx, bx, by, bw, bh, bh / 2); ctx.fill();
   const seg = bw * 0.32;
