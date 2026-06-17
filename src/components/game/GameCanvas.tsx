@@ -228,9 +228,12 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
   // Spokes radiate from just outside the bottom-left corner and rotate slowly.
   const ox = -W * 0.02, oy = H * 1.02;
   const R  = Math.hypot(W, H) * 1.5;
-  // Sunburst spoke count. Spokes alternate between two shades, so N must be EVEN
-  // to keep the two colours balanced. N = 18 → exactly 9 light + 9 dark spokes.
-  const N  = 18;                       // 18 spokes total = 9 per colour
+  // Sunburst is a full rotating fan; only the wedges whose rays cross the canvas
+  // are visible (the origin sits just off the bottom-left corner, so the on-screen
+  // angular span is ~87° on every aspect ratio — measured portrait→ultrawide).
+  // Visible spokes ≈ N × 87°/360° ≈ N/4. N = 72 → 18 spokes on screen at any time
+  // (9 light + 9 dark). N must stay a multiple of 4 to keep the two shades balanced.
+  const N  = 72;                       // 72 wedges → 18 visible (9 per colour)
   const rot = now * 0.000018;          // ≈0.06°/frame — subtle, matches reference
   ctx.save();
   for (let i = 0; i < N; i++) {
