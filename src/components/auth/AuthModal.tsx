@@ -69,7 +69,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     // Scrollable overlay: the dialog stays centred when it fits and the whole
     // overlay scrolls when the form is taller than the viewport (short / landscape
     // phones) so the CTA is always reachable.
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#eef1f6]">
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           ref={dialogRef}
@@ -78,12 +78,10 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
           aria-labelledby="auth-title"
           className="w-full max-w-[380px] relative overflow-hidden rounded-[20px] border border-edge"
           style={{
-            // Lifted surface: clearly lighter than the #0d0d1a page, with a
-            // visible hairline border + drop shadow + inset top highlight so the
-            // dialog reads as an elevated card floating above the page rather
-            // than dissolving into it.
+            // Dark form card on a light page: maximum separation. The strong dark
+            // drop shadow lifts the card off the white backdrop.
             background: 'linear-gradient(180deg, #1c1c33 0%, #141426 100%)',
-            boxShadow: '0 24px 80px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06)',
+            boxShadow: '0 30px 80px rgba(15, 23, 42, 0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
           }}
         >
           {/* ─── CONTENT ─── */}
