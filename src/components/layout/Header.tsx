@@ -51,10 +51,16 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
       <div className="flex items-center gap-2 flex-shrink-0">
         {profile ? (
           <>
-            {/* Balance */}
-            <button onClick={onWalletOpen} className="hidden sm:flex items-center gap-1.5 hover:opacity-90 transition">
-              <span className="text-slate-400 text-xs font-semibold">KShs</span>
-              <span className="text-base font-bold tabular-nums" style={{ color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.4)' }}>
+            {/* Balance — always visible (incl. mobile) so players can watch it
+                update live while they bet/cash out. Tapping opens the wallet.
+                Compacts on phones to protect the logo from clipping. */}
+            <button
+              onClick={onWalletOpen}
+              aria-label="Your balance. Tap to open your wallet."
+              className="flex items-center gap-1 sm:gap-1.5 hover:opacity-90 transition"
+            >
+              <span className="text-slate-400 text-[10px] sm:text-xs font-semibold">KShs</span>
+              <span className="text-sm sm:text-base font-bold tabular-nums" style={{ color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.4)' }}>
                 {balance.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </button>
