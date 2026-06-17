@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { GameStatus } from '../../types';
+import { multiplierColor, planeParkFactor } from './canvasMotion';
 
 interface Props {
   status: GameStatus;
@@ -60,7 +61,6 @@ if (planeSprite) {
 const C_BG          = '#07080c';
 const C_SPOKE_LIGHT = '#181d26';
 const C_SPOKE_DARK  = '#0a0b10';
-const C_GLOW        = '48, 128, 170';   // cyan flight glow (rgb)
 const C_TRAIL_LINE  = '#ff1840';
 const C_TRAIL_DEAD  = '#7a2030';
 const C_CRASH       = '#e8123c';
@@ -126,7 +126,8 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       const glowTarget = flying ? 1 : status === 'crashed' ? 0.55 : 0;
       glowRef.current += (glowTarget - glowRef.current) * 0.06;
 
-      drawBackground(ctx, W, H, now, glowRef.current);
+      const colorMult = status === 'crashed' ? crashPoint : flying ? mult : 1.0;
+      drawBackground(ctx, W, H, now, glowRef.current, multiplierColor(colorMult));
 
       if (status === 'idle' || status === 'waiting') {
         drawRestingPlane(ctx, W, H, now);
@@ -150,12 +151,27 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
         flashRef.current++;
       }
 
-      // Build the arc points origin → tip.
+      // Parked-plane hover: once the multiplier is high the plane no longer
+      // climbs (x is clamped at X_MAX); instead it wanders along a NW–SE diagonal
+      // — as it drifts up its x decreases, as it drifts down its x increases (and
+      // back), so it keeps fluctuating. The offset is eased in over the last
+      // quarter of the trail so the line bends with the plane instead of
+      // detaching from it. parkFactor ramps the wander in from 2x to 10x.
+      const parkFactor = isCrashed ? 0 : planeParkFactor(displayMult);
+      const ht   = now * 0.0016;
+      const hOsc = Math.sin(ht) * 0.6 + Math.sin(ht * 0.61 + 1.3) * 0.4; // organic ~[-1,1]
+      const hoverX = -hOsc * (W * 0.04)  * parkFactor;   // up ⇒ left, down ⇒ right
+      const hoverY = -hOsc * (H * 0.085) * parkFactor;
+
+      // Build the arc points origin → (hovering) tip.
       const STEPS = 96;
       const pts: { x: number; y: number }[] = [];
       for (let i = 0; i <= STEPS; i++) {
-        const xn = xt * (i / STEPS);
-        pts.push({ x: curveX(W, xn), y: curveY(H, xn) });
+        const f  = i / STEPS;
+        const xn = xt * f;
+        const blendRaw = f <= 0.75 ? 0 : (f - 0.75) / 0.25;     // 0..1 over last quarter
+        const b = blendRaw * blendRaw * (3 - 2 * blendRaw);     // smoothstep
+        pts.push({ x: curveX(W, xn) + hoverX * b, y: curveY(H, xn) + hoverY * b });
       }
       const origin = pts[0];
       const tip    = pts[pts.length - 1];
@@ -193,12 +209,11 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       ctx.stroke();
       ctx.restore();
 
-      // Plane: rides the tip while flying; rockets off-tangent on crash.
-      const xnPrev = Math.max(0, xt - 0.02);
-      const prev   = { x: curveX(W, xnPrev), y: curveY(H, xnPrev) };
+      // Plane: rides the (possibly hovering) tip while flying; rockets off-tangent on crash.
+      const prev    = pts[pts.length - 2] ?? pts[0];
       const tangent = Math.atan2(tip.y - prev.y, tip.x - prev.x);
       if (!isCrashed) {
-        const bob = Math.sin(now * 0.006) * H * 0.006;
+        const bob = Math.sin(now * 0.006) * H * 0.005;
         drawPlane(ctx, tip.x, tip.y + bob, tangent, W);
       } else {
         escapeRef.current += 0.05 + escapeRef.current * 0.18;
@@ -223,7 +238,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
 }
 
 // ── Background: dark sky + rotating spoke sunburst + cyan flight glow ─────────
-function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now: number, glow: number) {
+function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now: number, glow: number, glowRgb: string) {
   ctx.fillStyle = C_BG;
   ctx.fillRect(0, 0, W, H);
 
@@ -236,7 +251,10 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
   // Visible spokes ≈ N × 87°/360° ≈ N/4. N = 72 → 18 spokes on screen at any time
   // (9 light + 9 dark). N must stay a multiple of 4 to keep the two shades balanced.
   const N  = 72;                       // 72 wedges → 18 visible (9 per colour)
-  const rot = now * 0.000018;          // ≈0.06°/frame — subtle, matches reference
+  // 2.5× the original speed (0.000018 → 0.000045) and negated so the fan turns
+  // clockwise about the bottom-left origin, making the wedges sweep across the
+  // canvas from the top-left toward the bottom-right.
+  const rot = -now * 0.000045;
   ctx.save();
   for (let i = 0; i < N; i++) {
     const a0 = rot + (i)     * (Math.PI * 2 / N);
@@ -251,13 +269,13 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
   }
   ctx.restore();
 
-  // Cyan radial glow behind the multiplier (fades with flight intensity).
+  // Radial glow behind the multiplier; colour shifts with the round (blue→red).
   if (glow > 0.01) {
-    const gx = W * 0.5, gy = H * 0.42, gr = W * 0.5;
+    const gx = W * 0.5, gy = H * 0.42, gr = W * 0.62;
     const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
-    g.addColorStop(0,    `rgba(${C_GLOW}, ${0.42 * glow})`);
-    g.addColorStop(0.45, `rgba(${C_GLOW}, ${0.16 * glow})`);
-    g.addColorStop(1,    `rgba(${C_GLOW}, 0)`);
+    g.addColorStop(0,    `rgba(${glowRgb}, ${0.50 * glow})`);
+    g.addColorStop(0.45, `rgba(${glowRgb}, ${0.18 * glow})`);
+    g.addColorStop(1,    `rgba(${glowRgb}, 0)`);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   }
