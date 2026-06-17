@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, Gamepad2, Wallet, Megaphone, Users, ScrollText, Smartphone } from 'lucide-react';
+import { SlidersHorizontal, Gamepad2, Wallet, Users, ScrollText, Smartphone } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import SystemSettingsTab, { type SettingRecord } from './settings/SystemSettingsTab';
 import { type SettingsTabId } from './settings/registry';
-import MarketingSettingsTab from './settings/MarketingSettingsTab';
 import PaymentsTab from './settings/PaymentsTab';
 import StaffTab from './settings/StaffTab';
 import AuditTab from './settings/AuditTab';
@@ -16,14 +15,18 @@ import { friendly } from './settings/shared';
 //   General   - system availability (maintenance mode)
 //   Game      - round timing, bet limits, RTP, crash distribution, engine, bots
 //   Finance   - withdrawal thresholds
-//   Marketing - affiliate commission program (rate + qualifying deposit)
+//   Payments  - M-Pesa / payment provider configuration
 //   Staff     - role/RBAC management
 //   Audit     - the append-only admin action log
 //
+// The affiliate commission program (rate + qualifying deposit) is NOT here - it
+// lives in its one home, the Marketing hub's Overview tab, alongside the program
+// KPIs, so there is a single place to view and edit it.
+//
 // system_settings rows (General/Game/Finance) are read here once and edited
-// through SystemSettingsTab; persistence + audit live in saveSetting. Marketing,
-// Staff and Audit own their own data via their RPCs/queries. The route is
-// already gated to super_admin (roleContext ACCESS); the RPCs are the real gate.
+// through SystemSettingsTab; persistence + audit live in saveSetting. Staff and
+// Audit own their own data via their RPCs/queries. The route is already gated to
+// super_admin (roleContext ACCESS); the RPCs are the real gate.
 // ============================================================================
 
 const TABS = [
@@ -31,7 +34,6 @@ const TABS = [
   { k: 'game', label: 'Game', icon: Gamepad2 },
   { k: 'finance', label: 'Finance', icon: Wallet },
   { k: 'payments', label: 'Payments', icon: Smartphone },
-  { k: 'marketing', label: 'Marketing', icon: Megaphone },
   { k: 'staff', label: 'Staff & Roles', icon: Users },
   { k: 'audit', label: 'Audit Log', icon: ScrollText },
 ] as const;
@@ -94,7 +96,7 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-[22px] font-semibold text-ink tracking-tight">Settings</h1>
-          <p className="text-[13px] text-muted mt-1">System configuration, marketing program, staff roles, and the audit trail</p>
+          <p className="text-[13px] text-muted mt-1">System configuration, payments, staff roles, and the audit trail</p>
         </div>
 
         <div className="border-b border-line">
@@ -123,7 +125,6 @@ export default function SettingsPage() {
         )}
 
         {tab === 'payments' && <PaymentsTab />}
-        {tab === 'marketing' && <MarketingSettingsTab />}
         {tab === 'staff' && <StaffTab />}
         {tab === 'audit' && <AuditTab />}
       </div>
