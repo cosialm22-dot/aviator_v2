@@ -198,7 +198,7 @@ function HubBody({ data: d, referralLink, copied, onCopy, onShare, amount, setAm
       ? `Reaching ${target} qualified players could add about ${ksh(perQualified * remaining)} to your earnings, based on your current average of ${ksh(perQualified)} per qualified player.`
       : `Each qualified player you refer earns you ${ratePct}% of the revenue they generate — forever. Get your first qualified referral to unlock your earnings rate.`;
     return { milestoneTarget: target, milestoneProgress: progress, projectionText: projection };
-  }, [d.qualified_count, d.commission_earned, d.commission_rate, ratePct]);
+  }, [d.qualified_count, d.commission_earned, ratePct]);
 
   return (
     <>
