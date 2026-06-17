@@ -115,7 +115,7 @@ export default function SettingsPage() {
         </div>
 
         {isSystemTab && loadErr && (
-          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-down text-sm">{loadErr}</div>
+          <div role="alert" className="rounded-xl border border-down/30 bg-down/10 p-6 text-down text-sm">{loadErr}</div>
         )}
 
         {isSystemTab && !loadErr && (

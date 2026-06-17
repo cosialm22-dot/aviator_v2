@@ -59,7 +59,7 @@ export default function AuditTab() {
             className="w-full pl-9 pr-4 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
         </div>
         <div className="flex items-center gap-3">
-          {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px]">{err}</span>}
+          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px]">{err}</span>}
           <span className="text-[12px] text-faint tabular-nums">{filtered.length} of {entries.length}</span>
           <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 transition-colors disabled:opacity-50">
             {loading && <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />}{loading ? 'Refreshing' : 'Refresh'}
@@ -90,7 +90,7 @@ export default function AuditTab() {
                 return (
                   <tr key={e.id} className="align-top hover:bg-canvas/60 transition-colors">
                     <td className="px-5 py-3 text-ink font-medium whitespace-nowrap">{e.profiles?.username ?? 'System'}</td>
-                    <td className="px-5 py-3"><span className="px-2 py-0.5 bg-slate-100 rounded text-[11px] font-mono text-muted">{e.action}</span></td>
+                    <td className="px-5 py-3"><span className="px-2 py-0.5 bg-white/[0.06] rounded text-[11px] font-mono text-muted">{e.action}</span></td>
                     <td className="px-5 py-3 text-muted text-xs hidden sm:table-cell whitespace-nowrap">{e.target_type ? `${e.target_type}: ${e.target_id?.slice(0, 8) ?? '-'}` : '-'}</td>
                     <td className="px-5 py-3 text-muted text-xs hidden md:table-cell max-w-[280px]">
                       {detailStr

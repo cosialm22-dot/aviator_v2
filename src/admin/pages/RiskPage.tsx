@@ -29,10 +29,10 @@ interface AlertRow {
 type Level = 'medium' | 'high' | 'critical';
 
 const LEVEL_BADGE: Record<string, string> = {
-  low: 'bg-slate-100 text-muted',
-  medium: 'bg-amber-50 text-amber-700',
-  high: 'bg-orange-50 text-orange-700',
-  critical: 'bg-rose-50 text-down',
+  low: 'bg-white/[0.06] text-muted',
+  medium: 'bg-amber-500/10 text-amber-400',
+  high: 'bg-orange-500/10 text-orange-300',
+  critical: 'bg-down/10 text-down',
 };
 
 const FLAG_LABEL: Record<string, string> = {
@@ -83,7 +83,7 @@ export default function RiskPage() {
             </h1>
             <p className="text-[13px] text-muted mt-1">Players ranked by risk score. Scores are recomputed on each withdrawal request and on demand.</p>
           </div>
-          {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
+          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -124,14 +124,14 @@ export default function RiskPage() {
                 ) : rows.map((r) => (
                   <tr key={r.user_id} className="hover:bg-canvas transition-colors align-top">
                     <td className="px-5 py-3"><span className="text-ink font-medium">{r.username}</span></td>
-                    <td className="px-5 py-3"><span className={'text-[10px] px-2 py-0.5 rounded font-semibold capitalize ' + (LEVEL_BADGE[r.risk_level] ?? 'bg-slate-100 text-muted')}>{r.risk_level}</span></td>
+                    <td className="px-5 py-3"><span className={'text-[10px] px-2 py-0.5 rounded font-semibold capitalize ' + (LEVEL_BADGE[r.risk_level] ?? 'bg-white/[0.06] text-muted')}>{r.risk_level}</span></td>
                     <td className="px-5 py-3 text-right text-ink font-semibold tabular-nums">{r.score}</td>
                     <td className="px-5 py-3">
                       <div className="flex flex-wrap gap-1 max-w-[260px]">
                         {(r.flags ?? []).length === 0
                           ? <span className="text-faint text-xs">-</span>
                           : (r.flags ?? []).map((f) => (
-                            <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-muted">{FLAG_LABEL[f] ?? f}</span>
+                            <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-muted">{FLAG_LABEL[f] ?? f}</span>
                           ))}
                       </div>
                     </td>

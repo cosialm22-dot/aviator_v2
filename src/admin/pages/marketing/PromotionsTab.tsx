@@ -146,7 +146,7 @@ export default function PromotionsTab() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="inline-flex gap-1 bg-slate-100 border border-line rounded-lg p-1 flex-wrap">
+        <div className="inline-flex gap-1 bg-white/[0.06] border border-line rounded-lg p-1 flex-wrap">
           {FILTERS.map(t => (
             <button key={t.k} onClick={() => setFilter(t.k)} aria-current={filter === t.k ? 'page' : undefined}
               className={'px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (filter === t.k ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>
@@ -155,8 +155,8 @@ export default function PromotionsTab() {
           ))}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {notice && <span role="status" className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-up text-[12px] max-w-[360px] truncate" title={notice}>{notice}</span>}
-          {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[360px] truncate" title={err}>{err}</span>}
+          {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[360px] truncate" title={notice}>{notice}</span>}
+          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[360px] truncate" title={err}>{err}</span>}
           <button onClick={openCreate} className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-[13px] font-semibold transition-colors">
             <Plus size={15} />New promotion
           </button>
@@ -200,7 +200,7 @@ export default function PromotionsTab() {
                       <button onClick={() => openEdit(p)} aria-label="Edit" title="Edit"
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-ink hover:bg-canvas transition-colors"><Pencil size={14} /></button>
                       <button onClick={() => { setErr(null); setDeleteRow(p); }} aria-label="Delete" title="Delete"
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-down hover:bg-rose-50 transition-colors"><Trash2 size={14} /></button>
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-down hover:bg-down/10 transition-colors"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -212,7 +212,7 @@ export default function PromotionsTab() {
 
       {/* Editor modal */}
       {editing && f && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => saving ? null : setEditing(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => saving ? null : setEditing(null)}>
           <form onSubmit={save} onClick={e => e.stopPropagation()} className="bg-surface border border-line rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-ink font-semibold text-lg">{editing.id ? 'Edit promotion' : 'New promotion'}</h3>
             <div className="mt-4 space-y-4">
@@ -280,7 +280,7 @@ export default function PromotionsTab() {
 
       {/* Delete confirm */}
       {deleteRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => busyId ? null : setDeleteRow(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setDeleteRow(null)}>
           <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-ink font-semibold text-lg">Delete promotion</h3>
             <p className="text-muted text-[13px] mt-3 leading-relaxed">Permanently delete <span className="font-semibold text-ink">"{deleteRow.title}"</span>? This cannot be undone.</p>

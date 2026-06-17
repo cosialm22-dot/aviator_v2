@@ -39,7 +39,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
           onClick={() => { supabase.auth.signOut(); window.location.href = '/'; }}
           aria-label="Sign out"
           title="Sign out"
-          className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors"
+          className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-down hover:bg-down/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors"
         >
           <LogOut size={15} />
         </button>

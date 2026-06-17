@@ -73,7 +73,7 @@ export function DonutChart({
         aria-label={(centerLabel ?? 'Composition') + ': ' + data.map((s) => `${s.label} ${valueFormatter(s.value)}`).join(', ')}
         className="shrink-0"
       >
-        <circle cx={cx} cy={cx} r={r} fill="none" stroke="#e9ebee" strokeWidth={thickness} />
+        <circle cx={cx} cy={cx} r={r} fill="none" stroke="#26303c" strokeWidth={thickness} />
         {arcs.map((a, i) => (
           <circle
             key={i}
@@ -126,7 +126,7 @@ export function DonutChart({
 // ============================================================================
 export function TrendAreaChart({
   points,
-  color = '#015d72',
+  color = '#1f9bb8',
   height = 160,
   valueFormatter = fmtCompact,
 }: {
@@ -178,7 +178,7 @@ export function TrendAreaChart({
 
       {/* zero baseline (only when the range crosses zero) */}
       {minY < 0 && maxY > 0 && (
-        <line x1={padX} y1={zeroY} x2={W - padX} y2={zeroY} stroke="#e9ebee" strokeWidth={1} strokeDasharray="3 3" />
+        <line x1={padX} y1={zeroY} x2={W - padX} y2={zeroY} stroke="#26303c" strokeWidth={1} strokeDasharray="3 3" />
       )}
 
       <path d={area} fill={`url(#${gradId})`} />
@@ -217,7 +217,7 @@ export function CompareBars({
       {data.map((d) => (
         <div key={d.label} className="flex items-center gap-3">
           <span className="w-28 shrink-0 text-[12px] text-ink">{d.label}</span>
-          <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden" role="img" aria-label={`${d.label}: ${valueFormatter(d.value)}`}>
+          <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="img" aria-label={`${d.label}: ${valueFormatter(d.value)}`}>
             <div
               className="h-full rounded-full"
               style={{ width: Math.max((Math.abs(d.value) / max) * 100, 2) + '%', backgroundColor: d.color, transition: 'width .7s ease' }}

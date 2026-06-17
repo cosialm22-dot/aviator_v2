@@ -9,11 +9,12 @@ export default {
         // theme). Both are first-class tokens so styling stays single-source and
         // there is no ambiguity about which palette a surface belongs to:
         //   • PLAYER app  → dark theme  (night/panel/edge/frost/win/danger)
-        //   • ADMIN app   → light theme (canvas/surface/ink/muted/line/brand…)
-        // The root <body> uses the dark player tokens (see index.css); admin
-        // shells opt into the light tokens via bg-canvas/text-ink. Token VALUES
-        // mirror the previously hardcoded hex exactly, so naming them is a pure
-        // refactor with zero visual change.
+        //   • ADMIN app   → dark theme  (canvas/surface/ink/muted/line/brand…)
+        // Both scopes are dark. The root <body> uses the player tokens (see
+        // index.css); admin shells opt into the admin scope via bg-canvas/text-ink.
+        // The two scopes stay SEPARATE tokens because the admin keeps its own
+        // institutional teal brand + trading up/down semantics, distinct from the
+        // player palette.
 
         // ── PLAYER (dark) theme ─────────────────────────────────────────────
         night: { DEFAULT: '#0d0d1a', deep: '#0a0a14' },          // page background
@@ -24,17 +25,17 @@ export default {
         danger: '#c8001c',                                       // player brand-red accent
         info: '#60a5fa',                                         // player accent-blue (referrals/marketing)
 
-        // ── ADMIN (light) theme — institutional base + trading semantics ────
-        brand: { DEFAULT: '#015d72', dark: '#013e4c' }, // deep teal-navy (structure/nav)
-        gold: '#e0a80b',   // vivid accent (Binance-leaning); fills only
-        up: '#0ecb81',     // gains / win  (Binance green)
-        down: '#f6465d',   // loss / fault (Binance red)
-        ink: '#1b2a31',    // primary text   (~13:1 on white)
-        muted: '#566169',  // secondary text (~5.4:1 on white, AA)
-        faint: '#8a949b',  // labels/empty-state only - never body text
-        line: '#e9ebee',   // hairline borders
-        canvas: '#f7f8fa', // page background
-        surface: '#ffffff',// card background
+        // ── ADMIN (dark) theme — institutional base + trading semantics ────
+        brand: { DEFAULT: '#1f9bb8', dark: '#013e4c' }, // teal accent (links/active/buttons); -dark is the deep sidebar/hover teal
+        gold: '#e0a80b',   // vivid accent; fills only (reads well on dark)
+        up: '#0ecb81',     // gains / win  (reads well on dark)
+        down: '#f6465d',   // loss / fault (reads well on dark)
+        ink: '#e6eaf0',    // primary text   (~15:1 on canvas)
+        muted: '#9aa6b2',  // secondary text (~8:1 on canvas, AA)
+        faint: '#828c97',  // labels/empty-state (~5.4:1 on canvas)
+        line: '#26303c',   // hairline borders
+        canvas: '#0b0f14', // page background (dark)
+        surface: '#141b24',// card background (dark, lifted from canvas)
       },
     },
   },

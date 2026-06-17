@@ -90,8 +90,8 @@ export default function StaffTab() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-end gap-3 -mt-2 min-h-[2.25rem]">
-        {notice && <span role="status" className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
-        {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
+        {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
+        {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
         <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 transition-colors disabled:opacity-50">
           {loading && <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />}{loading ? 'Refreshing' : 'Refresh'}
         </button>
@@ -153,7 +153,7 @@ export default function StaffTab() {
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <span className={'inline-flex px-2 py-0.5 rounded border text-[11px] font-semibold ' + (ROLE_META[r.role]?.badge ?? 'bg-slate-100 text-muted border-line')}>{ROLE_META[r.role]?.label ?? r.role}</span>
+                      <span className={'inline-flex px-2 py-0.5 rounded border text-[11px] font-semibold ' + (ROLE_META[r.role]?.badge ?? 'bg-white/[0.06] text-muted border-line')}>{ROLE_META[r.role]?.label ?? r.role}</span>
                     </td>
                     <td className="px-5 py-3 text-muted text-xs hidden sm:table-cell whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</td>
                     <td className="px-5 py-3 text-right">
@@ -181,7 +181,7 @@ export default function StaffTab() {
 
       {/* Confirm role change */}
       {pending && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => !applying && setPending(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => !applying && setPending(null)}>
           <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-ink font-semibold text-lg">Change role</h3>
             <p className="text-muted text-[13px] mt-3 leading-relaxed">

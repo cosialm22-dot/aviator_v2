@@ -68,14 +68,14 @@ export function friendly(code: string): string {
 export function statusBadge(s: string): string {
   switch (s) {
     case 'pending':
-    case 'scheduled': return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'approved': return 'bg-sky-50 text-sky-700 border-sky-200';
+    case 'scheduled': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+    case 'approved': return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
     case 'paid':
     case 'live':
-    case 'qualified': return 'bg-emerald-50 text-up border-emerald-200';
+    case 'qualified': return 'bg-up/10 text-up border-up/30';
     case 'rejected':
     case 'expired':
-    case 'inactive': return 'bg-slate-100 text-muted border-line';
-    default: return 'bg-slate-100 text-muted border-line';
+    case 'inactive': return 'bg-white/[0.06] text-muted border-line';
+    default: return 'bg-white/[0.06] text-muted border-line';
   }
 }

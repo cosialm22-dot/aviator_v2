@@ -126,20 +126,20 @@ function parseDateInput(s: string): Date | null {
 
 function typeBadge(t: string): string {
   switch (t) {
-    case 'deposit': return 'bg-emerald-50 text-up';
-    case 'withdrawal': return 'bg-rose-50 text-down';
+    case 'deposit': return 'bg-up/10 text-up';
+    case 'withdrawal': return 'bg-down/10 text-down';
     case 'win': return 'bg-brand/10 text-brand';
-    case 'bet': return 'bg-amber-50 text-amber-600';
-    case 'adjustment': return 'bg-sky-50 text-sky-700';
-    default: return 'bg-slate-100 text-muted';
+    case 'bet': return 'bg-amber-500/10 text-amber-400';
+    case 'adjustment': return 'bg-sky-500/10 text-sky-400';
+    default: return 'bg-white/[0.06] text-muted';
   }
 }
 
 function statusTone(s: string): { dot: string; text: string } {
   switch (s) {
     case 'completed': return { dot: 'bg-up', text: 'text-up' };
-    case 'pending': return { dot: 'bg-amber-500', text: 'text-amber-600' };
-    case 'processing': return { dot: 'bg-sky-500', text: 'text-sky-600' };
+    case 'pending': return { dot: 'bg-amber-500', text: 'text-amber-400' };
+    case 'processing': return { dot: 'bg-sky-500', text: 'text-sky-400' };
     case 'failed': return { dot: 'bg-down', text: 'text-down' };
     default: return { dot: 'bg-faint', text: 'text-muted' };
   }
@@ -329,7 +329,7 @@ export default function FinancePage() {
           <p className="text-[13px] text-muted mt-1">Reconciliation, transaction ledger and M-Pesa drill-down</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
+          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
           <button
             onClick={exportCsv}
             disabled={exporting || loading || !range.valid}
@@ -349,7 +349,7 @@ export default function FinancePage() {
 
       {/* Date range controls */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="inline-flex gap-1 bg-slate-100 border border-line rounded-lg p-1 flex-wrap">
+        <div className="inline-flex gap-1 bg-white/[0.06] border border-line rounded-lg p-1 flex-wrap">
           {PRESETS.map(p => (
             <button
               key={p.value}
@@ -392,7 +392,7 @@ export default function FinancePage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-line">
           {!RECON ? (
             [...Array(4)].map((_, i) => (
-              <div key={i} className="p-5 sm:p-6"><div className="h-3 w-24 bg-slate-100 rounded animate-pulse" /><div className="mt-3 h-6 w-32 bg-slate-100 rounded animate-pulse" /></div>
+              <div key={i} className="p-5 sm:p-6"><div className="h-3 w-24 bg-white/[0.06] rounded animate-pulse" /><div className="mt-3 h-6 w-32 bg-white/[0.06] rounded animate-pulse" /></div>
             ))
           ) : RECON.map(card => (
             <div key={card.label} className="p-5 sm:p-6">
@@ -435,7 +435,7 @@ export default function FinancePage() {
                 { label: 'Paid', value: summary.withdrawal_paid_total, color: '#0ecb81' },
                 { label: 'Pending', value: summary.withdrawal_pending_total, color: '#e0a80b' },
                 { label: 'Failed', value: summary.withdrawal_failed_total, color: '#f6465d' },
-                { label: 'Reversed', value: summary.withdrawal_reversed_total, color: '#566169' },
+                { label: 'Reversed', value: summary.withdrawal_reversed_total, color: '#9aa6b2' },
               ]}
               centerLabel="Requests"
               centerValue={String(summary.withdrawal_paid_count + summary.withdrawal_pending_count + summary.withdrawal_failed_count)}
@@ -449,7 +449,7 @@ export default function FinancePage() {
               data={[
                 { label: 'Deposits', value: summary.deposit_total, color: '#0ecb81' },
                 { label: 'Withdrawals', value: summary.withdrawal_paid_total, color: '#f6465d' },
-                { label: 'Bet volume', value: summary.bet_volume, color: '#015d72' },
+                { label: 'Bet volume', value: summary.bet_volume, color: '#1f9bb8' },
                 { label: 'GGR', value: summary.ggr, color: '#e0a80b' },
               ]}
               valueFormatter={(n) => 'KSh ' + (Math.abs(n) >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : Math.round(n).toLocaleString('en-KE'))}
@@ -508,7 +508,7 @@ export default function FinancePage() {
             <tbody className="divide-y divide-line">
               {loading ? (
                 [...Array(10)].map((_, i) => (
-                  <tr key={i}><td colSpan={8} className="px-5 py-3"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td></tr>
+                  <tr key={i}><td colSpan={8} className="px-5 py-3"><div className="h-4 bg-white/[0.06] rounded animate-pulse" /></td></tr>
                 ))
               ) : rows.length === 0 ? (
                 <tr><td colSpan={8} className="px-5 py-12 text-center text-faint">No transactions match these filters.</td></tr>
@@ -577,7 +577,7 @@ export default function FinancePage() {
 
       {/* M-Pesa drill-down modal */}
       {(detailLoading || detail || detailErr) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => { setDetail(null); setDetailErr(null); }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => { setDetail(null); setDetailErr(null); }}>
           <div className="bg-surface border border-line rounded-2xl w-full max-w-lg shadow-xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-line">
               <h3 className="text-ink font-semibold text-lg">M-Pesa transaction detail</h3>
@@ -585,7 +585,7 @@ export default function FinancePage() {
             </div>
             <div className="px-6 py-5 overflow-y-auto">
               {detailLoading && <div className="flex items-center gap-2 text-muted text-sm"><Spin />Loading...</div>}
-              {detailErr && <div className="px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg text-down text-[13px]">{detailErr}</div>}
+              {detailErr && <div className="px-3 py-2 bg-down/10 border border-down/30 rounded-lg text-down text-[13px]">{detailErr}</div>}
               {detail && !detail.linked && (
                 <p className="text-muted text-[13px]">No linked M-Pesa record was found for this transaction. Reversals and bonus credits carry no Daraja reference.</p>
               )}

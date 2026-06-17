@@ -153,7 +153,7 @@ export default function PaymentsTab() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {err && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-down text-[13px]">{err}</div>}
+      {err && <div role="alert" className="rounded-lg border border-down/30 bg-down/10 px-4 py-2.5 text-down text-[13px]">{err}</div>}
 
       <p className="text-[13px] text-muted">
         Configure the M-Pesa Daraja credentials used to collect deposits from players and to pay out withdrawals.
@@ -181,7 +181,7 @@ export default function PaymentsTab() {
               role="switch"
               aria-checked={cfg.is_active}
               onClick={() => set('is_active', !cfg.is_active)}
-              className={'relative inline-flex h-6 w-11 items-center rounded-full transition-colors ' + (cfg.is_active ? 'bg-up' : 'bg-slate-300')}
+              className={'relative inline-flex h-6 w-11 items-center rounded-full transition-colors ' + (cfg.is_active ? 'bg-up' : 'bg-white/15')}
             >
               <span className={'inline-block h-4 w-4 transform rounded-full bg-white transition-transform ' + (cfg.is_active ? 'translate-x-6' : 'translate-x-1')} />
             </button>

@@ -71,18 +71,18 @@ function friendly(code: string): string {
 }
 
 function roleBadge(role: string): string {
-  return role === 'super_admin' ? 'bg-rose-50 text-down border-rose-200'
+  return role === 'super_admin' ? 'bg-down/10 text-down border-down/30'
     : role === 'admin' ? 'bg-brand/10 text-brand border-brand/20'
-    : role === 'marketer' ? 'bg-violet-50 text-violet-700 border-violet-200'
-    : 'bg-slate-100 text-muted border-line';
+    : role === 'marketer' ? 'bg-violet-500/10 text-violet-300 border-violet-500/30'
+    : 'bg-white/[0.06] text-muted border-line';
 }
 function txnBadge(type: string): string {
   switch (type) {
-    case 'deposit': case 'win': case 'bonus': return 'bg-emerald-50 text-up';
-    case 'withdrawal': return 'bg-rose-50 text-down';
-    case 'adjustment': return 'bg-amber-50 text-amber-700';
-    case 'refund': return 'bg-sky-50 text-sky-700';
-    default: return 'bg-slate-100 text-muted';
+    case 'deposit': case 'win': case 'bonus': return 'bg-up/10 text-up';
+    case 'withdrawal': return 'bg-down/10 text-down';
+    case 'adjustment': return 'bg-amber-500/10 text-amber-400';
+    case 'refund': return 'bg-sky-500/10 text-sky-400';
+    default: return 'bg-white/[0.06] text-muted';
   }
 }
 
@@ -180,8 +180,8 @@ export default function UserDetailPage() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <button onClick={() => navigate('/admin/users')} className="text-[13px] text-muted hover:text-ink transition-colors">&larr; Back</button>
           <div className="flex items-center gap-3">
-            {notice && <span role="status" className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-up text-[12px] max-w-[320px] truncate" title={notice}>{notice}</span>}
-            {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
+            {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[320px] truncate" title={notice}>{notice}</span>}
+            {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
           </div>
         </div>
 
@@ -221,7 +221,7 @@ export default function UserDetailPage() {
                 <button onClick={() => { setErr(null); setAdjAmount(''); setAdjReason(''); setShowAdjust(true); }} disabled={d.wallet_balance == null} className="px-3 py-2 rounded-lg border border-line bg-surface text-ink text-xs font-medium hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">Adjust Balance</button>
                 {p.is_banned
                   ? <button onClick={() => setBan(false)} disabled={busy} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-brand/30 text-brand hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">{busy && <Spin />}Unban</button>
-                  : <button onClick={() => { setErr(null); setBanReason(''); setShowBan(true); }} disabled={busy} className="px-3 py-2 rounded-lg text-xs font-medium border border-rose-200 text-down hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 transition-colors disabled:opacity-40">Ban</button>}
+                  : <button onClick={() => { setErr(null); setBanReason(''); setShowBan(true); }} disabled={busy} className="px-3 py-2 rounded-lg text-xs font-medium border border-down/30 text-down hover:bg-down/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-down/40 transition-colors disabled:opacity-40">Ban</button>}
               </>
             )}
           </div>
@@ -262,7 +262,7 @@ export default function UserDetailPage() {
                     <td className="px-5 py-2.5 text-right text-ink tabular-nums">{fmtKES(Number(b.amount))}</td>
                     <td className="px-5 py-2.5 text-right text-muted tabular-nums">{b.cashout_multiplier ? `${Number(b.cashout_multiplier).toFixed(2)}x` : '-'}</td>
                     <td className="px-5 py-2.5 text-right tabular-nums">{b.winnings ? <span className="text-up">+{Number(b.winnings).toLocaleString()}</span> : '-'}</td>
-                    <td className="px-5 py-2.5"><span className={'text-[10px] font-semibold px-1.5 py-0.5 rounded ' + (b.status === 'won' ? 'bg-emerald-50 text-up' : b.status === 'lost' ? 'bg-rose-50 text-down' : 'bg-amber-50 text-amber-600')}>{b.status}</span></td>
+                    <td className="px-5 py-2.5"><span className={'text-[10px] font-semibold px-1.5 py-0.5 rounded ' + (b.status === 'won' ? 'bg-up/10 text-up' : b.status === 'lost' ? 'bg-down/10 text-down' : 'bg-amber-500/10 text-amber-400')}>{b.status}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -304,7 +304,7 @@ export default function UserDetailPage() {
 
       {/* Adjust balance modal */}
       {showAdjust && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => busy ? null : setShowAdjust(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busy ? null : setShowAdjust(false)}>
           <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-ink font-semibold text-lg">Adjust Balance</h3>
             <p className="text-muted text-[13px] mt-2 leading-relaxed">Current balance: <span className="font-semibold text-ink">{fmtKES(Number(d.wallet_balance ?? 0))}</span>. Use a positive amount to credit, negative to debit.</p>
@@ -322,7 +322,7 @@ export default function UserDetailPage() {
 
       {/* Ban modal */}
       {showBan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => busy ? null : setShowBan(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busy ? null : setShowBan(false)}>
           <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-ink font-semibold text-lg">Ban {p.username}</h3>
             <p className="text-muted text-[13px] mt-2 leading-relaxed">The player will be flagged as banned. A reason is required and recorded in the audit log.</p>
@@ -337,7 +337,7 @@ export default function UserDetailPage() {
 
       {/* Role change confirmation */}
       {pendingRole && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => busy ? null : setPendingRole(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busy ? null : setPendingRole(null)}>
           <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-ink font-semibold text-lg">Change role</h3>
             <p className="text-muted text-[13px] mt-3 leading-relaxed">Change <span className="font-semibold text-ink">{p.username}</span> from <span className="font-semibold text-ink">{p.role}</span> to <span className="font-semibold text-ink">{pendingRole}</span>? This grants or revokes dashboard access.</p>

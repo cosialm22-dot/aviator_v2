@@ -66,8 +66,8 @@ export default function AffiliatesTab() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-end gap-3 -mt-2">
-        {notice && <span role="status" className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
-        {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
+        {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
+        {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
         <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 transition-colors disabled:opacity-50">
           {loading && <Spin />}{loading ? 'Refreshing' : 'Refresh'}
         </button>
@@ -141,7 +141,7 @@ function FragmentRow({
         </td>
         <td className="px-2 py-3">
           <div className="text-ink font-medium">{row.username}</div>
-          {row.is_banned && <span className="inline-flex mt-0.5 px-1.5 py-0.5 rounded border text-[10px] font-semibold bg-rose-50 text-down border-rose-200">Suspended</span>}
+          {row.is_banned && <span className="inline-flex mt-0.5 px-1.5 py-0.5 rounded border text-[10px] font-semibold bg-down/10 text-down border-down/30">Suspended</span>}
         </td>
         <td className="px-4 py-3 hidden md:table-cell">
           {row.referral_code ? (

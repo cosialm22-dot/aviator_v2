@@ -74,7 +74,7 @@ export default function OverviewTab() {
   }
 
   if (err && !data) {
-    return <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-down text-sm">{err}</div>;
+    return <div className="rounded-xl border border-down/30 bg-down/10 p-6 text-down text-sm">{err}</div>;
   }
 
   const d = data!;
@@ -82,8 +82,8 @@ export default function OverviewTab() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end gap-3 -mt-2">
-        {notice && <span role="status" className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
-        {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
+        {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
+        {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
         <button onClick={load} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 transition-colors">Refresh</button>
       </div>
 

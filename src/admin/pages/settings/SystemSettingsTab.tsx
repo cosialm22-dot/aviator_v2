@@ -101,14 +101,14 @@ export default function SystemSettingsTab({
               <h3 className="text-[11px] font-semibold text-muted uppercase tracking-[0.1em]">{group}</h3>
               {isDist && distComplete && (
                 <span className={'inline-flex items-center gap-1.5 text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded border ' +
-                  (distTotal === 100 ? 'bg-emerald-50 text-up border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
+                  (distTotal === 100 ? 'bg-up/10 text-up border-up/30' : 'bg-amber-500/10 text-amber-400 border-amber-500/30')}>
                   {distTotal !== 100 && <AlertTriangle size={12} />}
                   Total {distTotal}%
                 </span>
               )}
             </div>
             {isDist && distComplete && distTotal !== 100 && (
-              <p className="px-5 pt-3 text-[12px] text-amber-700">
+              <p className="px-5 pt-3 text-[12px] text-amber-400">
                 Crash-distribution percentages should sum to exactly 100%. They currently total {distTotal}%.
               </p>
             )}
@@ -184,7 +184,7 @@ function Control({ field, working, onChange }: { field: FieldDef; working: strin
         aria-checked={on}
         aria-label={field.label}
         onClick={() => onChange(!on)}
-        className={'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ' + (on ? 'bg-brand' : 'bg-slate-300')}
+        className={'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ' + (on ? 'bg-brand' : 'bg-white/15')}
       >
         <span className={'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ' + (on ? 'translate-x-[22px]' : 'translate-x-0.5')} />
       </button>

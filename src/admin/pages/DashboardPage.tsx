@@ -157,7 +157,7 @@ export default function DashboardPage() {
   // Health is status-dot led: calm green when healthy, escalates only on action items.
   const STATE: Record<string, { dot: string; note: string; noteCls: string }> = {
     ok: { dot: 'bg-up', note: '', noteCls: '' },
-    warn: { dot: 'bg-amber-500', note: 'Action required', noteCls: 'text-amber-600' },
+    warn: { dot: 'bg-amber-500', note: 'Action required', noteCls: 'text-amber-400' },
     danger: { dot: 'bg-down', note: 'Investigate now', noteCls: 'text-down' },
     idle: { dot: 'bg-faint', note: 'Idle', noteCls: 'text-faint' },
   };
@@ -188,7 +188,7 @@ export default function DashboardPage() {
               Live &middot; refreshes every {POLL_MS / 1000}s
             </span>
             {err && (
-              <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[260px] truncate" title={err}>{err}</span>
+              <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[260px] truncate" title={err}>{err}</span>
             )}
             <button
               onClick={fetchAll}
@@ -241,7 +241,7 @@ export default function DashboardPage() {
           <div className="lg:col-span-3 rounded-xl border border-line bg-surface p-6">
             <h2 className={HEAD}>House Revenue &middot; Last 7 Days</h2>
             <p className="text-[12px] text-muted mt-1 mb-4">Daily wagered minus payouts (KES)</p>
-            <TrendAreaChart points={trend} color="#015d72" valueFormatter={(n) => 'KSh ' + fmtKES(n)} />
+            <TrendAreaChart points={trend} color="#1f9bb8" valueFormatter={(n) => 'KSh ' + fmtKES(n)} />
           </div>
           <div className="lg:col-span-2 rounded-xl border border-line bg-surface p-6">
             <h2 className={HEAD}>Today&rsquo;s Bet Outcomes</h2>
@@ -276,7 +276,7 @@ export default function DashboardPage() {
                 return (
                   <div key={b.label} className="flex items-center gap-3">
                     <span className="w-28 shrink-0 text-[12px] text-ink">{b.label}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden" role="img" aria-label={b.label + ': ' + b.count + ' rounds, ' + b.pct + '%'}>
+                    <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden" role="img" aria-label={b.label + ': ' + b.count + ' rounds, ' + b.pct + '%'}>
                       <div className={'h-full rounded-full transition-[width] duration-700 ease-out ' + bar} style={{ width: w }} />
                     </div>
                     <span className="w-20 shrink-0 text-right text-[12px] text-muted tabular-nums">{b.count} &middot; {b.pct}%</span>

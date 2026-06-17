@@ -55,11 +55,11 @@ function relTime(iso: string): string {
 }
 function payoutBadge(s: string): string {
   switch (s) {
-    case 'pending': return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'approved': return 'bg-sky-50 text-sky-700 border-sky-200';
-    case 'paid': return 'bg-emerald-50 text-up border-emerald-200';
-    case 'rejected': return 'bg-slate-100 text-muted border-line';
-    default: return 'bg-slate-100 text-muted border-line';
+    case 'pending': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+    case 'approved': return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+    case 'paid': return 'bg-up/10 text-up border-up/30';
+    case 'rejected': return 'bg-white/[0.06] text-muted border-line';
+    default: return 'bg-white/[0.06] text-muted border-line';
   }
 }
 
@@ -135,8 +135,8 @@ export default function CommissionsPage({ embedded = false }: { embedded?: boole
           <p className="text-[13px] text-muted mt-1">Review and settle marketer affiliate payouts</p>
         </div>
         <div className="flex items-center gap-3">
-          {notice && <span role="status" className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
-          {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
+          {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
+          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
           <button onClick={fetchAll} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 transition-colors disabled:opacity-50">
             {loading && <Spin />}{loading ? 'Refreshing' : 'Refresh'}
           </button>
@@ -160,7 +160,7 @@ export default function CommissionsPage({ embedded = false }: { embedded?: boole
       </div>
 
       {/* Status tabs */}
-      <div className="inline-flex gap-1 bg-slate-100 border border-line rounded-lg p-1 flex-wrap">
+      <div className="inline-flex gap-1 bg-white/[0.06] border border-line rounded-lg p-1 flex-wrap">
         {TABS.map(t => (
           <button key={t.k} onClick={() => setTab(t.k)} aria-current={tab === t.k ? 'page' : undefined}
             className={'px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (tab === t.k ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>
@@ -232,7 +232,7 @@ export default function CommissionsPage({ embedded = false }: { embedded?: boole
 
       {/* Reject modal */}
       {rejectRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => busyId ? null : setRejectRow(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setRejectRow(null)}>
           <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-ink font-semibold text-lg">Reject payout</h3>
             <p className="text-muted text-[13px] mt-3 leading-relaxed">
@@ -253,7 +253,7 @@ export default function CommissionsPage({ embedded = false }: { embedded?: boole
 
       {/* Record receipt modal */}
       {recordRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => busyId ? null : setRecordRow(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setRecordRow(null)}>
           <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-ink font-semibold text-lg">Record M-Pesa receipt</h3>
             <p className="text-muted text-[13px] mt-3 leading-relaxed">

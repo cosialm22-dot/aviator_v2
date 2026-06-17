@@ -100,7 +100,7 @@ export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
               {badge && (
                 <span
                   aria-label={`${pending} pending withdrawals`}
-                  className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-gold text-brand-dark text-[11px] font-bold tabular-nums"
+                  className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-gold text-canvas text-[11px] font-bold tabular-nums"
                 >
                   {pending > 99 ? '99+' : pending}
                 </span>

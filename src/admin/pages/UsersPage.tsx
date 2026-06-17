@@ -62,10 +62,10 @@ export default function UsersPage() {
   }
 
   const roleBadge = (role: string) =>
-    role === 'super_admin' ? 'bg-rose-50 text-down' :
+    role === 'super_admin' ? 'bg-down/10 text-down' :
     role === 'admin' ? 'bg-brand/10 text-brand' :
-    role === 'marketer' ? 'bg-violet-50 text-violet-700' :
-    'bg-slate-100 text-muted';
+    role === 'marketer' ? 'bg-violet-500/10 text-violet-300' :
+    'bg-white/[0.06] text-muted';
 
   return (
     <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
@@ -75,7 +75,7 @@ export default function UsersPage() {
             <h1 className="text-[22px] font-semibold text-ink tracking-tight">Players</h1>
             <p className="text-[13px] text-muted mt-1">Search and manage registered accounts</p>
           </div>
-          {err && <span role="alert" className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
+          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
         </div>
 
         <div className="relative max-w-sm">
@@ -126,7 +126,7 @@ export default function UsersPage() {
                       {p.role === 'player' ? (
                         p.is_banned
                           ? <button onClick={() => setBan(p, false)} disabled={busyId === p.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand/30 text-brand text-[12px] font-semibold hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">{busyId === p.id && <Spin />}Unban</button>
-                          : <button onClick={() => { setErr(null); setBanReason(''); setBanRow(p); }} disabled={busyId === p.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-200 text-down text-[12px] font-semibold hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 transition-colors disabled:opacity-40">Ban</button>
+                          : <button onClick={() => { setErr(null); setBanReason(''); setBanRow(p); }} disabled={busyId === p.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-down/30 text-down text-[12px] font-semibold hover:bg-down/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-down/40 transition-colors disabled:opacity-40">Ban</button>
                       ) : (
                         <button onClick={() => navigate(`/admin/users/${p.id}`)} className="text-[12px] text-muted hover:text-ink transition-colors">Manage</button>
                       )}
@@ -141,7 +141,7 @@ export default function UsersPage() {
 
       {/* Ban modal */}
       {banRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm" onClick={() => busyId ? null : setBanRow(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setBanRow(null)}>
           <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-ink font-semibold text-lg">Ban {banRow.username}</h3>
             <p className="text-muted text-[13px] mt-2 leading-relaxed">The player will be flagged as banned. A reason is required and recorded in the audit log.</p>
