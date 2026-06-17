@@ -167,23 +167,25 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       // Parked-plane hover: once the multiplier is high the plane no longer
       // climbs (x is clamped at X_MAX); instead it wanders along a NW–SE diagonal
       // — as it drifts up its x decreases, as it drifts down its x increases (and
-      // back), so it keeps fluctuating. The offset is eased in over the last
-      // quarter of the trail so the line bends with the plane instead of
-      // detaching from it. parkFactor ramps the wander in from 2x to 10x.
+      // back), so it keeps fluctuating. parkFactor ramps the wander in from 2x to 10x.
       const parkFactor = isCrashed ? 0 : planeParkFactor(displayMult);
       const ht   = now * 0.0016;
       const hOsc = Math.sin(ht) * 0.6 + Math.sin(ht * 0.61 + 1.3) * 0.4; // organic ~[-1,1]
       const hoverX = -hOsc * (W * 0.04)  * parkFactor;   // up ⇒ left, down ⇒ right
       const hoverY = -hOsc * (H * 0.085) * parkFactor;
 
-      // Build the arc points origin → (hovering) tip.
+      // Build the arc points origin → (hovering) tip. The hover offset is
+      // distributed across the WHOLE trail via a full-range smoothstep weight
+      // b(f): b(0)=0 pins the origin at the corner, b(1)=1 keeps the trail end on
+      // the plane, and b'(0)=b'(1)=0 give a clean origin pin and a stable tip
+      // tangent. So the entire curve bends with the plane's movement (no rigid
+      // section), with the largest displacement mid-curve.
       const STEPS = 96;
       const pts: { x: number; y: number }[] = [];
       for (let i = 0; i <= STEPS; i++) {
         const f  = i / STEPS;
         const xn = xt * f;
-        const blendRaw = f <= 0.75 ? 0 : (f - 0.75) / 0.25;     // 0..1 over last quarter
-        const b = blendRaw * blendRaw * (3 - 2 * blendRaw);     // smoothstep
+        const b  = f * f * (3 - 2 * f);                        // smoothstep over [0,1]
         pts.push({ x: curveX(W, xn) + hoverX * b, y: curveY(H, xn) + hoverY * b });
       }
       const origin = pts[0];
