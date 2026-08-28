@@ -20,7 +20,8 @@ Reference: `invest254_ARCHITECTURE_BLUEPRINT.md` + `invest254_DEEP_REFERENCE.md`
 | P2 | Roles & guards: root canonicalized → `platform_superadmin` (+ re-based `_enforce_super_admin_lock`); helpers `_is_platform_superadmin`/`_is_super_admin`/`_is_admin` widened; `current_site()` + `_can_admin_site()` (requireSite); RLS `site_id` second dimension on admin policies (brand admins see only their site; platform sees all); global config tables → platform-only; `block_operator_bets` covers all operator roles. | ✅ this PR |
 | P3 | Marketer/affiliate per-site: `commission_rate`+`qualifying_deposit_cents` on `site_game_config`; `sites.default_marketer_id` roots unattributed players; per-site GGR/commission (`Σ site_ggr×site_rate`); per-site deposit qualification; `admin_set_commission_rate(rate,site)`; `fn_effective_marketer`. | ✅ this PR |
 | P2b | Per-`admin_*` site scoping: all 12 mutating admin RPCs resolve the target row's `site_id` and call `_can_admin_site(...)` → `FORBIDDEN_SITE` cross-brand (SECURITY DEFINER bypasses RLS, so this closes the mutation-path gap left by P2). Verified e2e: all 12 blocked cross-brand, same-brand + platform succeed. | ✅ this PR |
-| P4 | Platform console + per-brand admin (site switcher + all-sites overview) + per-`admin_*` list/overview site-filtering (P2b-2) | ⬜ next |
+| P2b-2 | Read-path site scoping: 10 read/list/overview admin RPCs (`admin_list_transactions/withdrawals/commission_payouts/fraud_alerts/affiliates/promotions`, `admin_affiliate_overview/referrals`, `admin_commission_overview`, `admin_finance_summary`) filter `(_is_platform_superadmin() OR <t>.site_id = current_site())`. Verified e2e (two brands): scoped admin sees only own brand, platform sees all. | ✅ this PR |
+| P4 | Platform console + per-brand admin (site switcher + all-sites overview) | ⬜ next |
 | P5 | Payments per-site (M-Pesa creds by ref) + withdrawal-pool controller (guarded by `pool_mode`) | ⬜ |
 
 ## P1a details (this PR)
@@ -40,3 +41,6 @@ Migration `20260828020000_p1a_tenancy_foundation.sql` — **additive & non-break
 ### Deferred decision (P1c)
 aviator uses **Supabase Auth** (global email uniqueness), so invest254's *per-site identity*
 (same phone across brands) needs an auth-strategy decision before per-site identity uniques.
+
+## Findings log
+- **[P2b-2] `handle_new_user` does not stamp `site_id`** on the profile/wallet/ledger_entries/transactions it creates — they fall to the `site_id` column DEFAULT (default site). Result: multi-brand signups are misattributed to the default site (verified: 6 test signups across 2 sites put all 6 welcome-bonus deposits on site A). Fix belongs to the deferred **per-site signup attribution** work (needs a site-context-at-signup mechanism, since Supabase Auth has no site dimension). Tracked for the auth/tenancy-signup phase; out of P2b-2 scope (row/aggregate visibility only).
