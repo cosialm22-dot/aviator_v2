@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { AdminContext, makeIdentity, type AdminIdentity, type Role } from './roleContext';
+import { AdminContext, makeIdentity, OPERATOR_ROLES, type AdminIdentity, type Role } from './roleContext';
 
-// AdminGuard authenticates the session, authorises OPERATOR roles (admin,
-// super_admin), rejects suspended (banned) accounts, and publishes the resolved
-// identity to the panel via AdminContext. Marketers are NOT operators - they use
-// their own hub in the player shell (/marketer), so they are denied here.
-// Players and banned staff are denied. Route gating downstream reads useAdmin().
-const STAFF_ROLES: Role[] = ['admin', 'super_admin'];
+// AdminGuard authenticates the session, authorises OPERATOR roles
+// (platform_superadmin, super_admin, admin, finance_admin, support), rejects
+// suspended (banned) accounts, and publishes the resolved identity to the panel
+// via AdminContext. Marketers and players are NOT operators - they use the
+// player shell (/marketer hub), so they are denied here. Route gating
+// downstream reads useAdmin(). The server RPCs remain the real gate.
+const STAFF_ROLES: Role[] = OPERATOR_ROLES;
 
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<'loading' | 'login' | 'denied' | 'ok'>('loading');
