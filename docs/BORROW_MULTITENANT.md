@@ -13,8 +13,8 @@ Reference: `invest254_ARCHITECTURE_BLUEPRINT.md` + `invest254_DEEP_REFERENCE.md`
 ## Phase plan (each = sub-branch → e2e tests → PR)
 | Phase | Scope | Status |
 |---|---|---|
-| **P1a** | Tenancy skeleton: `sites` + `site_id` on data tables (default-filled, non-breaking) + role-ladder allow-list + `pool_mode` | ✅ this PR |
-| P1b | Money model: numeric→cents, `real/bonus/demo` balances, rewrite money RPCs (`place_bet`, `cash_out`, `_settle_flight`, `_bet_credit`, `handle_new_user`, `admin_adjust_balance`, `request_withdrawal`), `ledger_entries`, `fn_is_marketer_account` | ⬜ next |
+| **P1a** | Tenancy skeleton: `sites` + `site_id` on data tables (default-filled, non-breaking) + role-ladder allow-list + `pool_mode` | ✅ merged (#6) |
+| **P1b** | Money model: cents + `real/bonus/demo` balances + `ledger_entries` + `fn_is_marketer_account` + `_wallet_move`; rewrote `handle_new_user`, `place_bet`, `cash_out`, `_settle_flight`, `request_withdrawal`, `admin_adjust_balance`, `claim_rain`. `wallets.balance` kept as numeric-KES compat cache. Marketer demo isolation enforced; bonus/wagering column reserved (logic deferred). | ✅ this PR |
 | P1c | `site_game_config`(+versions) + feasibility CHECK, per-site config keying, per-site day seeds, per-site identity/auth decision | ⬜ |
 | P2 | Roles & guards: canonicalize root → `platform_superadmin` (+ update `_enforce_super_admin_lock`), `requireSite`/RLS second dimension, platform gate | ⬜ |
 | P3 | Marketer/affiliate: hierarchical per-site 25% GGR, default marketer, payouts, expenses, demo isolation | ⬜ |
