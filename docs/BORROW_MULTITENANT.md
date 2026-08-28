@@ -16,6 +16,7 @@ Reference: `invest254_ARCHITECTURE_BLUEPRINT.md` + `invest254_DEEP_REFERENCE.md`
 | **P1a** | Tenancy skeleton: `sites` + `site_id` on data tables (default-filled, non-breaking) + role-ladder allow-list + `pool_mode` | ✅ merged (#6) |
 | **P1b** | Money model: cents + `real/bonus/demo` balances + `ledger_entries` + `fn_is_marketer_account` + `_wallet_move`; rewrote `handle_new_user`, `place_bet`, `cash_out`, `_settle_flight`, `request_withdrawal`, `admin_adjust_balance`, `claim_rain`. `wallets.balance` kept as numeric-KES compat cache. Marketer demo isolation enforced; bonus/wagering column reserved (logic deferred). | ✅ this PR |
 | P1c | `site_game_config`(+versions) + feasibility CHECK, per-site config keying, per-site day seeds, per-site identity/auth decision | ⬜ |
+| P1c | `site_game_config`(+immutable versions) + feasibility CHECK (min edge floor) + version-bump/notify trigger + `_site_setting_num` per-site reader (global fallback). Seeded default site from live settings (KES→cents, edge floored). Auth = option (a): keep Supabase Auth global identity, `site_id` scopes data. Engine wiring deferred to multiplex phase. | ✅ this PR |
 | P2 | Roles & guards: canonicalize root → `platform_superadmin` (+ update `_enforce_super_admin_lock`), `requireSite`/RLS second dimension, platform gate | ⬜ |
 | P3 | Marketer/affiliate: hierarchical per-site 25% GGR, default marketer, payouts, expenses, demo isolation | ⬜ |
 | P4 | Platform console + per-brand admin (site switcher + all-sites overview) | ⬜ |
