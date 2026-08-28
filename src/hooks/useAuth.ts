@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getDeviceFingerprint } from '../lib/fingerprint';
+import { resolveSiteBrand } from '../lib/siteBrand';
 import type { Profile, Wallet } from '../types';
 
 /*
@@ -109,6 +110,9 @@ export function useAuth() {
       const ref = new URLSearchParams(window.location.search).get('ref');
       if (ref && ref.trim()) localStorage.setItem('aviator_ref', ref.trim());
     } catch { /* localStorage/URL unavailable - referral simply not captured */ }
+    // Resolve the current host -> brand once on boot so the brand cache is warm
+    // for signup attribution (and future theming). Non-blocking; safe to fail.
+    void resolveSiteBrand();
   }, []);
 
   useEffect(() => {
@@ -155,11 +159,20 @@ export function useAuth() {
     let referral_code: string | undefined;
     try { referral_code = localStorage.getItem('aviator_ref') || undefined; } catch { /* ignore */ }
 
+    // Resolve the current brand so the signup attributes to the right site.
+    // Falls back to the cached brand, then (server-side) to the default site.
+    const brand = await resolveSiteBrand();
+    const site_slug = brand?.slug;
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { phone, username, avatar_color, ...(referral_code ? { referral_code } : {}) },
+        data: {
+          phone, username, avatar_color,
+          ...(referral_code ? { referral_code } : {}),
+          ...(site_slug ? { site_slug } : {}),
+        },
       },
     });
 
