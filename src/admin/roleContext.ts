@@ -1,39 +1,57 @@
 import { createContext, useContext } from 'react';
 
 // ============================================================================
-// Admin RBAC - single source of truth for the four-role model and access map.
-// Mirrors the DB contract in migration 20260613060000_rbac_four_roles.sql:
-//   player       - customer; never enters the admin panel.
-//   marketer     - growth affiliate; uses the /marketer hub in the PLAYER shell,
-//                  never the operator admin panel.
-//   admin        - operations; players, game, withdrawals, finance.
-//   super_admin  - everything admin can do, plus settings and staff/role mgmt.
-// The server RPCs enforce every privileged write; this map only governs UI
-// visibility and client-side route guarding (defence in depth, not the gate).
+// Admin RBAC - single source of truth for the role ladder and access map.
+// Mirrors the DB role ladder (see 20260828050000_p2_roles_guards.sql):
+//   player               - customer; never enters the admin panel.
+//   marketer             - growth affiliate; uses the /marketer hub in the
+//                          PLAYER shell, never the operator admin panel.
+//   support              - read-oriented ops (players, risk, dashboard).
+//   finance_admin        - finance + withdrawals ops.
+//   admin                - operations: players, game, withdrawals, finance, risk.
+//   super_admin          - everything admin can do, plus settings & staff mgmt.
+//   platform_superadmin  - the platform owner (root): super_admin across every
+//                          brand, PLUS the cross-brand Platform Console.
+// The server RPCs enforce every privileged write (and cross-brand isolation via
+// _can_admin_site); this map only governs UI visibility and client-side route
+// guarding (defence in depth, not the gate).
 // ============================================================================
 
-export type Role = 'player' | 'admin' | 'super_admin' | 'marketer';
+export type Role =
+  | 'player'
+  | 'marketer'
+  | 'support'
+  | 'finance_admin'
+  | 'admin'
+  | 'super_admin'
+  | 'platform_superadmin';
 
 export type Section =
+  | 'platform'
   | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'finance' | 'settings' | 'staff'
   | 'marketing' | 'commissions' | 'risk';
 
+// Operator roles that may enter the admin panel at all (AdminGuard gate).
+export const OPERATOR_ROLES: Role[] = [
+  'platform_superadmin', 'super_admin', 'admin', 'finance_admin', 'support',
+];
+
 const ACCESS: Record<Section, Role[]> = {
-  // Operations analytics is for operators only; marketers see their own
-  // affiliate data under 'marketing', never system-wide revenue.
-  dashboard:   ['super_admin', 'admin'],
-  users:       ['super_admin', 'admin'],
-  game:        ['super_admin', 'admin'],
-  withdrawals: ['super_admin', 'admin'],
-  finance:     ['super_admin', 'admin'],
+  // Cross-brand console: platform owner only.
+  platform:    ['platform_superadmin'],
+  dashboard:   ['platform_superadmin', 'super_admin', 'admin', 'finance_admin', 'support'],
+  users:       ['platform_superadmin', 'super_admin', 'admin', 'support'],
+  game:        ['platform_superadmin', 'super_admin', 'admin'],
+  withdrawals: ['platform_superadmin', 'super_admin', 'admin', 'finance_admin'],
+  finance:     ['platform_superadmin', 'super_admin', 'admin', 'finance_admin'],
   // Risk & fraud monitoring is an operations function (see module 7 spec).
-  risk:        ['super_admin', 'admin'],
-  settings:    ['super_admin'],
-  staff:       ['super_admin'],
+  risk:        ['platform_superadmin', 'super_admin', 'admin', 'support'],
+  settings:    ['platform_superadmin', 'super_admin'],
+  staff:       ['platform_superadmin', 'super_admin'],
   // Operator-only Marketing hub (affiliates + promotions + commissions). Marketers
   // manage their own affiliate data in the /marketer hub (player shell), not here.
-  marketing:   ['super_admin', 'admin'],
-  commissions: ['super_admin', 'admin'],     // legacy section; route now redirects into the hub
+  marketing:   ['platform_superadmin', 'super_admin', 'admin'],
+  commissions: ['platform_superadmin', 'super_admin', 'admin'], // legacy; route redirects into the hub
 };
 
 export function canAccess(role: Role | null | undefined, section: Section): boolean {
@@ -43,9 +61,10 @@ export function canAccess(role: Role | null | undefined, section: Section): bool
 export interface AdminIdentity {
   userId: string;
   role: Role;
-  isSuperAdmin: boolean; // role === 'super_admin'
-  isAdmin: boolean;      // 'admin' or 'super_admin' (operational staff)
-  isStaff: boolean;      // operator (admin or super_admin); marketers are not operators
+  isPlatform: boolean;   // role === 'platform_superadmin' (owns the cross-brand console)
+  isSuperAdmin: boolean; // 'super_admin' or 'platform_superadmin' (settings/staff tier)
+  isAdmin: boolean;      // any operator role (broad ops visibility)
+  isStaff: boolean;      // operator (can enter the admin panel); marketers are not operators
 }
 
 export const AdminContext = createContext<AdminIdentity | null>(null);
@@ -57,11 +76,13 @@ export function useAdmin(): AdminIdentity {
 }
 
 export function makeIdentity(userId: string, role: Role): AdminIdentity {
+  const isPlatform = role === 'platform_superadmin';
   return {
     userId,
     role,
-    isSuperAdmin: role === 'super_admin',
-    isAdmin: role === 'super_admin' || role === 'admin',
-    isStaff: role === 'super_admin' || role === 'admin',
+    isPlatform,
+    isSuperAdmin: role === 'super_admin' || isPlatform,
+    isAdmin: OPERATOR_ROLES.includes(role),
+    isStaff: OPERATOR_ROLES.includes(role),
   };
 }

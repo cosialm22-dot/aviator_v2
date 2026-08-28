@@ -1,7 +1,7 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, ShieldAlert, Building2 } from 'lucide-react';
 import { useAdmin, canAccess, type Section } from '../roleContext';
 
 // `marketing` is the operator Marketing hub (affiliates + promotions +
@@ -9,6 +9,7 @@ import { useAdmin, canAccess, type Section } from '../roleContext';
 // the hub. Marketers manage their own affiliate data in the /marketer hub
 // (player shell) and never reach this panel.
 const NAV: { icon: typeof LayoutDashboard; label: string; path: string; section: Section }[] = [
+  { icon: Building2, label: 'Platform', path: '/admin/platform', section: 'platform' },
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', section: 'dashboard' },
   { icon: Megaphone, label: 'Marketing', path: '/admin/marketing', section: 'marketing' },
   { icon: Users, label: 'Players', path: '/admin/users', section: 'users' },
@@ -20,8 +21,11 @@ const NAV: { icon: typeof LayoutDashboard; label: string; path: string; section:
 ];
 
 const ROLE_LABEL: Record<string, string> = {
+  platform_superadmin: 'Platform Owner',
   super_admin: 'Super Admin',
   admin: 'Admin',
+  finance_admin: 'Finance Admin',
+  support: 'Support',
 };
 
 interface AdminSidebarProps {
