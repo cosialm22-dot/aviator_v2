@@ -13,7 +13,7 @@
 const VERSION = 'aviator-v1';
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = '/offline';   // Cloudflare Assets serves offline.html here (strips .html)
 const PRECACHE = [
   OFFLINE_URL,
   '/manifest.webmanifest',
