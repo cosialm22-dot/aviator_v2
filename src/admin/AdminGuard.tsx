@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { AdminContext, makeIdentity, OPERATOR_ROLES, type AdminIdentity, type Role } from './roleContext';
+import { normalizeKenyanPhone, isValidKenyanPhone } from '../lib/phone';
 
 // AdminGuard authenticates the session, authorises OPERATOR roles
 // (platform_superadmin, super_admin, admin, finance_admin, support), rejects
@@ -51,7 +52,12 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(''); setSubmitting(true);
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    // Operators may enter either their Kenyan phone (same identity the player
+    // shell uses -> phone@phone.aviator.ke) or a raw email. Phones are
+    // normalised to the canonical 254XXXXXXXXX before building the login email.
+    const id = email.trim();
+    const loginEmail = isValidKenyanPhone(id) ? `${normalizeKenyanPhone(id)}@phone.aviator.ke` : id;
+    const { error: err } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (err) { console.error("[Admin Auth]", err.message); setError("Invalid credentials."); }
     setSubmitting(false);
   }
@@ -72,7 +78,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
         </div>
         {error && <div className="mb-4 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">{error}</div>}
         <div className="space-y-4">
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus placeholder="Email" className="w-full px-3 py-2.5 bg-night-deep border border-edge rounded-lg text-white text-sm focus:outline-none focus:border-danger" />
+          <input type="text" inputMode="text" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required autoFocus placeholder="Phone or email" className="w-full px-3 py-2.5 bg-night-deep border border-edge rounded-lg text-white text-sm focus:outline-none focus:border-danger" />
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Password" className="w-full px-3 py-2.5 bg-night-deep border border-edge rounded-lg text-white text-sm focus:outline-none focus:border-danger" />
           <button type="submit" disabled={submitting} className="w-full py-2.5 bg-danger hover:bg-[#a50018] text-white font-semibold rounded-lg text-sm transition disabled:opacity-50">
             {submitting ? 'Signing in...' : 'Sign In'}
