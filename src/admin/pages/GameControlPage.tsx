@@ -144,14 +144,14 @@ return(
             </div>
           </details>
         </div>
-        <div className="rounded-xl border border-line bg-surface overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 rounded-xl border border-line bg-surface"><span className="text-[12px] text-muted">Upcoming crash points</span><span className="text-[12px] font-semibold text-ink">{pendingQ.length} queued</span></div><div className="rounded-xl border border-line bg-surface overflow-hidden">
           <div className="overflow-x-auto max-h-[360px] overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-surface"><tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
                 <th className="text-left px-5 py-3 font-medium w-12">#</th><th className="text-left px-5 py-3 font-medium">Multiplier</th><th className="text-left px-5 py-3 font-medium">Status</th><th className="text-left px-5 py-3 font-medium hidden lg:table-cell">Added</th><th className="text-right px-5 py-3 font-medium w-24" />
               </tr></thead>
               <tbody className="divide-y divide-line">
-                {queue.length===0?(<tr><td colSpan={5} className="px-5 py-16 text-center text-faint text-[12px]">Queue empty - crash points come from algorithm</td></tr>):queue.map(q=>(
+                {queue.length===0?(<tr><td colSpan={5} className="px-5 py-16 text-center text-faint text-[12px]">No upcoming crash points - autofill will top up the queue.</td></tr>):queue.map(q=>(
                   <tr key={q.id} className="hover:bg-canvas transition-colors">
                     <td className="px-5 py-3 text-muted font-mono text-xs">{q.position}</td>
                     <td className="px-5 py-3 text-ink font-mono font-semibold">{Number(q.crash_multiplier).toFixed(2)}x</td>
