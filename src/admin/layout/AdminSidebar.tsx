@@ -1,7 +1,7 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, ShieldAlert, Building2, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, ShieldAlert, Building2, Bell, Ticket } from 'lucide-react';
 import { useAdmin, canAccess, type Section } from '../roleContext';
 
 // `marketing` is the operator Marketing hub (affiliates + promotions +
@@ -13,6 +13,7 @@ const NAV: { icon: typeof LayoutDashboard; label: string; path: string; section:
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', section: 'dashboard' },
   { icon: Megaphone, label: 'Marketing', path: '/admin/marketing', section: 'marketing' },
   { icon: Bell, label: 'Notifications', path: '/admin/notifications', section: 'notifications' },
+  { icon: Ticket, label: 'Promo Codes', path: '/admin/promo-codes', section: 'marketing' },
   { icon: Users, label: 'Players', path: '/admin/users', section: 'users' },
   { icon: Gamepad2, label: 'Game Control', path: '/admin/game', section: 'game' },
   { icon: Banknote, label: 'Withdrawals', path: '/admin/withdrawals', section: 'withdrawals' },

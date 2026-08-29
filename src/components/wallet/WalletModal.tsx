@@ -3,6 +3,7 @@ import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone, Lock, 
 import { formatCurrency } from '../../lib/formatters';
 import { isValidKenyanPhone } from '../../lib/phone';
 import { useModalA11y } from '../../hooks/useModalA11y';
+import RedeemPromoCode from '../promo/RedeemPromoCode';
 import type { FirstDepositBonus } from '../../hooks/useBonus';
 
 /*
@@ -219,6 +220,9 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
                   <p className="text-slate-500 text-[10px] mt-1.5">Wager the remaining amount in real bets to unlock this bonus for withdrawal.</p>
                 </div>
               )}
+
+              {/* Redeem a promo code (deposit view) */}
+              {tab === 'deposit' && <RedeemPromoCode />}
 
               {/* Amount */}
               <div>
