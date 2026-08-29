@@ -19,13 +19,18 @@ export interface FirstDepositBonus {
   expiresAt: string | null;
 }
 
+// New cents-model columns (migration 20260829000000_bonus_wagering_engine).
 interface BonusRow {
-  amount: number;
-  wagering_required: number;
-  wagering_progress: number;
-  status: string;
-  expires_at: string | null;
+  amount: number;      // cents granted
+  wagering_x: number;  // wager multiple
+  wagered: number;     // cents staked toward this bonus
+  status: string;      // active | cleared | void
 }
+
+// Map the engine status onto the hook's stable public status vocabulary.
+const STATUS_MAP: Record<string, FirstDepositBonus['status']> = {
+  active: 'active', cleared: 'released', void: 'forfeited',
+};
 
 export function useBonus(userId: string | undefined) {
   const [bonus, setBonus] = useState<FirstDepositBonus | null>(null);
@@ -35,17 +40,20 @@ export function useBonus(userId: string | undefined) {
     if (!userId) { setBonus(null); setLoading(false); return; }
     const { data } = await supabase
       .from('bonuses')
-      .select('amount, wagering_required, wagering_progress, status, expires_at')
+      .select('amount, wagering_x, wagered, status')
       .eq('user_id', userId)
       .eq('type', 'first_deposit_match')
       .maybeSingle();
     const row = data as BonusRow | null;
+    // Engine tracks cents + wagering_x/wagered; convert to the KES + required/progress
+    // shape the UI already expects (amount/wageringRequired/wageringProgress in KES).
+    const requiredCents = row ? Math.floor(Number(row.amount) * Number(row.wagering_x)) : 0;
     setBonus(row ? {
-      amount: Number(row.amount),
-      wageringRequired: Number(row.wagering_required),
-      wageringProgress: Number(row.wagering_progress),
-      status: row.status as FirstDepositBonus['status'],
-      expiresAt: row.expires_at,
+      amount: Number(row.amount) / 100,
+      wageringRequired: requiredCents / 100,
+      wageringProgress: Math.min(Number(row.wagered), requiredCents) / 100,
+      status: STATUS_MAP[row.status] ?? 'active',
+      expiresAt: null,
     } : null);
     setLoading(false);
   }, [userId]);
