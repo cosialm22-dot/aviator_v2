@@ -369,6 +369,24 @@ serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+    // Platform master switch: block deposit initiation when the operator console
+    // has disabled deposits (migration 20260829060000_platform_global_config).
+    // Checked BEFORE the Daraja STK push so no prompt is ever sent while disabled.
+    try {
+      const { data: pcfg } = await supabase.rpc("fn_platform_get_global_config");
+      if (pcfg && pcfg.deposits_enabled === false) {
+        log("WARN", "Deposits disabled by platform config");
+        return new Response(
+          JSON.stringify({ success: false, error: "DEPOSITS_DISABLED", message: "Deposits are temporarily unavailable." }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    } catch (_e) {
+      // Fail-open on config read errors: never block a legitimate deposit because
+      // the switch lookup hiccuped (the switch is an operator convenience, not a
+      // security control). The default state is deposits-enabled.
+    }
+
     // Check rate limit
     const rateLimitCheck = await checkRateLimit(supabase, body.phone_number);
     if (!rateLimitCheck.allowed) {
