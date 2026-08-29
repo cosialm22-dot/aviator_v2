@@ -108,7 +108,16 @@ export function useAuth() {
   useEffect(() => {
     try {
       const ref = new URLSearchParams(window.location.search).get('ref');
-      if (ref && ref.trim()) localStorage.setItem('aviator_ref', ref.trim());
+      if (ref && ref.trim()) {
+        localStorage.setItem('aviator_ref', ref.trim());
+        // Fire-and-forget affiliate click tracking (funnel top). Recorded once
+        // per code per browser session; a tolerant DB RPC no-ops unknown codes
+        // and never raises (see migration 20260829040000_marketer_analytics).
+        if (sessionStorage.getItem('aviator_ref_clicked') !== ref.trim()) {
+          sessionStorage.setItem('aviator_ref_clicked', ref.trim());
+          void supabase.rpc('fn_record_affiliate_click', { p_code: ref.trim() });
+        }
+      }
     } catch { /* localStorage/URL unavailable - referral simply not captured */ }
     // Resolve the current host -> brand once on boot so the brand cache is warm
     // for signup attribution (and future theming). Non-blocking; safe to fail.
