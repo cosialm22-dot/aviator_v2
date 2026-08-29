@@ -29,7 +29,7 @@ export type Role =
 export type Section =
   | 'platform'
   | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'finance' | 'settings' | 'staff'
-  | 'marketing' | 'commissions' | 'risk';
+  | 'marketing' | 'commissions' | 'risk' | 'notifications';
 
 // Operator roles that may enter the admin panel at all (AdminGuard gate).
 export const OPERATOR_ROLES: Role[] = [
@@ -52,6 +52,7 @@ const ACCESS: Record<Section, Role[]> = {
   // manage their own affiliate data in the /marketer hub (player shell), not here.
   marketing:   ['platform_superadmin', 'super_admin', 'admin'],
   commissions: ['platform_superadmin', 'super_admin', 'admin'], // legacy; route redirects into the hub
+  notifications: ['platform_superadmin', 'super_admin', 'admin'],
 };
 
 export function canAccess(role: Role | null | undefined, section: Section): boolean {

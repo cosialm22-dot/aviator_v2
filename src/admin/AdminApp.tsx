@@ -12,6 +12,7 @@ import RiskPage from './pages/RiskPage';
 import SettingsPage from './pages/SettingsPage';
 import MarketingAdminPage from './pages/MarketingAdminPage';
 import PlatformConsolePage from './pages/PlatformConsolePage';
+import NotificationsPage from './pages/NotificationsPage';
 import { useAdmin, canAccess, type Section } from './roleContext';
 
 // Route-level authorisation (defence in depth alongside the hidden nav items):
@@ -31,6 +32,7 @@ export default function AdminApp() {
           <Route path="platform" element={<RequireSection section="platform"><PlatformConsolePage /></RequireSection>} />
           <Route path="dashboard" element={<RequireSection section="dashboard"><DashboardPage /></RequireSection>} />
           <Route path="marketing" element={<RequireSection section="marketing"><MarketingAdminPage /></RequireSection>} />
+          <Route path="notifications" element={<RequireSection section="notifications"><NotificationsPage /></RequireSection>} />
           {/* Commissions folded into the Marketing hub; keep the old path as a deep link. */}
           <Route path="commissions" element={<Navigate to="/admin/marketing?tab=commissions" replace />} />
           <Route path="users" element={<RequireSection section="users"><UsersPage /></RequireSection>} />

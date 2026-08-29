@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard, UserCircle } from 'lucide-react';
 import type { Profile } from '../../types';
+import NotificationBell from '../notifications/NotificationBell';
 
 interface Props {
   profile: Profile | null;
@@ -73,6 +74,9 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
               <Wallet size={12} />
               Deposit
             </button>
+
+            {/* Notifications bell (live) */}
+            <NotificationBell />
 
             {/* Profile dropdown (desktop) - avatar is the menu trigger */}
             <div className="hidden sm:block relative">
