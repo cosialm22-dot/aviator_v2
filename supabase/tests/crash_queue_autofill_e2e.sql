@@ -23,7 +23,9 @@ DECLARE
   v_cnt int; v_bad int; v_minpos int; v_maxpos int; v_distinct_pos int;
   v_log text := ''; v_ok boolean := true;
 BEGIN
-  -- Clean slate for deterministic assertions.
+  -- Clean slate for deterministic assertions. crash_queue.round_id references
+  -- game_rounds(id) with NO ACTION, so null the FK before deleting rounds.
+  UPDATE crash_queue SET round_id = NULL;
   DELETE FROM crash_queue;
   DELETE FROM round_secrets;
   DELETE FROM bets;
@@ -84,6 +86,7 @@ BEGIN
   ELSE v_ok:=false; v_log:=v_log||'Q8 FAIL pending='||v_pending||' added='||v_added||'; '; END IF;
 
   -- Q9: queue_enabled=false -> open_round ignores queue (source='algorithm', no queue_id).
+  UPDATE crash_queue SET round_id = NULL;
   DELETE FROM round_secrets; DELETE FROM bets; DELETE FROM game_rounds;
   UPDATE system_settings SET value='false'::jsonb WHERE key='game.queue_enabled';
   v_round := open_round();
