@@ -54,7 +54,8 @@ Beyond P1–P4 + attribution, the remaining borrowable feature set (evidence-bas
 - **[DONE — `20260828130000_notifications.sql`] Notifications** — `user_notifications` + `notification_templates` + audience resolver + broadcast (ad-hoc & template) + category-resolve + dismiss/dismiss-all + realtime bell (player Header) + admin Notifications page (broadcast + templates). Site-scoped (brand admin → own brand, platform → all), RLS own-row, e2e-verified, deployed.
 - **[DONE — `20260828140000_promo_codes.sql`] Promo codes** — `promo_codes` + `promo_redemptions`, per-brand unique codes, total + per-user caps, expiry/active, reward = free bet (works today) or bonus_cash (reserved for #3). Race-safe `redeem_promo_code` RPC + admin CRUD (site-scoped). Player redeem input in the wallet + admin Promo Codes page. e2e-verified (13 checks) + live smoke, deployed.
 - **[TODO] Bonus & wagering engine** (`bonuses`, `bonus_config`).
-- **[TODO] Support chat** (`support_conversations`, `support_messages`) + **KB** (`kb_chunks`, pgvector RAG — separable).
+- **[SHIPPED — DB layer] Support chat** (`support_conversations`, `support_messages`) + escalation + **KB** (`kb_chunks`, pgvector `fn_kb_search`) — migration `20260829050000_support_chat.sql`. Human support works now (start/send/escalate, operators read transcripts via `_is_admin`); pgvector enabled, KB retrieval ready. Verified live e2e (`supabase/tests/support_chat_e2e.sql`).
+  - **[TODO — #4b]** embedding ingestion + autonomous LLM answering (needs an external embedding/LLM provider + an edge function; deploy currently blocked). `fn_kb_search`/`fn_support_log` are service_role-ready for it.
 - **[TODO] Deep marketer economy** (`marketer_wallets/ledger/expenses/withdrawals/globals`, `affiliate_clicks/commissions/payouts`, `deposit_commissions`).
 - **[TODO] User overrides/limits** (`user_overrides`).
 - **[TODO] Versioned platform global config** (`platform_global_config(+versions)`).
