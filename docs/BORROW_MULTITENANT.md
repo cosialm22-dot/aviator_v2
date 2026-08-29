@@ -52,7 +52,7 @@ aviator uses **Supabase Auth** (global email uniqueness), so invest254's *per-si
 ## Borrow backlog (from invest254) — progress
 Beyond P1–P4 + attribution, the remaining borrowable feature set (evidence-based, from a live invest254↔aviator diff):
 - **[DONE — `20260828130000_notifications.sql`] Notifications** — `user_notifications` + `notification_templates` + audience resolver + broadcast (ad-hoc & template) + category-resolve + dismiss/dismiss-all + realtime bell (player Header) + admin Notifications page (broadcast + templates). Site-scoped (brand admin → own brand, platform → all), RLS own-row, e2e-verified, deployed.
-- **[TODO] Promo codes** (`promo_codes`) — redeemable codes → bonus/free bet.
+- **[DONE — `20260828140000_promo_codes.sql`] Promo codes** — `promo_codes` + `promo_redemptions`, per-brand unique codes, total + per-user caps, expiry/active, reward = free bet (works today) or bonus_cash (reserved for #3). Race-safe `redeem_promo_code` RPC + admin CRUD (site-scoped). Player redeem input in the wallet + admin Promo Codes page. e2e-verified (13 checks) + live smoke, deployed.
 - **[TODO] Bonus & wagering engine** (`bonuses`, `bonus_config`).
 - **[TODO] Support chat** (`support_conversations`, `support_messages`) + **KB** (`kb_chunks`, pgvector RAG — separable).
 - **[TODO] Deep marketer economy** (`marketer_wallets/ledger/expenses/withdrawals/globals`, `affiliate_clicks/commissions/payouts`, `deposit_commissions`).
