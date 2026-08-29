@@ -210,19 +210,14 @@ async function creditWallet(
       return { success: false, error: "Wallet not found" };
     }
 
-    // Update wallet balance
-    const newBalance = Number(wallet.balance) + amount;
-    const { error: updateError } = await supabase
-      .from("wallets")
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq("user_id", userId);
+    // NOTE: wallet crediting is done SERVER-SIDE by the DB trigger
+    // trg_credit_mpesa_deposit (migration 20260829010000): it credits
+    // real_balance (cents) + writes ledger_entries via _wallet_move when the
+    // 'deposit' transaction row is inserted below. Do NOT mutate wallets.balance
+    // here — post-P1b `balance` is a derived cache that _wallet_move recomputes,
+    // so a manual write is either erased or (worse) risks a double credit.
 
-    if (updateError) {
-      log("ERROR", "Failed to update wallet", { error: updateError });
-      return { success: false, error: "Failed to update wallet" };
-    }
-
-    // Create transaction record
+    // Create transaction record (fires the credit + first-deposit-match triggers)
     const { error: transactionError } = await supabase.from("transactions").insert({
       user_id: userId,
       type: "deposit",
