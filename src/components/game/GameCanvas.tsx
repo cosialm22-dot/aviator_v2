@@ -24,8 +24,6 @@ interface Props {
 // in the reference, so it always stays on-screen while the number keeps rising.
 const CURVE_EXP = 1.78;
 const X_A       = 1.487;   // ln(m) coefficient
-const X_B       = 0.147;   // ln(m=1) intercept
-const X_MIN     = 0.04;
 const X_MAX     = 0.93;
 const PLOT_TOP    = 0.07;   // curve ceiling (fraction of height, from top)
 const PLOT_BOTTOM = 1.0;    // baseline = the x-axis, at the true bottom edge, so
