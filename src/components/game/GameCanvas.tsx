@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { GameStatus } from '../../types';
 import { multiplierColor, planeParkFactor } from './canvasMotion';
-import { planeSrcFor } from '../../hooks/useSiteTheme';
+import { BIRD_MAP, DEFAULT_BIRD, drawBird, drawBirdPerched } from './birds';
 
 interface Props {
   status: GameStatus;
@@ -49,28 +49,10 @@ function curveY(H: number, xn: number) {
 // ── Plane sprite (the project's existing red-plane art) ──────────────────────
 // Drawn via drawImage once decoded; until then a compact vector plane is used so
 // the flight tip is never empty on a slow network.
-const PLANE_ASPECT  = 2.38;          // source art width:height
-// Per-site plane sprites, loaded on demand and cached by skin key. The canvas
-// reads the current skin via a module-level ref set by the component each frame,
-// so switching sites/skins swaps the sprite without re-mounting the RAF loop.
-const planeCache = new Map<string, { img: HTMLImageElement; ready: boolean }>();
-let activePlaneSkin = 'crimson';
-function planeSpriteFor(skin: string): { img: HTMLImageElement | null; ready: boolean } {
-  const key = (skin || 'crimson').toLowerCase();
-  let entry = planeCache.get(key);
-  if (!entry) {
-    const img = typeof Image !== 'undefined' ? new Image() : null;
-    const rec = { img: img as HTMLImageElement, ready: false };
-    if (img) {
-      img.onload  = () => { rec.ready = true; };
-      img.onerror = () => { rec.ready = false; };
-      img.src = planeSrcFor(key);
-    }
-    planeCache.set(key, rec);
-    entry = rec;
-  }
-  return { img: entry.img, ready: entry.ready };
-}
+// The active bird species for this site, set by the component each frame. The
+// canvas reads it in the RAF loop so switching sites/skins swaps the bird live.
+let activeBird = DEFAULT_BIRD;
+function birdSpec() { return BIRD_MAP[activeBird] ?? BIRD_MAP[DEFAULT_BIRD]; }
 
 // ── Partner splash (UFC × Aviator "official partners" card) ────────────────────
 // Drawn on the canvas ONLY during the waiting phase — i.e. after a round crashes
@@ -94,7 +76,7 @@ const C_TRAIL_DEAD  = '#7a2030';
 const C_CRASH       = '#e8123c';
 
 export default function GameCanvas({ status, getMultiplier, crashPoint, countdown, planeSkin }: Props) {
-  activePlaneSkin = (planeSkin || 'crimson').toLowerCase();
+  activeBird = (planeSkin || DEFAULT_BIRD).toLowerCase();
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const rafRef     = useRef<number>(0);
   const prevStatus = useRef<GameStatus>('idle');
@@ -328,16 +310,14 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
 
 // ── Resting plane (idle/waiting): parked at the origin corner, fully visible ──
 function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
-  const pw = Math.max(64, Math.min(W * 0.11, 150));
-  // Rest with the TAIL TIP at the origin (bottom-left corner), nose pointing up-right
-  // along the flight direction. The sprite is centred on (x,y) and rotated by the
-  // heading, so the centre sits half a length ahead of the tail along the heading.
-  const heading = -0.42;                       // nose up-right, matching take-off tangent
-  const halfLen = pw * 0.5;                    // centre is half the sprite length from the tail
-  const bob = Math.sin(now * 0.0018) * H * 0.008;
-  const x = Math.cos(heading) * halfLen;       // tail at x=0
-  const y = PLOT_BOTTOM * H + Math.sin(heading) * halfLen + bob;  // tail at the baseline
-  drawPlane(ctx, x, y, heading, W);
+  const size = Math.max(64, Math.min(W * 0.11, 150));
+  // Perch with the tail tip at the origin (bottom-left corner), body up-right.
+  const spec = birdSpec();
+  const halfLen = size * 0.5;
+  const heading = -0.42;
+  const x = Math.cos(heading) * halfLen;
+  const y = PLOT_BOTTOM * H + Math.sin(heading) * halfLen;
+  drawBirdPerched(ctx, spec, x, y, size, now);
 }
 
 // ── Waiting overlay: "WAITING FOR NEXT ROUND" + animated loader bar ───────────
@@ -439,33 +419,10 @@ function drawCrashText(ctx: CanvasRenderingContext2D, W: number, H: number, m: n
 
 // ── Plane drawing (sprite with vector fallback) ──────────────────────────────
 function drawPlane(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, W: number) {
-  const pw = Math.max(64, Math.min(W * 0.11, 150));
-  const ph = pw / PLANE_ASPECT;
-  // The reference plane stays nearly level; damp the tangent so it only tilts slightly.
-  const tilt = Math.max(-0.18, Math.min(0.05, angle * 0.35));
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(tilt);
-  const sprite = planeSpriteFor(activePlaneSkin);
-  if (sprite.img && sprite.ready) {
-    ctx.drawImage(sprite.img, -pw * 0.5, -ph * 0.55, pw, ph);
-  } else {
-    drawVectorPlane(ctx, pw);
-  }
-  ctx.restore();
+  const size = Math.max(64, Math.min(W * 0.11, 150)); // body length in px
+  drawBird(ctx, birdSpec(), x, y, angle, size, performance.now());
 }
 
-function drawVectorPlane(ctx: CanvasRenderingContext2D, pw: number) {
-  const s = pw / 116;
-  ctx.scale(s, s);
-  ctx.fillStyle = '#e8123c';
-  ctx.beginPath();
-  ctx.moveTo(-40, 6); ctx.quadraticCurveTo(0, -18, 44, -2);
-  ctx.quadraticCurveTo(30, 12, -40, 12); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#b50d2f';
-  ctx.beginPath();
-  ctx.moveTo(-10, 4); ctx.lineTo(-26, -14); ctx.lineTo(-2, 0); ctx.closePath(); ctx.fill();
-}
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function fmt(v: number): string { return v >= 100 ? v.toFixed(0) : v.toFixed(2); }
