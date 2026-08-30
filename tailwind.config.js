@@ -17,13 +17,14 @@ export default {
         // player palette.
 
         // ── PLAYER (dark) theme ─────────────────────────────────────────────
-        night: { DEFAULT: '#0d0d1a', deep: '#0a0a14' },          // page background
-        panel: { DEFAULT: '#11111f', raised: '#1a1a2e', high: '#1e1e30' }, // dark cards/panels
-        edge: { DEFAULT: '#2a2a45', strong: '#2a3150' },         // dark hairline borders
-        frost: '#e2e8f0',                                        // dark-theme primary text
-        win: { DEFAULT: '#22c55e', dark: '#16a34a' },            // success / primary CTA green
-        danger: '#c8001c',                                       // player brand-red accent
-        info: '#60a5fa',                                         // player accent-blue (referrals/marketing)
+        night: { DEFAULT: '#1b1b1b', deep: '#141414' },          // page background
+        panel: { DEFAULT: '#1b1b1b', raised: '#262626', high: '#2c2c2c' }, // dark cards/panels
+        edge: { DEFAULT: '#333333', strong: '#3a3a3a' },         // dark hairline borders
+        frost: '#e8e8e8',                                        // dark-theme primary text
+        win: { DEFAULT: '#28a745', dark: '#1f8a3a' },            // success / primary CTA green (Bet button)
+        danger: '#e51e3c',                                       // player brand-red accent (plane/trail/logo)
+        info: '#17a2b8',                                         // player accent-blue (referrals/marketing)
+        funmode: '#c8930a',                                      // FUN MODE banner amber
 
         // ── ADMIN (dark) theme — institutional base + trading semantics ────
         brand: { DEFAULT: '#1f9bb8', dark: '#013e4c' }, // teal accent (links/active/buttons); -dark is the deep sidebar/hover teal

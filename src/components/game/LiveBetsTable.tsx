@@ -41,9 +41,9 @@ export default function LiveBetsTable({ bets, status }: Props) {
       {sorted.map(bet => (
         <div
           key={bet.id}
-          className={`grid items-center px-3 py-1.5 text-xs border-b border-panel-high transition-colors ${
-            bet.status === 'won' ? 'bg-green-900/10' :
-            bet.status === 'lost' ? 'bg-red-900/8' : ''
+          className={`grid items-center px-3 py-1.5 text-xs border-b border-[#242424] transition-colors ${
+            bet.status === 'won' ? 'bg-[#28a745]/15' :
+            bet.status === 'lost' ? 'bg-transparent' : ''
           }`}
           style={{ gridTemplateColumns: '1fr auto auto auto' }}
         >
@@ -61,7 +61,7 @@ export default function LiveBetsTable({ bets, status }: Props) {
           {/* Multiplier (X column) */}
           <div className="text-[11px] px-2 min-w-[40px] text-center">
             {bet.status === 'won' && bet.cashout_multiplier !== null ? (
-              <span className="text-win font-bold">{bet.cashout_multiplier.toFixed(2)}x</span>
+              <span className="text-[#4d9fff] font-bold">{bet.cashout_multiplier.toFixed(2)}x</span>
             ) : bet.status === 'active' && status === 'flying' ? (
               <span className="text-amber-400 animate-pulse">…</span>
             ) : (

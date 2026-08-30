@@ -39,7 +39,7 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
   const isMarketer = profile?.role === 'marketer';
 
   return (
-    <header className="bg-night border-b border-edge px-3 sm:px-4 h-14 flex items-center justify-between gap-2 relative z-30 flex-shrink-0">
+    <header className="bg-night border-b border-edge px-3 sm:px-4 h-10 flex items-center justify-between gap-2 relative z-30 flex-shrink-0">
       {/* Logo — allowed to shrink (min-w-0) but never clipped by the right cluster */}
       <button
         onClick={() => navigate('/')}
@@ -51,7 +51,7 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
           : <img src="/plane.png" alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_8px_rgba(200,0,24,0.55)] flex-shrink-0" />}
         <span
           className="font-black italic text-xl tracking-tight truncate"
-          style={{ color: '#cc0018', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(200,0,24,0.5)' }}
+          style={{ color: '#e51e3c', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(229,30,60,0.45)' }}
         >
           {streamer.enabled ? domain : 'Aviator'}
         </span>
@@ -70,7 +70,7 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
               className="flex items-center gap-1 sm:gap-1.5 hover:opacity-90 transition"
             >
               <span className="text-slate-400 text-[10px] sm:text-xs font-semibold">KES</span>
-              <span className="text-sm sm:text-base font-bold tabular-nums" style={{ color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.4)' }}>
+              <span className="text-sm font-bold tabular-nums" style={{ color: '#28a745', textShadow: '0 0 8px rgba(40,167,69,0.35)' }}>
                 {balance.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </button>
@@ -92,7 +92,7 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
             {/* Deposit */}
             <button
               onClick={onWalletOpen}
-              className="hidden sm:flex items-center gap-1 px-3 py-2 bg-win hover:bg-win-dark text-white rounded-lg text-xs font-bold transition shadow-lg shadow-green-500/20"
+              className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-win hover:bg-win-dark text-white rounded-md text-xs font-bold transition shadow-lg shadow-green-900/30"
             >
               <Wallet size={12} />
               Deposit

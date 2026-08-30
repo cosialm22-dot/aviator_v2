@@ -6,12 +6,12 @@
 // multipliers, transitioning through purple to red as the round climbs — so the
 // canvas itself signals how high the round has flown.
 export const GLOW_STOPS: [number, [number, number, number]][] = [
-  [1.0,  [40, 120, 230]],   // blue
-  [2.0,  [90, 90, 235]],    // indigo
-  [4.0,  [150, 65, 225]],   // purple
-  [8.0,  [210, 45, 150]],   // magenta
-  [15.0, [235, 35, 70]],    // red
-  [50.0, [240, 90, 40]],    // red-orange
+  [1.0,  [88, 28, 135]],    // deep purple (Spribe signature)
+  [2.0,  [109, 40, 217]],   // violet
+  [4.0,  [147, 51, 234]],   // bright purple
+  [8.0,  [192, 38, 211]],   // magenta-purple
+  [15.0, [219, 39, 119]],   // pink-red
+  [50.0, [229, 30, 60]],    // brand red
 ];
 
 /** Interpolated "r, g, b" glow string for a given multiplier (clamped to stops). */

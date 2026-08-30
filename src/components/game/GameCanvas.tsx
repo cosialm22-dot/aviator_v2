@@ -72,11 +72,11 @@ if (planeImg) {
 function drawVectorPlane(ctx: CanvasRenderingContext2D, pw: number) {
   const s = pw / 116;
   ctx.scale(s, s);
-  ctx.fillStyle = '#e8123c';
+  ctx.fillStyle = '#e51e3c';
   ctx.beginPath();
   ctx.moveTo(-40, 6); ctx.quadraticCurveTo(0, -18, 44, -2);
   ctx.quadraticCurveTo(30, 12, -40, 12); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#b50d2f';
+  ctx.fillStyle = '#b3122e';
   ctx.beginPath();
   ctx.moveTo(-10, 4); ctx.lineTo(-26, -14); ctx.lineTo(-2, 0); ctx.closePath(); ctx.fill();
 }
@@ -106,12 +106,12 @@ if (partnerSprite) {
 }
 
 // ── Palette (sampled from the reference recording) ───────────────────────────
-const C_BG          = '#07080c';
-const C_SPOKE_LIGHT = '#181d26';
-const C_SPOKE_DARK  = '#0a0b10';
-const C_TRAIL_LINE  = '#ff1840';
+const C_BG          = '#0d0d0d';
+const C_SPOKE_LIGHT = '#1e1e1e';
+const C_SPOKE_DARK  = '#101010';
+const C_TRAIL_LINE  = '#e51e3c';
 const C_TRAIL_DEAD  = '#7a2030';
-const C_CRASH       = '#e8123c';
+const C_CRASH       = '#e51e3c';
 
 export default function GameCanvas({ status, getMultiplier, crashPoint, countdown, planeSkin, streamer }: Props) {
   activeBird = (planeSkin || DEFAULT_BIRD).toLowerCase();
@@ -249,8 +249,8 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
         fill.addColorStop(0, 'rgba(120, 16, 34, 0.38)');
         fill.addColorStop(1, 'rgba(60, 6, 16, 0.20)');
       } else {
-        fill.addColorStop(0, 'rgba(232, 22, 64, 0.55)');
-        fill.addColorStop(1, 'rgba(150, 6, 30, 0.22)');
+        fill.addColorStop(0, 'rgba(229, 30, 60, 0.60)');
+        fill.addColorStop(1, 'rgba(140, 10, 32, 0.28)');
       }
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
@@ -264,7 +264,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       // Curve edge with a soft red glow.
       ctx.save();
       ctx.shadowBlur  = isCrashed ? 4 : 14;
-      ctx.shadowColor = isCrashed ? '#5a1020' : '#ff1840';
+      ctx.shadowColor = isCrashed ? '#5a1020' : '#e51e3c';
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
       for (const p of pts) ctx.lineTo(p.x, p.y);
@@ -335,7 +335,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
   }
   ctx.restore();
 
-  // Radial glow behind the multiplier; colour shifts with the round (blue→red).
+  // Radial glow behind the multiplier; colour shifts with the round (purple→red).
   if (glow > 0.01) {
     const gx = W * 0.5, gy = H * 0.42, gr = W * 0.62;
     const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);

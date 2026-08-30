@@ -4,11 +4,12 @@ interface Props {
   history: GameRound[];
 }
 
+// Spribe palette: low = slate-blue, mid = blue, high = purple, huge = pink.
 function getCrashPillStyle(m: number): string {
-  if (m < 2)    return 'bg-transparent text-[#a0a0c0] border border-[#3a3a55]';
-  if (m < 5)    return 'bg-transparent text-[#3b82f6] border border-[#3b82f6]/40';
-  if (m < 10)   return 'bg-transparent text-[#a855f7] border border-[#a855f7]/40';
-  return              'bg-transparent text-[#f59e0b] border border-[#f59e0b]/40';
+  if (m < 2)    return 'text-[#8b8ba7]';
+  if (m < 5)    return 'text-[#4d9fff]';
+  if (m < 10)   return 'text-[#a06bff]';
+  return              'text-[#e83e8c]';
 }
 
 export default function GameHistory({ history }: Props) {
@@ -17,7 +18,7 @@ export default function GameHistory({ history }: Props) {
       {history.slice(0, 40).map((round, i) => (
         <span
           key={round.id || i}
-          className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap ${getCrashPillStyle(round.crash_multiplier)}`}
+          className={`flex-shrink-0 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums whitespace-nowrap ${getCrashPillStyle(round.crash_multiplier)}`}
           title={`${round.crash_multiplier.toFixed(2)}x`}
         >
           {round.crash_multiplier >= 100

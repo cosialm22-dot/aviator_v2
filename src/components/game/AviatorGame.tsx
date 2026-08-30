@@ -205,7 +205,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
 
         {/* ── Left: Live Bets (lg+) ──────────────────────────────────── */}
         {!streamer.enabled && (
-        <div className="hidden lg:flex flex-col w-60 flex-shrink-0 bg-night border-r border-edge">
+        <div className="hidden lg:flex flex-col w-64 flex-shrink-0 bg-panel border-r border-edge">
           <div className="flex border-b border-edge flex-shrink-0">
             {(['allBets', 'previous', 'top'] as const).map(tab => (
               <button
@@ -269,8 +269,15 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
             controls stay visible on every device. */}
         <div className="flex flex-col flex-1 min-w-0 min-h-0">
 
+          {/* FUN MODE banner (demo play) — Spribe amber strip */}
+          {isDemo && (
+            <div className="flex-shrink-0 bg-funmode text-white text-center text-[11px] font-bold tracking-[0.2em] py-1 rounded-t-lg">
+              FUN MODE
+            </div>
+          )}
+
           {/* Canvas - takes most vertical space */}
-          <div className="relative flex-1 min-h-0 bg-[#111118] overflow-hidden">
+          <div className="relative flex-1 min-h-0 bg-[#0d0d0d] overflow-hidden">
             <GameCanvas
         planeSkin={planeSkin}
               streamer={streamer.enabled}
@@ -391,7 +398,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
               and placed directly above the betting controls, where the choice
               actually matters. In demo we also surface the play-money balance +
               a reset, replacing what used to clutter the top bar. */}
-          <div className="flex-shrink-0 flex items-center justify-between gap-2 border-t border-edge bg-night px-3 py-1.5">
+          <div className="flex-shrink-0 flex items-center justify-between gap-2 border-t border-edge bg-panel px-3 py-1.5">
             <div className="flex bg-panel-raised rounded-full p-0.5" role="tablist" aria-label="Play mode">
               {(['real', 'demo'] as const).map((m) => (
                 <button
@@ -401,7 +408,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
                   onClick={() => onSetMode(m)}
                   className={`px-4 py-1.5 text-xs font-bold rounded-full transition-all ${
                     mode === m
-                      ? (m === 'demo' ? 'bg-[#1d4ed8] text-white' : 'bg-win text-white')
+                      ? (m === 'demo' ? 'bg-funmode text-white' : 'bg-win text-white')
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -413,7 +420,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
             {isDemo ? (
               <div className="flex items-center gap-1.5 rounded-full bg-panel-raised border border-edge px-2.5 py-1">
                 <span className="text-[9px] uppercase tracking-wide text-slate-500 font-bold">Demo</span>
-                <span className="text-xs font-bold tabular-nums text-[#60a5fa]">
+                <span className="text-xs font-bold tabular-nums text-funmode">
                   KSh {demo.balance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
                 </span>
                 <button
@@ -447,7 +454,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
               </div>
             </div>
           ) : (
-          <div className="flex flex-col lg:flex-row flex-shrink-0 border-t border-edge bg-night">
+          <div className="flex flex-col lg:flex-row flex-shrink-0 border-t border-edge bg-panel gap-px">
             <div className="flex-1 lg:border-r border-edge">
               <BettingPanel
                 panelIndex={0}
@@ -546,7 +553,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
 
         {/* ── Right: Live Chat (xl+) ────────────────────────────────── */}
         {!streamer.enabled && (
-        <div className="hidden xl:flex flex-col w-60 flex-shrink-0 bg-night border-l border-edge">
+        <div className="hidden xl:flex flex-col w-64 flex-shrink-0 bg-panel border-l border-edge">
           <Chat messages={chat.messages} sending={chat.sending} onSend={chat.send} userId={profile?.id} username={profile?.username} />
         </div>
         )}
