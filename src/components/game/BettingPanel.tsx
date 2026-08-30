@@ -252,9 +252,9 @@ export default function BettingPanel({
   const autoFieldId = (key: string) => `autobet-${panelIndex}-${key}`;
 
   return (
-    <div className="flex flex-col bg-panel select-none">
-      {/* Bet / Auto mode toggle */}
-      <div className="px-3 pt-2 pb-2">
+    <div className="flex flex-col bg-panel select-none rounded-2xl lg:rounded-none border border-edge/60 lg:border-0 mx-2 mb-2 lg:m-0">
+      {/* Bet / Auto mode toggle (desktop; mobile keeps the minimal Spribe layout) */}
+      <div className="hidden lg:block px-3 pt-2 pb-2">
         <div className="flex bg-panel-high rounded-full p-0.5 w-full max-w-[200px]">
           {(['Bet', 'Auto'] as const).map(tab => (
             <button
@@ -273,20 +273,20 @@ export default function BettingPanel({
         </div>
       </div>
 
-      {/* Amount stepper — full width, large touch targets (48px) */}
-      <div className="px-3 pb-2">
-        <div className="flex items-center bg-panel-high rounded-full border border-edge">
+      {/* Amount stepper — compact pill with circular +/- (Spribe mobile) */}
+      <div className="px-3 pt-2 lg:pt-0 pb-1.5">
+        <div className="flex items-center justify-center gap-3">
           <button
             onClick={() => adjust(-50)}
             disabled={isOperator || locked || amount <= MIN_BET}
             aria-label="Decrease bet by 50"
-            className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-white hover:bg-[#3a3a3a] rounded-l-full transition disabled:opacity-40 active:scale-95"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-panel-high border border-edge text-slate-300 hover:text-white hover:bg-[#3a3a3a] transition disabled:opacity-40 active:scale-95"
           >
-            <Minus size={18} />
+            <Minus size={15} />
           </button>
 
           <div
-            className="flex flex-col items-center justify-center flex-1 h-12 cursor-text"
+            className="flex items-baseline justify-center min-w-[72px] cursor-text"
             onClick={() => inputRef.current?.focus()}
           >
             <input
@@ -298,30 +298,29 @@ export default function BettingPanel({
               onBlur={handleBlur}
               disabled={isOperator || locked}
               aria-label="Bet amount in KES"
-              className="w-full bg-transparent text-white font-bold text-lg tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-16 bg-transparent text-white font-bold text-base tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <span className="text-slate-500 text-[10px] leading-none mt-0.5">KES</span>
           </div>
 
           <button
             onClick={() => adjust(50)}
             disabled={isOperator || locked}
             aria-label="Increase bet by 50"
-            className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-white hover:bg-[#3a3a3a] rounded-r-full transition disabled:opacity-40 active:scale-95"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-panel-high border border-edge text-slate-300 hover:text-white hover:bg-[#3a3a3a] transition disabled:opacity-40 active:scale-95"
           >
-            <Plus size={18} />
+            <Plus size={15} />
           </button>
         </div>
       </div>
 
-      {/* Quick amounts */}
-      <div className="flex gap-1.5 px-3 pb-2">
+      {/* Quick amounts — 2x2 pill grid (Spribe mobile) */}
+      <div className="grid grid-cols-2 gap-1 px-3 pb-2 max-w-[170px] mx-auto w-full lg:max-w-none lg:flex lg:gap-1.5">
         {QUICK_AMOUNTS.map(q => (
           <button
             key={q}
             onClick={() => setRawAmount(String(q))}
             disabled={isOperator || locked}
-            className="flex-1 py-1 text-[11px] font-semibold bg-panel-high border border-edge rounded-full text-slate-300 hover:text-white hover:bg-[#3a3a3a] transition disabled:opacity-40 active:scale-95"
+            className="py-1 text-[11px] font-semibold bg-panel-high border border-edge rounded-full text-slate-300 hover:text-white hover:bg-[#3a3a3a] transition disabled:opacity-40 active:scale-95 lg:flex-1"
           >
             {q >= 1000 ? `${q / 1000}K` : q}
           </button>
@@ -381,7 +380,7 @@ export default function BettingPanel({
                 autoBet.start(amount, autoTarget);
               }}
               disabled={!autoValid || amount < MIN_BET}
-              className="w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-900/40 disabled:opacity-40 disabled:shadow-none"
+              className="w-full flex flex-col items-center justify-center min-h-[64px] py-2 rounded-2xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-900/40 disabled:opacity-40 disabled:shadow-none"
             >
               <div className="flex items-center gap-1.5 text-base leading-tight">
                 <Play size={15} className="fill-current" />
@@ -394,7 +393,7 @@ export default function BettingPanel({
           ) : (
             <button
               onClick={autoBet.stop}
-              className="w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl bg-danger hover:bg-[#a50018] text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-red-900/30"
+              className="w-full flex flex-col items-center justify-center min-h-[64px] py-2 rounded-2xl bg-danger hover:bg-[#a50018] text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-red-900/30"
             >
               <div className="flex items-center gap-1.5 text-base leading-tight">
                 <Square size={14} className="fill-current" />
@@ -408,7 +407,7 @@ export default function BettingPanel({
         ) : isCashable ? (
           <button
             onClick={onCashOut}
-            className="w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-900/40 animate-pulse-cashout"
+            className="w-full flex flex-col items-center justify-center min-h-[64px] py-2 rounded-2xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-900/40 animate-pulse-cashout"
           >
             <div className="flex items-center gap-1.5 text-base leading-tight">
               <Zap size={16} className="fill-current" />
@@ -422,7 +421,7 @@ export default function BettingPanel({
           <button
             onClick={btnConfig.action}
             disabled={btnConfig.disabled}
-            className={`w-full flex flex-col items-center justify-center min-h-[56px] py-2 rounded-xl font-black transition-all active:scale-[0.98] ${btnConfig.style}`}
+            className={`w-full flex flex-col items-center justify-center min-h-[64px] py-2 rounded-2xl font-black transition-all active:scale-[0.98] ${btnConfig.style}`}
           >
             <div className="flex items-center gap-1.5 text-base leading-tight">
               {btnConfig.icon && <btnConfig.icon size={16} />}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Users, Plus, X, Wrench, RotateCcw } from 'lucide-react';
+import { MessageSquare, Users, Wrench, RotateCcw } from 'lucide-react';
 import GameCanvas from './GameCanvas';
 import BettingPanel, { type QueuedBet } from './BettingPanel';
 import LiveBetsTable from './LiveBetsTable';
@@ -52,7 +52,6 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
   // Second simultaneous bet (dual-bet) is a power-user feature. On mobile it is
   // hidden by default so the primary bet stays the single, obvious action; one
   // tap reveals it. On desktop both panels are always shown side by side.
-  const [showSecondBet, setShowSecondBet] = useState(false);
   const [nudge, setNudge] = useState<{ title: string; sub: string } | null>(null);
   const nudgeShownRef = useRef(false);
   // One queued bet per slot (dual-bet): each panel can independently queue a bet
@@ -454,7 +453,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
               </div>
             </div>
           ) : (
-          <div className="flex flex-col lg:flex-row flex-shrink-0 border-t border-edge bg-panel gap-px">
+          <div className="flex flex-col lg:flex-row flex-shrink-0 lg:border-t border-edge bg-transparent lg:bg-panel gap-0 lg:gap-px">
             <div className="flex-1 lg:border-r border-edge">
               <BettingPanel
                 panelIndex={0}
@@ -474,7 +473,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
                 streamer={streamer.enabled}
               />
             </div>
-            <div className={`flex-1 border-t border-edge lg:border-t-0 ${showSecondBet ? 'block' : 'hidden'} lg:block`}>
+            <div className="flex-1 lg:border-t-0">
               <BettingPanel
                 panelIndex={1}
                 status={gameStatus}
@@ -495,15 +494,6 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
             </div>
           </div>
           )}
-
-          {/* Mobile-only: opt in / out of the second simultaneous bet. */}
-          <button
-            onClick={() => setShowSecondBet(v => !v)}
-            className="lg:hidden flex-shrink-0 flex items-center justify-center gap-1.5 py-2 border-t border-edge bg-night text-[11px] font-semibold text-slate-400 hover:text-white transition-colors active:scale-[0.99]"
-          >
-            {showSecondBet ? <X size={13} /> : <Plus size={13} />}
-            <span>{showSecondBet ? 'Remove second bet' : 'Add a second bet'}</span>
-          </button>
 
           {/* Mobile bottom tab: Bets / Chat. Each tab toggles its sheet open or
               closed, so the default view stays focused on the canvas + bet
