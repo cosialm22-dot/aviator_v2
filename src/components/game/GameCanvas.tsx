@@ -33,8 +33,10 @@ const PLOT_BOTTOM = 1.0;    // baseline = the x-axis, at the true bottom edge, s
                             // bottom-left corner) rather than floating above it.
 
 function xTipNorm(m: number): number {
-  const x = X_B + X_A * Math.log(Math.max(1.0001, m));
-  return Math.min(X_MAX, Math.max(X_MIN, x));
+  // Time-proportional (ln m) with NO intercept: x=0 at m=1 so the plane lifts off
+  // smoothly from the origin instead of jumping to a fixed offset on the first frame.
+  const x = X_A * Math.log(Math.max(1.0001, m));
+  return Math.min(X_MAX, Math.max(0, x));
 }
 // Screen position (logical px) for a point at normalised x along the arc.
 function curveX(W: number, xn: number) { return xn * W; }
@@ -166,7 +168,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       const planeRightExt = planeW * 0.56;            // sprite half-width at max tilt
       const wallGap       = Math.max(10, W * 0.02);   // never-touch clearance
       const maxHoverRight = W * 0.04 * parkFactor;    // worst-case rightward wander
-      const xMaxFit       = Math.max(X_MIN, 1 - (maxHoverRight + planeRightExt + wallGap) / W);
+      const xMaxFit       = Math.max(0, 1 - (maxHoverRight + planeRightExt + wallGap) / W);
       const xt            = Math.min(xTipNorm(displayMult), xMaxFit);
 
       // Crash flash (brief red wash).
