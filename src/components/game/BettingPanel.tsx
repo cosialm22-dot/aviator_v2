@@ -143,20 +143,6 @@ export default function BettingPanel({
       };
     }
 
-    // Signed-out (real-money) visitor: the single highest-value action is to
-    // create an account, not to stare at a dead "Next round" button. Always a
-    // vivid, clickable CTA that opens sign-up. (Demo passes isAuthenticated=true,
-    // so this never blocks free play.)
-    if (!isAuthenticated) {
-      return {
-        label: 'Register to play',
-        sublabel: 'Get KES 500 free on signup',
-        action: onAuthRequired,
-        style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-900/40',
-        disabled: false,
-      };
-    }
-
     // Queued bet: show "Queued" with cancel option
     if (queuedBet) {
       return {
