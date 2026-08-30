@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, ShieldAlert, Building2, Bell, Ticket } from 'lucide-react';
 import { useAdmin, canAccess, type Section } from '../roleContext';
+import { useSiteTheme } from '../../hooks/useSiteTheme';
 
 // `marketing` is the operator Marketing hub (affiliates + promotions +
 // commissions). Commissions is no longer a top-level item - it is a tab inside
@@ -37,6 +38,7 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
+  const { planeSrc } = useSiteTheme();
   const { pathname } = useLocation();
   const { role } = useAdmin();
   const isActive = (p: string) => p === '/admin' ? pathname === '/admin' || pathname === '/admin/dashboard' : pathname.startsWith(p);
@@ -83,7 +85,7 @@ export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
       >
       <div className="h-14 flex items-center px-5 border-b border-line">
         <Link to="/admin" className="flex items-center gap-2.5">
-          <img src="/plane.png" alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_6px_rgba(200,0,24,0.5)]" />
+          <img src={planeSrc} alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_6px_rgba(200,0,24,0.5)]" />
           <span className="text-white font-semibold text-sm tracking-tight">Aviator Admin</span>
         </Link>
       </div>

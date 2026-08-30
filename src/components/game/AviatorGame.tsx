@@ -17,6 +17,7 @@ import { useOnlineCount } from '../../hooks/useOnlineCount';
 import PromoBar from './PromoBar';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { Profile, Wallet } from '../../types';
+import { useSiteTheme } from '../../hooks/useSiteTheme';
 
 interface Props {
   profile: Profile | null;
@@ -40,6 +41,7 @@ const LOW_BALANCE_NUDGES = [
 type MobileTab = 'bets' | 'chat';
 
 export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
+  const { planeSkin } = useSiteTheme();
   const [activeTab, setActiveTab] = useState<'allBets' | 'previous' | 'top'>('allBets');
   // Mobile Bets/Chat sheet. Closed by default (null) so the canvas + betting
   // controls own the small-screen viewport and the primary bet action is always
@@ -266,6 +268,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
           {/* Canvas - takes most vertical space */}
           <div className="relative flex-1 min-h-0 bg-[#111118] overflow-hidden">
             <GameCanvas
+        planeSkin={planeSkin}
               status={gameStatus}
               multiplier={currentMultiplier}
               getMultiplier={getMultiplier}

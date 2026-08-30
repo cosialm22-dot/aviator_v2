@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { AdminContext, makeIdentity, OPERATOR_ROLES, type AdminIdentity, type Role } from './roleContext';
 import { normalizeKenyanPhone, isValidKenyanPhone } from '../lib/phone';
+import { useSiteTheme } from '../hooks/useSiteTheme';
 
 // AdminGuard authenticates the session, authorises OPERATOR roles
 // (platform_superadmin, super_admin, admin, finance_admin, support), rejects
@@ -12,6 +13,7 @@ import { normalizeKenyanPhone, isValidKenyanPhone } from '../lib/phone';
 const STAFF_ROLES: Role[] = OPERATOR_ROLES;
 
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { planeSrc } = useSiteTheme();
   const [state, setState] = useState<'loading' | 'login' | 'denied' | 'ok'>('loading');
   const [identity, setIdentity] = useState<AdminIdentity | null>(null);
   const [email, setEmail] = useState('');
@@ -72,7 +74,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen bg-night-deep flex items-center justify-center p-4">
       <form onSubmit={handleLogin} className="w-full max-w-sm bg-[#111122] border border-edge rounded-2xl p-8">
         <div className="text-center mb-8">
-          <img src="/plane.png" alt="" aria-hidden="true" className="h-7 w-auto mx-auto mb-3 -rotate-12 drop-shadow-[0_0_10px_rgba(200,0,24,0.5)]" />
+          <img src={planeSrc} alt="" aria-hidden="true" className="h-7 w-auto mx-auto mb-3 -rotate-12 drop-shadow-[0_0_10px_rgba(200,0,24,0.5)]" />
           <div className="text-2xl font-black text-white mb-1">Aviator Admin</div>
           <div className="text-sm text-slate-500">Sign in to continue</div>
         </div>
