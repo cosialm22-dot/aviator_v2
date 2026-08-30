@@ -151,7 +151,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
 
       // flying | crashed ────────────────────────────────────────────────────
       const isCrashed   = status === 'crashed';
-      const displayMult = isCrashed ? crashPoint : mult;
+      const displayMult = isCrashed ? crashPoint : (crashPoint > 0 ? Math.min(mult, crashPoint) : mult);
       const parkFactor  = isCrashed ? 0 : planeParkFactor(displayMult);
 
       // Right-wall safety: the plane sprite is centred on the trail tip, so the

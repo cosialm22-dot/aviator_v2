@@ -32,6 +32,7 @@ type RoundRow = GameRound & {
   betting_ends_at: string | null;
   seed_hash: string | null;
   server_seed: string | null;
+  crashes_at: string | null;
 };
 
 export interface ActiveBet {
@@ -121,6 +122,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
   const statusRef = useRef<GameStatus>('idle');
   const roundRef = useRef<RoundRow | null>(null);
   const startedAtRef = useRef<number | null>(null);
+  const crashesAtRef = useRef<number | null>(null);
   const lastUiRef = useRef<number>(0);
   const profileRef = useRef<Profile | null>(profile);
   profileRef.current = profile;
@@ -136,7 +138,12 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
   const stopRaf = () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); rafRef.current = 0; };
   const animate = useCallback(() => {
     if (statusRef.current !== 'flying' || startedAtRef.current == null) return;
-    const elapsed = Date.now() - startedAtRef.current;
+    const nowMs = Date.now();
+    // Clamp to the server-provided crash instant so the climb approaches but never
+    // exceeds the crash point (no overshoot / snap-back). Falls back to unbounded
+    // when crashes_at is absent (older rows / algorithm rounds without it).
+    const crashAt = crashesAtRef.current;
+    const elapsed = Math.min(nowMs, crashAt ?? nowMs) - startedAtRef.current;
     const m = getMultiplierAtTime(elapsed);
     multiplierRef.current = m;
     const now = Date.now();
@@ -163,6 +170,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
     if (row.status === 'waiting') {
       stopRaf();
       startedAtRef.current = null;
+      crashesAtRef.current = null;
       multiplierRef.current = 1.0;
       setCurrentMultiplier(1.0);
       setCrashPoint(0);
@@ -172,6 +180,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
       setGameStatus('waiting');
     } else if (row.status === 'flying') {
       startedAtRef.current = row.started_at ? new Date(row.started_at).getTime() : Date.now();
+      crashesAtRef.current = row.crashes_at ? new Date(row.crashes_at).getTime() : null;
       statusRef.current = 'flying';
       setGameStatus('flying');
       stopRaf();
