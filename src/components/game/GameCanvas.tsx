@@ -314,11 +314,15 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
 function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
   const pw = Math.max(64, Math.min(W * 0.11, 150));
   const ph = pw / PLANE_ASPECT;
-  const x = curveX(W, 0 + 0.01);
-  // Baseline now sits on the bottom edge; lift the sprite by ~half its height so
-  // the parked plane rests on the corner without being clipped off-canvas.
-  const y = PLOT_BOTTOM * H - ph * 0.45 + Math.sin(now * 0.0018) * H * 0.01;
-  drawPlane(ctx, x, y, -0.05, W);
+  // Rest with the TAIL TIP at the origin (bottom-left corner), nose pointing up-right
+  // along the flight direction. The sprite is centred on (x,y) and rotated by the
+  // heading, so the centre sits half a length ahead of the tail along the heading.
+  const heading = -0.42;                       // nose up-right, matching take-off tangent
+  const halfLen = pw * 0.5;                    // centre is half the sprite length from the tail
+  const bob = Math.sin(now * 0.0018) * H * 0.008;
+  const x = Math.cos(heading) * halfLen;       // tail at x=0
+  const y = PLOT_BOTTOM * H + Math.sin(heading) * halfLen + bob;  // tail at the baseline
+  drawPlane(ctx, x, y, heading, W);
 }
 
 // ── Waiting overlay: "WAITING FOR NEXT ROUND" + animated loader bar ───────────
