@@ -5,6 +5,8 @@ import type { Profile } from '../../types';
 import NotificationBell from '../notifications/NotificationBell';
 import { useSiteTheme } from '../../hooks/useSiteTheme';
 import BirdMark from '../game/BirdMark';
+import { useStreamerMode } from '../../hooks/useStreamerMode';
+import { Radio } from 'lucide-react';
 
 interface Props {
   profile: Profile | null;
@@ -28,6 +30,8 @@ const MARKETER_DASHBOARD_PATH = '/marketer';
 // logo on narrow phones.
 export default function Header({ profile, balance, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
   const { planeSkin } = useSiteTheme();
+  const streamer = useStreamerMode();
+  const domain = typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : '';
   const [menuOpen, setMenuOpen] = useState(false);       // mobile hamburger sheet
   const [profileOpen, setProfileOpen] = useState(false); // desktop profile dropdown
   const navigate = useNavigate();
@@ -47,7 +51,7 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
           className="font-black italic text-xl tracking-tight truncate"
           style={{ color: '#cc0018', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(200,0,24,0.5)' }}
         >
-          Aviator
+          {streamer.enabled ? domain : 'Aviator'}
         </span>
       </button>
 
@@ -63,11 +67,25 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
               aria-label="Your balance. Tap to open your wallet."
               className="flex items-center gap-1 sm:gap-1.5 hover:opacity-90 transition"
             >
-              <span className="text-slate-400 text-[10px] sm:text-xs font-semibold">KShs</span>
+              <span className="text-slate-400 text-[10px] sm:text-xs font-semibold">KES</span>
               <span className="text-sm sm:text-base font-bold tabular-nums" style={{ color: '#22c55e', textShadow: '0 0 8px rgba(34,197,94,0.4)' }}>
                 {balance.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </button>
+
+            {/* Streamer Mode toggle — marketers only. ON = broadcast-safe UI for going LIVE. */}
+            {streamer.canToggle && (
+              <button
+                onClick={streamer.toggle}
+                aria-label={streamer.enabled ? 'Streamer mode on — tap to show full UI' : 'Streamer mode off — tap to go live-safe'}
+                title={streamer.enabled ? 'Live-safe UI ON' : 'Live-safe UI OFF'}
+                className={'inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold transition-colors ' +
+                  (streamer.enabled ? 'bg-red-600/20 text-red-400 border border-red-600/40' : 'bg-white/[0.06] text-slate-400 border border-transparent')}
+              >
+                <Radio size={12} className={streamer.enabled ? 'animate-pulse' : ''} />
+                {streamer.enabled ? 'LIVE' : 'GO LIVE'}
+              </button>
+            )}
 
             {/* Deposit */}
             <button

@@ -15,6 +15,8 @@ interface Props {
   countdown: number;
   /** Per-site plane skin key (selects the sprite). */
   planeSkin?: string;
+  /** Broadcast-safe render: no 'x' on the multiplier, no crash text. */
+  streamer?: boolean;
 }
 
 // ── Flight-path mapping ──────────────────────────────────────────────────────
@@ -52,6 +54,7 @@ function curveY(H: number, xn: number) {
 // The active bird species for this site, set by the component each frame. The
 // canvas reads it in the RAF loop so switching sites/skins swaps the bird live.
 let activeBird = DEFAULT_BIRD;
+let activeStreamer = false;
 function birdSpec() { return BIRD_MAP[activeBird] ?? BIRD_MAP[DEFAULT_BIRD]; }
 
 // ── Partner splash (UFC × Aviator "official partners" card) ────────────────────
@@ -75,8 +78,9 @@ const C_TRAIL_LINE  = '#ff1840';
 const C_TRAIL_DEAD  = '#7a2030';
 const C_CRASH       = '#e8123c';
 
-export default function GameCanvas({ status, getMultiplier, crashPoint, countdown, planeSkin }: Props) {
+export default function GameCanvas({ status, getMultiplier, crashPoint, countdown, planeSkin, streamer }: Props) {
   activeBird = (planeSkin || DEFAULT_BIRD).toLowerCase();
+  activeStreamer = !!streamer;
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const rafRef     = useRef<number>(0);
   const prevStatus = useRef<GameStatus>('idle');
@@ -251,7 +255,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       }
 
       // Scene text.
-      if (isCrashed) drawCrashText(ctx, W, H, crashPoint);
+      if (isCrashed) { if (!activeStreamer) drawCrashText(ctx, W, H, crashPoint); }
       else           drawMultiplier(ctx, W, H, mult, '#ffffff');
 
       rafRef.current = requestAnimationFrame(frame);
@@ -394,7 +398,7 @@ function drawMultiplier(ctx: CanvasRenderingContext2D, W: number, H: number, m: 
   ctx.shadowBlur = fs * 0.35;
   ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.fillStyle = color;
-  ctx.fillText(`${fmt(m)}x`, W / 2, H * 0.40);
+  ctx.fillText(activeStreamer ? fmt(m) : `${fmt(m)}x`, W / 2, H * 0.40);
   ctx.restore();
 }
 

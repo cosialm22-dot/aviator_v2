@@ -86,19 +86,6 @@ export const DEFAULT_BIRD = 'fisheagle';
 
 // ── Wing geometry per shape (local units, shoulder at origin, wing up = -y) ──
 // Returns the wing outline as a closed path in local coords (arm + hand).
-function wingPath(b: BirdSpec): number[][] {
-  const L = b.wingLen;
-  switch (b.wingShape) {
-    case 'broad':   // broad soaring wing with fingered tip
-      return [[0,0],[L*0.28,-L*0.30],[L*0.55,-L*0.42],[L*0.82,-L*0.40],[L,-L*0.22],[L*0.86,-L*0.06],[L*0.6,L*0.04],[L*0.3,L*0.06],[0,L*0.05]];
-    case 'long':    // very long narrow albatross wing
-      return [[0,0],[L*0.3,-L*0.16],[L*0.7,-L*0.20],[L,-L*0.12],[L*0.9,0],[L*0.5,L*0.04],[0,L*0.03]];
-    case 'rounded': // small rounded songbird wing
-      return [[0,0],[L*0.3,-L*0.34],[L*0.66,-L*0.34],[L,-L*0.1],[L*0.8,L*0.08],[L*0.4,L*0.1],[0,L*0.06]];
-    default:        // pointed swift/falcon wing
-      return [[0,0],[L*0.34,-L*0.30],[L*0.72,-L*0.30],[L,-L*0.08],[L*0.7,L*0.02],[L*0.34,L*0.05],[0,L*0.05]];
-  }
-}
 
 
 // ── Two-segment wing model ───────────────────────────────────────────────────
