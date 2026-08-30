@@ -4,6 +4,7 @@ import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard, UserCircle } fro
 import type { Profile } from '../../types';
 import NotificationBell from '../notifications/NotificationBell';
 import { useSiteTheme } from '../../hooks/useSiteTheme';
+import BirdMark from '../game/BirdMark';
 
 interface Props {
   profile: Profile | null;
@@ -26,7 +27,7 @@ const MARKETER_DASHBOARD_PATH = '/marketer';
 // AviatorGame), which keeps this bar uncluttered and stops it overlapping the
 // logo on narrow phones.
 export default function Header({ profile, balance, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
-  const { planeSrc } = useSiteTheme();
+  const { planeSkin } = useSiteTheme();
   const [menuOpen, setMenuOpen] = useState(false);       // mobile hamburger sheet
   const [profileOpen, setProfileOpen] = useState(false); // desktop profile dropdown
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
         className="flex items-center gap-2 min-w-0 shrink"
         aria-label="Aviator home"
       >
-        <img src={planeSrc} alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_8px_rgba(200,0,24,0.55)] flex-shrink-0" />
+        <BirdMark skin={planeSkin} width={34} className="-rotate-12 flex-shrink-0" />
         <span
           className="font-black italic text-xl tracking-tight truncate"
           style={{ color: '#cc0018', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(200,0,24,0.5)' }}
