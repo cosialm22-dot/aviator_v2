@@ -37,6 +37,8 @@ interface Props {
   // block_operator_bets trigger); this disables the controls so they never hit
   // a server rejection. Marketers and players are NOT operators and play freely.
   isOperator?: boolean;
+  /** Broadcast-safe labels: Bet->Enter, Cash Out->Collect, hide 'x'/KES. */
+  streamer?: boolean;
 }
 
 const MIN_BET = 50;
@@ -47,15 +49,16 @@ const DEFAULT_AUTO = '2.00';
 // Auto-bet sequencing inputs (0 = "off" for the stop thresholds).
 const AUTO_FIELDS: { key: keyof AutoBetConfig; label: string; min: number; hint: string }[] = [
   { key: 'rounds', label: 'Rounds', min: 1, hint: 'Number of bets to place automatically' },
-  { key: 'stopLoss', label: 'Stop loss', min: 0, hint: 'Stop when net loss reaches this (KSh, 0 = off)' },
-  { key: 'stopWin', label: 'Stop win', min: 0, hint: 'Stop when net profit reaches this (KSh, 0 = off)' },
+  { key: 'stopLoss', label: 'Stop loss', min: 0, hint: 'Stop when net loss reaches this (KES, 0 = off)' },
+  { key: 'stopWin', label: 'Stop win', min: 0, hint: 'Stop when net profit reaches this (KES, 0 = off)' },
 ];
 
 export default function BettingPanel({
   panelIndex, status, multiplier, balance, activeBet, queuedBet,
   onPlaceBet, onQueueBet, onCancelQueue, onCashOut, onAuthRequired, onDeposit, isAuthenticated,
-  isOperator = false,
+  isOperator = false, streamer = false,
 }: Props) {
+  const XS = streamer ? '' : 'x';
   const [rawAmount, setRawAmount] = useState(String(MIN_BET));
   const [autoMode, setAutoMode]   = useState(false);
   const [autoStr, setAutoStr]     = useState(DEFAULT_AUTO);
@@ -147,7 +150,7 @@ export default function BettingPanel({
     if (!isAuthenticated) {
       return {
         label: 'Register to play',
-        sublabel: 'Get KSh 500 free on signup',
+        sublabel: 'Get KES 500 free on signup',
         action: onAuthRequired,
         style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-500/30',
         disabled: false,
@@ -158,7 +161,7 @@ export default function BettingPanel({
     if (queuedBet) {
       return {
         label: 'Queued for next',
-        sublabel: `KSh ${queuedBet.amount.toLocaleString('en-KE')}${queuedBet.autoCashout ? ` @ ${queuedBet.autoCashout.toFixed(2)}x` : ''}`,
+        sublabel: `KES ${queuedBet.amount.toLocaleString('en-KE')}${queuedBet.autoCashout ? ` @ ${queuedBet.autoCashout.toFixed(2)}${XS}` : ''}`,
         action: onCancelQueue,
         style: 'bg-amber-600/80 text-white cursor-pointer hover:bg-amber-700',
         icon: Clock,
@@ -170,7 +173,7 @@ export default function BettingPanel({
     if (activeBet?.status === 'active' && status === 'flying') {
       return {
         label: 'Flying...',
-        sublabel: `KSh ${activeBet.amount.toLocaleString('en-KE')}`,
+        sublabel: `KES ${activeBet.amount.toLocaleString('en-KE')}`,
         action: () => {},
         style: 'bg-amber-600/80 text-white cursor-not-allowed',
         disabled: true,
@@ -181,7 +184,7 @@ export default function BettingPanel({
     if (activeBet?.status === 'won') {
       return {
         label: 'Cashed Out!',
-        sublabel: `+KSh ${(activeBet.winnings ?? 0).toLocaleString('en-KE')}`,
+        sublabel: `+KES ${(activeBet.winnings ?? 0).toLocaleString('en-KE')}`,
         action: () => {},
         style: 'bg-green-900/40 border border-green-500/40 text-green-400 cursor-not-allowed',
         disabled: true,
@@ -202,8 +205,8 @@ export default function BettingPanel({
     // Can bet now (waiting)
     if (canBetNow) {
       return {
-        label: loading ? 'Placing...' : 'Bet',
-        sublabel: `KSh ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}`,
+        label: loading ? 'Placing...' : (streamer ? 'Enter' : 'Bet'),
+        sublabel: `KES ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}${XS}` : ''}`,
         action: handleBet,
         style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-500/30',
         disabled: loading,
@@ -213,8 +216,8 @@ export default function BettingPanel({
     // Can queue (flying/crashed, no active bet)
     if (canQueueBet) {
       return {
-        label: 'Bet Next Round',
-        sublabel: `KSh ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}`,
+        label: streamer ? 'Enter Next Round' : 'Bet Next Round',
+        sublabel: `KES ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}${XS}` : ''}`,
         action: handleBet,
         style: 'bg-win/80 hover:bg-win text-white',
         icon: Clock,
@@ -227,7 +230,7 @@ export default function BettingPanel({
     if (!locked && amount > balance && onDeposit) {
       return {
         label: 'Deposit to bet',
-        sublabel: balance > 0 ? `Balance KSh ${balance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}` : 'Top up to start playing',
+        sublabel: balance > 0 ? `Balance KES ${balance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}` : 'Top up to start playing',
         action: onDeposit,
         style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-500/30',
         disabled: false,
@@ -264,7 +267,7 @@ export default function BettingPanel({
                   : 'text-slate-500 hover:text-slate-300'
               }`}
             >
-              {tab}
+              {streamer && tab === 'Bet' ? 'Manual' : tab}
             </button>
           ))}
         </div>
@@ -294,10 +297,10 @@ export default function BettingPanel({
               onChange={e => handleRawChange(e.target.value)}
               onBlur={handleBlur}
               disabled={isOperator || locked}
-              aria-label="Bet amount in KSh"
+              aria-label="Bet amount in KES"
               className="w-full bg-transparent text-white font-bold text-lg tabular-nums text-center leading-none focus:outline-none disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <span className="text-slate-500 text-[10px] leading-none mt-0.5">KShs</span>
+            <span className="text-slate-500 text-[10px] leading-none mt-0.5">KES</span>
           </div>
 
           <button
@@ -385,7 +388,7 @@ export default function BettingPanel({
                 <span>Start auto-bet</span>
               </div>
               <div className="text-sm font-semibold opacity-90">
-                KSh {amount.toLocaleString('en-KE')}{autoTarget ? ` @ ${autoTarget.toFixed(2)}x` : ''}
+                KES {amount.toLocaleString('en-KE')}{autoTarget ? ` @ ${autoTarget.toFixed(2)}${XS}` : ''}
               </div>
             </button>
           ) : (
@@ -398,7 +401,7 @@ export default function BettingPanel({
                 <span>Stop auto-bet</span>
               </div>
               <div className="text-xs font-semibold opacity-90">
-                {autoBet.stats.remaining} left · Net {autoBet.stats.net >= 0 ? '+' : '\u2212'}KSh {Math.abs(autoBet.stats.net).toLocaleString('en-KE', { maximumFractionDigits: 0 })}
+                {autoBet.stats.remaining} left · Net {autoBet.stats.net >= 0 ? '+' : '\u2212'}KES {Math.abs(autoBet.stats.net).toLocaleString('en-KE', { maximumFractionDigits: 0 })}
               </div>
             </button>
           )
@@ -409,10 +412,10 @@ export default function BettingPanel({
           >
             <div className="flex items-center gap-1.5 text-base leading-tight">
               <Zap size={16} className="fill-current" />
-              <span>Cash Out</span>
+              <span>{streamer ? 'Collect' : 'Cash Out'}</span>
             </div>
             <div className="text-sm font-semibold opacity-90">
-              KSh {winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
+              KES {winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
             </div>
           </button>
         ) : (
@@ -472,7 +475,7 @@ export default function BettingPanel({
       {activeBet?.status === 'active' && activeBet.autoCashout && (
         <div className="px-3 pb-2 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
           <Zap size={11} className="text-win" />
-          <span>Auto cashout at <span className="text-white font-semibold">{activeBet.autoCashout.toFixed(2)}x</span></span>
+          <span>Auto cashout at <span className="text-white font-semibold">{activeBet.autoCashout.toFixed(2)}{XS}</span></span>
         </div>
       )}
 
@@ -481,7 +484,7 @@ export default function BettingPanel({
         <div className="px-3 pb-2 flex items-center justify-center gap-2">
           <Clock size={11} className="text-amber-400" />
           <span className="text-amber-400 text-[11px] font-semibold">
-            Queued: KSh {queuedBet.amount.toLocaleString('en-KE')}{queuedBet.autoCashout ? ` @ ${queuedBet.autoCashout.toFixed(2)}x` : ''} for next round
+            Queued: KES {queuedBet.amount.toLocaleString('en-KE')}{queuedBet.autoCashout ? ` @ ${queuedBet.autoCashout.toFixed(2)}${XS}` : ''} for next round
           </span>
           <button onClick={onCancelQueue} className="text-[10px] text-slate-400 hover:text-red-400 underline">Cancel</button>
         </div>
@@ -490,7 +493,7 @@ export default function BettingPanel({
       {/* Cashout confirmation row */}
       {activeBet?.status === 'won' && (
         <div className="px-3 pb-2 text-center text-green-400 text-[11px] font-semibold">
-          +KSh {(activeBet.winnings ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })} @ {formatMultiplier(activeBet.cashout_multiplier ?? multiplier)}
+          +KES {(activeBet.winnings ?? 0).toLocaleString('en-KE', { maximumFractionDigits: 0 })} @ {streamer ? (activeBet.cashout_multiplier ?? multiplier).toFixed(2) : formatMultiplier(activeBet.cashout_multiplier ?? multiplier)}
         </div>
       )}
     </div>

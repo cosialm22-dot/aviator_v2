@@ -18,6 +18,7 @@ import PromoBar from './PromoBar';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { Profile, Wallet } from '../../types';
 import { useSiteTheme } from '../../hooks/useSiteTheme';
+import { useStreamerMode } from '../../hooks/useStreamerMode';
 
 interface Props {
   profile: Profile | null;
@@ -42,6 +43,7 @@ type MobileTab = 'bets' | 'chat';
 
 export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
   const { planeSkin } = useSiteTheme();
+  const streamer = useStreamerMode();
   const [activeTab, setActiveTab] = useState<'allBets' | 'previous' | 'top'>('allBets');
   // Mobile Bets/Chat sheet. Closed by default (null) so the canvas + betting
   // controls own the small-screen viewport and the primary bet action is always
@@ -202,6 +204,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
       <div className="flex flex-1 min-h-0">
 
         {/* ── Left: Live Bets (lg+) ──────────────────────────────────── */}
+        {!streamer.enabled && (
         <div className="hidden lg:flex flex-col w-60 flex-shrink-0 bg-night border-r border-edge">
           <div className="flex border-b border-edge flex-shrink-0">
             {(['allBets', 'previous', 'top'] as const).map(tab => (
@@ -256,6 +259,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
             </>
           )}
         </div>
+        )}
 
         {/* ── Center: Canvas + Betting ───────────────────────────────── */}
         {/* min-h-0 is essential: without it the column's default min-height:auto
@@ -269,6 +273,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
           <div className="relative flex-1 min-h-0 bg-[#111118] overflow-hidden">
             <GameCanvas
         planeSkin={planeSkin}
+              streamer={streamer.enabled}
               status={gameStatus}
               multiplier={currentMultiplier}
               getMultiplier={getMultiplier}
@@ -344,7 +349,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
           {/* Mobile/tablet chat ticker: one rotating line of live chat just below
               the canvas, so players see what others say without switching tabs.
               Hidden on xl where the full chat panel is always visible. */}
-          <ChatTicker messages={chat.messages} onOpenChat={() => setMobileTab('chat')} />
+          {!streamer.enabled && <ChatTicker messages={chat.messages} onOpenChat={() => setMobileTab('chat')} />}
 
           {/* Operator notice: admins/super_admins manage the platform and cannot
               wager with real money. They may still practise in Demo mode. */}
@@ -371,7 +376,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
           )}
 
           {/* Player promotions: free bets + rain (real-money mode only) */}
-          {!isDemo && profile && !isOperator && (
+          {!isDemo && profile && !isOperator && !streamer.enabled && (
             <PromoBar
               freeBets={freeBets}
               rain={openRain}
@@ -459,6 +464,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
                 onDeposit={onDepositOpen}
                 isAuthenticated={panelAuthed}
                 isOperator={panelOperatorLock}
+                streamer={streamer.enabled}
               />
             </div>
             <div className={`flex-1 border-t border-edge lg:border-t-0 ${showSecondBet ? 'block' : 'hidden'} lg:block`}>
@@ -477,6 +483,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
                 onDeposit={onDepositOpen}
                 isAuthenticated={panelAuthed}
                 isOperator={panelOperatorLock}
+                streamer={streamer.enabled}
               />
             </div>
           </div>
@@ -494,6 +501,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
           {/* Mobile bottom tab: Bets / Chat. Each tab toggles its sheet open or
               closed, so the default view stays focused on the canvas + bet
               controls and players opt in to secondary content one tap at a time. */}
+          {!streamer.enabled && (<>
           <div className="lg:hidden flex border-t border-edge bg-night flex-shrink-0">
             <button
               onClick={() => setMobileTab(t => (t === 'bets' ? null : 'bets'))}
@@ -533,12 +541,15 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
               )}
             </div>
           )}
+          </>)}
         </div>
 
         {/* ── Right: Live Chat (xl+) ────────────────────────────────── */}
+        {!streamer.enabled && (
         <div className="hidden xl:flex flex-col w-60 flex-shrink-0 bg-night border-l border-edge">
           <Chat messages={chat.messages} sending={chat.sending} onSend={chat.send} userId={profile?.id} username={profile?.username} />
         </div>
+        )}
       </div>
     </div>
   );

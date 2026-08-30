@@ -12,6 +12,7 @@ import { useWallet } from './hooks/useWallet';
 import { useBonus } from './hooks/useBonus';
 import { useDemoGame } from './hooks/useDemoGame';
 import { useDemoNudges } from './hooks/useDemoNudges';
+import { StreamerModeProvider } from './hooks/useStreamerMode';
 
 // The operator admin panel is a large, role-gated surface that the vast majority
 // of visitors (players) never load. Code-splitting it keeps the player bundle
@@ -72,6 +73,7 @@ function PlayerApp() {
   };
 
   return (
+    <StreamerModeProvider role={profile?.role}>
     <div className="h-[100dvh] bg-night flex flex-col overflow-hidden">
       <Header
         profile={profile}
@@ -165,6 +167,7 @@ function PlayerApp() {
         </div>
       )}
     </div>
+    </StreamerModeProvider>
   );
 }
 
