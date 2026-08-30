@@ -46,7 +46,9 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
         className="flex items-center gap-2 min-w-0 shrink"
         aria-label="Aviator home"
       >
-        <BirdMark skin={planeSkin} width={34} className="-rotate-12 flex-shrink-0" />
+        {streamer.enabled
+          ? <BirdMark skin={planeSkin} width={34} className="-rotate-12 flex-shrink-0" />
+          : <img src="/plane.png" alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_8px_rgba(200,0,24,0.55)] flex-shrink-0" />}
         <span
           className="font-black italic text-xl tracking-tight truncate"
           style={{ color: '#cc0018', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(200,0,24,0.5)' }}

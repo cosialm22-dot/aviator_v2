@@ -57,6 +57,41 @@ let activeBird = DEFAULT_BIRD;
 let activeStreamer = false;
 function birdSpec() { return BIRD_MAP[activeBird] ?? BIRD_MAP[DEFAULT_BIRD]; }
 
+// ── Player-mode plane (the exact original Aviator red plane) ─────────────────
+// Player mode renders the classic red plane from /plane.png; Streamer Mode (marketers)
+// renders the animated bird instead. The plane is the fixed original art (not a per-site
+// skin) so the standard player experience is unchanged.
+const PLANE_ASPECT = 2.38;                 // source art width:height
+const planeImg: HTMLImageElement | null = typeof Image !== 'undefined' ? new Image() : null;
+let planeReady = false;
+if (planeImg) {
+  planeImg.onload = () => { planeReady = true; };
+  planeImg.onerror = () => { planeReady = false; };
+  planeImg.src = '/plane.png';
+}
+function drawVectorPlane(ctx: CanvasRenderingContext2D, pw: number) {
+  const s = pw / 116;
+  ctx.scale(s, s);
+  ctx.fillStyle = '#e8123c';
+  ctx.beginPath();
+  ctx.moveTo(-40, 6); ctx.quadraticCurveTo(0, -18, 44, -2);
+  ctx.quadraticCurveTo(30, 12, -40, 12); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#b50d2f';
+  ctx.beginPath();
+  ctx.moveTo(-10, 4); ctx.lineTo(-26, -14); ctx.lineTo(-2, 0); ctx.closePath(); ctx.fill();
+}
+function drawPlaneSprite(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, W: number) {
+  const pw = Math.max(64, Math.min(W * 0.11, 150));
+  const ph = pw / PLANE_ASPECT;
+  const tilt = Math.max(-0.18, Math.min(0.05, angle * 0.35));
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt);
+  if (planeImg && planeReady) ctx.drawImage(planeImg, -pw * 0.5, -ph * 0.55, pw, ph);
+  else drawVectorPlane(ctx, pw);
+  ctx.restore();
+}
+
 // ── Partner splash (UFC × Aviator "official partners" card) ────────────────────
 // Drawn on the canvas ONLY during the waiting phase — i.e. after a round crashes
 // and before the next flight starts — as a between-rounds branding interstitial.
@@ -315,13 +350,13 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
 // ── Resting plane (idle/waiting): parked at the origin corner, fully visible ──
 function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
   const size = Math.max(64, Math.min(W * 0.11, 150));
-  // Perch with the tail tip at the origin (bottom-left corner), body up-right.
-  const spec = birdSpec();
   const halfLen = size * 0.5;
-  const heading = -0.42;
-  const x = Math.cos(heading) * halfLen;
-  const y = PLOT_BOTTOM * H + Math.sin(heading) * halfLen;
-  drawBirdPerched(ctx, spec, x, y, size, now);
+  const heading = -0.42;                       // nose/bird up-right along take-off tangent
+  const bob = Math.sin(now * 0.0018) * H * 0.008;
+  const x = Math.cos(heading) * halfLen;       // tail at the origin
+  const y = PLOT_BOTTOM * H + Math.sin(heading) * halfLen + bob;
+  if (activeStreamer) drawBirdPerched(ctx, birdSpec(), x, y, size, now);
+  else                drawPlaneSprite(ctx, x, y, heading, W);
 }
 
 // ── Waiting overlay: "WAITING FOR NEXT ROUND" + animated loader bar ───────────
@@ -423,8 +458,12 @@ function drawCrashText(ctx: CanvasRenderingContext2D, W: number, H: number, m: n
 
 // ── Plane drawing (sprite with vector fallback) ──────────────────────────────
 function drawPlane(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, W: number) {
-  const size = Math.max(64, Math.min(W * 0.11, 150)); // body length in px
-  drawBird(ctx, birdSpec(), x, y, angle, size, performance.now());
+  if (activeStreamer) {
+    const size = Math.max(64, Math.min(W * 0.11, 150)); // bird body length in px
+    drawBird(ctx, birdSpec(), x, y, angle, size, performance.now());
+  } else {
+    drawPlaneSprite(ctx, x, y, angle, W);              // player mode: original red plane
+  }
 }
 
 
