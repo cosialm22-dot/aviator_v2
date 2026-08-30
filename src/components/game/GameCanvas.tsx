@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { GameStatus } from '../../types';
 import { multiplierColor, planeParkFactor } from './canvasMotion';
+import { planeSrcFor } from '../../hooks/useSiteTheme';
 
 interface Props {
   status: GameStatus;
@@ -12,6 +13,8 @@ interface Props {
   crashPoint: number;
   /** Seconds remaining in the waiting phase (0 when unknown). */
   countdown: number;
+  /** Per-site plane skin key (selects the sprite). */
+  planeSkin?: string;
 }
 
 // ── Flight-path mapping ──────────────────────────────────────────────────────
@@ -46,15 +49,27 @@ function curveY(H: number, xn: number) {
 // ── Plane sprite (the project's existing red-plane art) ──────────────────────
 // Drawn via drawImage once decoded; until then a compact vector plane is used so
 // the flight tip is never empty on a slow network.
-const PLANE_IMG_SRC = '/plane.png';
 const PLANE_ASPECT  = 2.38;          // source art width:height
-const planeSprite: HTMLImageElement | null =
-  typeof Image !== 'undefined' ? new Image() : null;
-let planeSpriteReady = false;
-if (planeSprite) {
-  planeSprite.onload  = () => { planeSpriteReady = true; };
-  planeSprite.onerror = () => { planeSpriteReady = false; };
-  planeSprite.src = PLANE_IMG_SRC;
+// Per-site plane sprites, loaded on demand and cached by skin key. The canvas
+// reads the current skin via a module-level ref set by the component each frame,
+// so switching sites/skins swaps the sprite without re-mounting the RAF loop.
+const planeCache = new Map<string, { img: HTMLImageElement; ready: boolean }>();
+let activePlaneSkin = 'crimson';
+function planeSpriteFor(skin: string): { img: HTMLImageElement | null; ready: boolean } {
+  const key = (skin || 'crimson').toLowerCase();
+  let entry = planeCache.get(key);
+  if (!entry) {
+    const img = typeof Image !== 'undefined' ? new Image() : null;
+    const rec = { img: img as HTMLImageElement, ready: false };
+    if (img) {
+      img.onload  = () => { rec.ready = true; };
+      img.onerror = () => { rec.ready = false; };
+      img.src = planeSrcFor(key);
+    }
+    planeCache.set(key, rec);
+    entry = rec;
+  }
+  return { img: entry.img, ready: entry.ready };
 }
 
 // ── Partner splash (UFC × Aviator "official partners" card) ────────────────────
@@ -78,7 +93,8 @@ const C_TRAIL_LINE  = '#ff1840';
 const C_TRAIL_DEAD  = '#7a2030';
 const C_CRASH       = '#e8123c';
 
-export default function GameCanvas({ status, getMultiplier, crashPoint, countdown }: Props) {
+export default function GameCanvas({ status, getMultiplier, crashPoint, countdown, planeSkin }: Props) {
+  activePlaneSkin = (planeSkin || 'crimson').toLowerCase();
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const rafRef     = useRef<number>(0);
   const prevStatus = useRef<GameStatus>('idle');
@@ -430,8 +446,9 @@ function drawPlane(ctx: CanvasRenderingContext2D, x: number, y: number, angle: n
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(tilt);
-  if (planeSprite && planeSpriteReady) {
-    ctx.drawImage(planeSprite, -pw * 0.5, -ph * 0.55, pw, ph);
+  const sprite = planeSpriteFor(activePlaneSkin);
+  if (sprite.img && sprite.ready) {
+    ctx.drawImage(sprite.img, -pw * 0.5, -ph * 0.55, pw, ph);
   } else {
     drawVectorPlane(ctx, pw);
   }

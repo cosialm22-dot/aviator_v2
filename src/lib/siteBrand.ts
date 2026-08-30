@@ -25,6 +25,8 @@ export interface SiteBrand {
   currency: string;
   locale: string;
   withdrawals_enabled: boolean;
+  plane_skin: string | null;
+  theme_tokens: Record<string, string> | null;
 }
 
 const CACHE_KEY = 'aviator_site_brand';
