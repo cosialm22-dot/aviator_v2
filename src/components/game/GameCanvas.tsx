@@ -18,7 +18,7 @@ interface Props {
 // Both relationships were fitted from the reference recording (plane positions
 // measured frame-by-frame):
 //   • x advances with flight time, which is ∝ ln(multiplier):
-//       xNorm(m) = clamp(0.147 + 1.487·ln m, X_MIN, X_MAX)
+//       xNorm(m) = clamp(0.147 + 1.487·ln m, 0, X_MAX)
 //   • the plane rides a convex arc whose height ∝ x^CURVE_EXP.
 // The plane parks toward the top-right (X_MAX) for large multipliers, exactly as
 // in the reference, so it always stays on-screen while the number keeps rising.
@@ -314,7 +314,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
 function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
   const pw = Math.max(64, Math.min(W * 0.11, 150));
   const ph = pw / PLANE_ASPECT;
-  const x = curveX(W, X_MIN + 0.01);
+  const x = curveX(W, 0 + 0.01);
   // Baseline now sits on the bottom edge; lift the sprite by ~half its height so
   // the parked plane rests on the corner without being clipped off-canvas.
   const y = PLOT_BOTTOM * H - ph * 0.45 + Math.sin(now * 0.0018) * H * 0.01;
