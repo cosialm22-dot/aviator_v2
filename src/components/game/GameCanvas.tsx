@@ -313,7 +313,6 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
 // ── Resting plane (idle/waiting): parked at the origin corner, fully visible ──
 function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
   const pw = Math.max(64, Math.min(W * 0.11, 150));
-  const ph = pw / PLANE_ASPECT;
   // Rest with the TAIL TIP at the origin (bottom-left corner), nose pointing up-right
   // along the flight direction. The sprite is centred on (x,y) and rotated by the
   // heading, so the centre sits half a length ahead of the tail along the heading.
