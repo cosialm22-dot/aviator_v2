@@ -103,10 +103,6 @@ export default function BettingPanel({
     setAutoStr((Number.isFinite(n) && n > 1.0 ? n : Number(DEFAULT_AUTO)).toFixed(2));
   };
 
-    ? Math.floor(activeBet.amount * multiplier * 100) / 100
-    : activeBet?.winnings ?? 0;
-
-
   const autoFieldId = (key: string) => `autobet-${panelIndex}-${key}`;
 
   return (
