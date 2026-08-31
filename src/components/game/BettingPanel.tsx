@@ -189,7 +189,7 @@ export default function BettingPanel({
       {autoMode && !isOperator && (
         <div className="px-3 pb-2">
           <div className="flex items-center justify-between bg-panel-high rounded-full border border-edge pl-3 pr-1">
-            <span className="text-[11px] font-semibold text-slate-400">Cash out at</span>
+            <span className="text-[11px] font-semibold text-slate-400">Auto Cash Out</span>
             <div className="flex items-center">
               <button
                 onClick={() => adjustAuto(-0.1)}
