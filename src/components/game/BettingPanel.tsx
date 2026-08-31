@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Minus, Plus, Zap, Clock, Play, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { Minus, Plus, Zap, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type { GameStatus } from '../../types';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { ActiveBet } from '../../hooks/useGame';
@@ -63,7 +63,6 @@ export default function BettingPanel({
   const [autoMode, setAutoMode]   = useState(false);
   const [autoStr, setAutoStr]     = useState(DEFAULT_AUTO);
   const [showLimits, setShowLimits] = useState(false); // optional auto-bet limits, collapsed by default
-  const [loading, setLoading]     = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const amount = Math.max(MIN_BET, Math.floor(parseFloat(rawAmount) || MIN_BET));
@@ -79,26 +78,6 @@ export default function BettingPanel({
   // amount/target are immutable once a bet is committed, queued, or a sequence runs
   const locked = !!activeBet || !!queuedBet || autoBet.running;
 
-  // Can place bet during waiting OR queue during flight/crashed
-  const canBetNow = status === 'waiting' && !locked && autoValid && amount >= MIN_BET && amount <= balance;
-  const canQueueBet = (status === 'flying' || status === 'crashed') && !locked && autoValid && amount >= MIN_BET && amount <= balance;
-
-  const handleBet = async () => {
-    if (isOperator) return; // operators cannot wager (see Props.isOperator)
-    if (!isAuthenticated) { onAuthRequired(); return; }
-
-    // During waiting: place bet immediately
-    if (canBetNow) {
-      setLoading(true);
-      try { await onPlaceBet(amount, autoTarget); } finally { setLoading(false); }
-      return;
-    }
-
-    // During flying/crashed: queue bet (with its auto target) for next round
-    if (canQueueBet) {
-      onQueueBet(amount, autoTarget);
-    }
-  };
 
   const adjust = (delta: number) => {
     const next = Math.max(MIN_BET, amount + delta);
@@ -124,117 +103,10 @@ export default function BettingPanel({
     setAutoStr((Number.isFinite(n) && n > 1.0 ? n : Number(DEFAULT_AUTO)).toFixed(2));
   };
 
-  const winnings = activeBet && activeBet.status === 'active'
     ? Math.floor(activeBet.amount * multiplier * 100) / 100
     : activeBet?.winnings ?? 0;
 
-  const isCashable = !isOperator && status === 'flying' && activeBet?.status === 'active';
 
-  // Determine button state and label
-  const getButtonConfig = () => {
-    // Operator accounts (admin/super_admin) may never wager.
-    if (isOperator) {
-      return {
-        label: 'Operators can\u2019t bet',
-        sublabel: '',
-        action: () => {},
-        style: 'bg-panel-high border border-edge text-white/40 cursor-not-allowed',
-        disabled: true,
-      };
-    }
-
-    // Queued bet: show "Queued" with cancel option
-    if (queuedBet) {
-      return {
-        label: 'Queued for next',
-        sublabel: `KES ${queuedBet.amount.toLocaleString('en-KE')}${queuedBet.autoCashout ? ` @ ${queuedBet.autoCashout.toFixed(2)}${XS}` : ''}`,
-        action: onCancelQueue,
-        style: 'bg-amber-600/80 text-white cursor-pointer hover:bg-amber-700',
-        icon: Clock,
-        disabled: false,
-      };
-    }
-
-    // Active bet flying: panel shows the Cash Out button separately (isCashable)
-    if (activeBet?.status === 'active' && status === 'flying') {
-      return {
-        label: 'Flying...',
-        sublabel: `KES ${activeBet.amount.toLocaleString('en-KE')}`,
-        action: () => {},
-        style: 'bg-amber-600/80 text-white cursor-not-allowed',
-        disabled: true,
-      };
-    }
-
-    // Cashed out: show result
-    if (activeBet?.status === 'won') {
-      return {
-        label: 'Cashed Out!',
-        sublabel: `+KES ${(activeBet.winnings ?? 0).toLocaleString('en-KE')}`,
-        action: () => {},
-        style: 'bg-green-900/40 border border-green-500/40 text-green-400 cursor-not-allowed',
-        disabled: true,
-      };
-    }
-
-    // Invalid auto target while in Auto mode
-    if (autoMode && !autoValid && (status === 'waiting' || status === 'flying' || status === 'crashed') && !locked) {
-      return {
-        label: 'Set auto \u2265 1.01x',
-        sublabel: '',
-        action: () => {},
-        style: 'bg-win/20 text-white/40 cursor-not-allowed',
-        disabled: true,
-      };
-    }
-
-    // Can bet now (waiting)
-    if (canBetNow) {
-      return {
-        label: loading ? 'Placing...' : (streamer ? 'Enter' : 'Bet'),
-        sublabel: `KES ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}${XS}` : ''}`,
-        action: handleBet,
-        style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-900/40',
-        disabled: loading,
-      };
-    }
-
-    // Can queue (flying/crashed, no active bet)
-    if (canQueueBet) {
-      return {
-        label: streamer ? 'Enter Next Round' : 'Bet Next Round',
-        sublabel: `KES ${amount.toLocaleString('en-KE')}${autoTarget ? ` @ ${autoTarget.toFixed(2)}${XS}` : ''}`,
-        action: handleBet,
-        style: 'bg-win/80 hover:bg-win text-white',
-        icon: Clock,
-        disabled: false,
-      };
-    }
-
-    // Signed-in but the wallet can't cover this stake: the blocker is money, so
-    // the button becomes the money action (Deposit) instead of a dead control.
-    if (!locked && amount > balance && onDeposit) {
-      return {
-        label: 'Deposit to bet',
-        sublabel: balance > 0 ? `Balance KES ${balance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}` : 'Top up to start playing',
-        action: onDeposit,
-        style: 'bg-win hover:bg-win-dark text-white shadow-lg shadow-green-900/40',
-        disabled: false,
-      };
-    }
-
-    // Default: genuinely not bettable right now (e.g. round in flight). This is a
-    // true waiting state, so the control is intentionally quiet but legible.
-    return {
-      label: status === 'flying' ? 'In flight' : 'Next round',
-      sublabel: status === 'flying' ? 'Bet opens at next round' : '',
-      action: () => {},
-      style: 'bg-panel-high border border-edge text-slate-400 cursor-not-allowed',
-      disabled: true,
-    };
-  };
-
-  const btnConfig = getButtonConfig();
   const autoFieldId = (key: string) => `autobet-${panelIndex}-${key}`;
 
   return (
@@ -354,71 +226,6 @@ export default function BettingPanel({
           </div>
         </div>
       )}
-
-      {/* Primary action — ONE button. Manual: Bet / Cash Out. Auto: Start / Stop. */}
-      <div className="px-3 pb-2.5">
-        {autoMode && !isOperator ? (
-          !autoBet.running ? (
-            <button
-              onClick={() => {
-                if (!isAuthenticated) { onAuthRequired(); return; }
-                if (amount > balance && onDeposit) { onDeposit(); return; }
-                autoBet.start(amount, autoTarget);
-              }}
-              disabled={!autoValid || amount < MIN_BET}
-              className="w-full flex flex-col items-center justify-center min-h-[64px] py-2 rounded-2xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-900/40 disabled:opacity-40 disabled:shadow-none"
-            >
-              <div className="flex items-center gap-1.5 text-base leading-tight">
-                <Play size={15} className="fill-current" />
-                <span>Start auto-bet</span>
-              </div>
-              <div className="text-sm font-semibold opacity-90">
-                KES {amount.toLocaleString('en-KE')}{autoTarget ? ` @ ${autoTarget.toFixed(2)}${XS}` : ''}
-              </div>
-            </button>
-          ) : (
-            <button
-              onClick={autoBet.stop}
-              className="w-full flex flex-col items-center justify-center min-h-[64px] py-2 rounded-2xl bg-danger hover:bg-[#a50018] text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-red-900/30"
-            >
-              <div className="flex items-center gap-1.5 text-base leading-tight">
-                <Square size={14} className="fill-current" />
-                <span>Stop auto-bet</span>
-              </div>
-              <div className="text-xs font-semibold opacity-90">
-                {autoBet.stats.remaining} left · Net {autoBet.stats.net >= 0 ? '+' : '\u2212'}KES {Math.abs(autoBet.stats.net).toLocaleString('en-KE', { maximumFractionDigits: 0 })}
-              </div>
-            </button>
-          )
-        ) : isCashable ? (
-          <button
-            onClick={onCashOut}
-            className="w-full flex flex-col items-center justify-center min-h-[64px] py-2 rounded-2xl bg-win hover:bg-win-dark text-white font-black transition-all active:scale-[0.98] shadow-lg shadow-green-900/40 animate-pulse-cashout"
-          >
-            <div className="flex items-center gap-1.5 text-base leading-tight">
-              <Zap size={16} className="fill-current" />
-              <span>{streamer ? 'Collect' : 'Cash Out'}</span>
-            </div>
-            <div className="text-sm font-semibold opacity-90">
-              KES {winnings.toLocaleString('en-KE', { maximumFractionDigits: 0 })}
-            </div>
-          </button>
-        ) : (
-          <button
-            onClick={btnConfig.action}
-            disabled={btnConfig.disabled}
-            className={`w-full flex flex-col items-center justify-center min-h-[64px] py-2 rounded-2xl font-black transition-all active:scale-[0.98] ${btnConfig.style}`}
-          >
-            <div className="flex items-center gap-1.5 text-base leading-tight">
-              {btnConfig.icon && <btnConfig.icon size={16} />}
-              <span>{btnConfig.label}</span>
-            </div>
-            {btnConfig.sublabel && (
-              <div className="text-sm font-semibold opacity-90">{btnConfig.sublabel}</div>
-            )}
-          </button>
-        )}
-      </div>
 
       {/* Auto: optional limits (rounds / stop loss / stop win) — collapsed by default */}
       {autoMode && !isOperator && (
