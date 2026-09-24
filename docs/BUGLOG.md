@@ -4,6 +4,11 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #6 — Only one Bet button on desktop — FIXED (branch `ui/two-bet-panels`)
+- **Reported:** the mock has two bet panels (two Bet buttons) everywhere; desktop showed one, with ⊕ to add the second.
+- **Fix:** both panels are shown by default on every screen size. ⊖ on the second removes it and ⊕ on the first brings it back.
+- **Verification:** `e2e/aviator-ui.e2e.mjs` passes 38/38.
+
 ## #5 — Game screen rebuilt to the owner's mocks (UI) — FIXED (branch `ui/aviator-mock`)
 - **Bet panels:**
   - Bet / Auto tabs, a stepper, 2×2 quick amounts and one big button that goes Bet → Cancel ("Waiting for next round") → Cash Out (live value) → Bet.

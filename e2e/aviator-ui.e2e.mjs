@@ -37,13 +37,11 @@ try {
     const { ctx, page, errors } = await session(w, h);
     const panels = page.locator('div.rounded-2xl', { has: page.getByRole('tablist', { name: /^Bet \d mode$/ }) });
     const panelCount = await panels.count();
-    check(`${tag}: ${tag === 'desktop' ? 'one bet panel (⊕ adds the second)' : 'two bet panels'} by default`, panelCount === (tag === 'desktop' ? 1 : 2), String(panelCount));
-    if (tag === 'desktop') {
-      await page.getByRole('button', { name: 'Add a second bet' }).click();
-      check('desktop: ⊕ adds the second panel', (await panels.count()) === 2);
-      await page.getByRole('button', { name: 'Remove this bet panel' }).click();
-      check('desktop: ⊖ removes it again', (await panels.count()) === 1);
-    }
+    check(`${tag}: two bet panels (two Bet buttons) by default`, panelCount === 2 && (await page.getByRole('button', { name: /^Bet\s/ }).count()) === 2, String(panelCount));
+    await page.getByRole('button', { name: 'Remove this bet panel' }).click();
+    check(`${tag}: ⊖ removes the second panel`, (await panels.count()) === 1);
+    await page.getByRole('button', { name: 'Add a second bet' }).click();
+    check(`${tag}: ⊕ brings it back`, (await panels.count()) === 2);
     check(`${tag}: FUN MODE banner in demo`, await page.getByText('FUN MODE', { exact: true }).isVisible());
 
     // wait for a betting window, then bet on panel 1
