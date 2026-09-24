@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { toDarajaMsisdn } from '../lib/phone';
+import { pollDeposit, startDeposit, type Invoke } from '../lib/megapayClient';
 
 // ============================================================================
 // useWallet - SERVER-AUTHORITATIVE CASHIER (Phase 5b)
@@ -8,15 +9,21 @@ import { toDarajaMsisdn } from '../lib/phone';
 // No direct writes to wallets/transactions (those are READ-ONLY for clients
 // after the security lockdown). Money moves only through the deployed M-Pesa
 // rails and the request_withdrawal RPC:
-//   • deposit  -> mpesa-stk-push edge fn; the STK callback credits the wallet.
-//                 We poll mpesa_stk_requests for confirmation.
+//   • deposit  -> megapay-stk-push edge fn (Mega Pay M-Pesa prompt). We poll
+//                 megapay-status, which asks Mega Pay and credits the wallet once;
+//                 the megapay_reconcile job settles anything the browser misses.
 //   • withdraw -> request_withdrawal RPC creates a pending withdrawal_request;
 //                 payout (mpesa-b2c) is triggered by admin/auto-approve.
 // The public API ({ deposit, withdraw, depositing, withdrawing }) is unchanged.
 // ============================================================================
 
 const DEPOSIT_POLL_MS = 3000;
-const DEPOSIT_TIMEOUT_MS = 90_000; // Daraja STK prompts expire ~60s; allow margin
+const DEPOSIT_TIMEOUT_MS = 120_000; // the prompt expires after ~60s; Mega Pay can confirm a little later
+
+export type DepositStage = 'sending' | 'awaiting_pin';
+
+const invoke: Invoke = (name, opts) =>
+  supabase.functions.invoke(name, opts as { body: Record<string, unknown> }) as Promise<{ data: unknown; error: unknown }>;
 
 /** Map raw backend error codes to safe, user-facing copy. Never leak internals. */
 function friendly(code: string, op: 'deposit' | 'withdrawal'): string {
@@ -41,31 +48,22 @@ function friendly(code: string, op: 'deposit' | 'withdrawal'): string {
     : 'Withdrawal request failed. Please try again.';
 }
 
-async function extractFnError(error: unknown): Promise<string> {
-  // supabase-js wraps non-2xx Edge responses; the body holds { error, message }.
-  try {
-    const ctx = (error as { context?: { json?: () => Promise<unknown> } })?.context;
-    if (ctx?.json) {
-      const body = (await ctx.json()) as { error?: string; message?: string };
-      return String(body?.error || body?.message || 'network');
-    }
-  } catch { /* fall through */ }
-  return 'network';
-}
-
 export function useWallet(userId: string | undefined, onRefresh: () => Promise<void>) {
   const [depositing, setDepositing] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
 
   /**
-   * Initiate an M-Pesa STK-push deposit.
-   * @returns true if the deposit was CONFIRMED (wallet credited) before timeout,
-   *          false if the prompt was sent but is still awaiting confirmation.
+   * Mega Pay M-Pesa deposit: send the prompt, then poll until the server confirms it.
+   * @param onStage  optional progress callback for the cashier UI.
+   * @returns true if the deposit was CONFIRMED (wallet credited) before the poll deadline,
+   *          false if the prompt went out but Mega Pay has not confirmed yet (the server keeps
+   *          checking and credits it automatically).
    */
   const deposit = useCallback(async (
     amount: number,
     method: 'mpesa' | 'card',
     details: Record<string, string>,
+    onStage?: (stage: DepositStage) => void,
   ): Promise<boolean> => {
     if (!userId) throw new Error('Please sign in to continue.');
     if (method !== 'mpesa') throw new Error('Only M-Pesa is currently supported.');
@@ -75,30 +73,15 @@ export function useWallet(userId: string | undefined, onRefresh: () => Promise<v
 
     setDepositing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('mpesa-stk-push', {
-        body: { amount, phone_number: phone, user_id: userId },
-      });
-      if (error) throw new Error(friendly(await extractFnError(error), 'deposit'));
-      if (!data?.success) throw new Error(friendly(String(data?.error || ''), 'deposit'));
-
-      const checkoutId: string | undefined = data.checkout_request_id;
-      const deadline = Date.now() + DEPOSIT_TIMEOUT_MS;
-      while (checkoutId && Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, DEPOSIT_POLL_MS));
-        const { data: row } = await supabase
-          .from('mpesa_stk_requests').select('status')
-          .eq('checkout_request_id', checkoutId).maybeSingle();
-        const s = row?.status;
-        if (s === 'completed') { await onRefresh(); return true; }
-        if (s === 'failed' || s === 'cancelled' || s === 'timeout') {
-          throw new Error('Payment was not completed.');
-        }
+      onStage?.('sending');
+      const id = await startDeposit(invoke, amount, phone);
+      onStage?.('awaiting_pin');
+      const r = await pollDeposit(invoke, id, { intervalMs: DEPOSIT_POLL_MS, timeoutMs: DEPOSIT_TIMEOUT_MS });
+      await onRefresh();
+      if (r.kind === 'failed') {
+        throw new Error('The M-Pesa payment was not completed (cancelled, wrong PIN or not enough balance). Please try again.');
       }
-      await onRefresh(); // may already be credited; reflect latest balance
-      return false;      // still pending confirmation
-    } catch (e) {
-      // Every throw inside this block is already user-facing copy.
-      throw e instanceof Error ? e : new Error(friendly('', 'deposit'));
+      return r.kind === 'completed';
     } finally {
       setDepositing(false);
     }

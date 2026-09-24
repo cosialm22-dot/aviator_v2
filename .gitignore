@@ -31,3 +31,4 @@ dist-ssr
 # Row-Level Security, not by being hidden. Tracked so production builds (e.g.
 # Cloudflare) always have them regardless of dashboard env-var config.
 !.env.production
+supabase/.temp/

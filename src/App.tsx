@@ -146,6 +146,7 @@ function PlayerApp() {
           onClose={() => setWalletOpen(false)}
           eligibleForFirstDeposit={eligibleForFirstDeposit}
           activeBonus={activeLocked}
+          defaultPhone={user?.phone}
         />
       )}
 
@@ -162,7 +163,7 @@ function PlayerApp() {
         <div className="fixed bottom-4 right-4 bg-night border border-edge rounded-xl px-4 py-3 flex items-center gap-3 shadow-2xl z-50">
           <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
           <span className="text-white text-sm font-medium">
-            {depositing ? 'Processing deposit...' : 'Processing withdrawal...'}
+            {depositing ? 'Waiting for M-Pesa…' : 'Processing withdrawal...'}
           </span>
         </div>
       )}

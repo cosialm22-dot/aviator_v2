@@ -1,7 +1,10 @@
-import { useState, useRef } from 'react';
-import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone, Lock, Eye, EyeOff, Gift } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { X, CheckCircle, Loader, ArrowDownLeft, ArrowUpRight, Smartphone, Lock, Eye, EyeOff, Gift, Clock } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
-import { isValidKenyanPhone } from '../../lib/phone';
+import { isValidKenyanPhone, localNine, normalizeKenyanPhone } from '../../lib/phone';
+import { quickDepositAmounts, validateDepositAmount } from '../../lib/megapayClient';
+import { usePaymentConfig } from '../../hooks/usePaymentConfig';
+import type { DepositStage } from '../../hooks/useWallet';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import RedeemPromoCode from '../promo/RedeemPromoCode';
 import type { FirstDepositBonus } from '../../hooks/useBonus';
@@ -9,8 +12,9 @@ import type { FirstDepositBonus } from '../../hooks/useBonus';
 /*
  * WALLET MODAL - M-Pesa cashier (server-authoritative).
  *
- * Deposits go through the mpesa-stk-push Edge Function; the PIN is entered on
- * the user's PHONE (never in this app). Withdrawals create a pending request
+ * Deposits go through Mega Pay (megapay-stk-push → megapay-status); the PIN is
+ * entered on the user's PHONE (never in this app). Limits come from the server
+ * (fn_public_payment_config) and are re-checked there. Withdrawals create a pending request
  * via the request_withdrawal RPC; payout is processed server-side. No client
  * ever writes wallets/transactions directly.
  *
@@ -21,25 +25,33 @@ import type { FirstDepositBonus } from '../../hooks/useBonus';
 interface Props {
   balance: number;
   // returns true if the deposit was confirmed before timeout, false if still pending
-  onDeposit: (amount: number, method: 'mpesa', details: Record<string, string>) => Promise<boolean>;
+  onDeposit: (amount: number, method: 'mpesa', details: Record<string, string>, onStage?: (s: DepositStage) => void) => Promise<boolean>;
   onWithdraw: (amount: number, method: 'mpesa', details: Record<string, string>) => Promise<void>;
   onClose: () => void;
   // First-deposit match bonus context (server-tracked; see useBonus).
   eligibleForFirstDeposit?: boolean;
   activeBonus?: FirstDepositBonus | null;
+  /** The signed-in phone number, used to prefill the M-Pesa number. */
+  defaultPhone?: string;
 }
 
 type Tab = 'deposit' | 'withdraw';
 type Step = 'form' | 'processing' | 'success';
 
-const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000, 10000];
-const MIN_DEPOSIT = 50;
-const MIN_WITHDRAWAL = 100;
+const WITHDRAW_QUICK = [100, 500, 1000, 2000, 5000, 10000];
 
-export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, eligibleForFirstDeposit = false, activeBonus = null }: Props) {
+function prefill(p?: string): string {
+  const n = normalizeKenyanPhone(p || '');
+  return isValidKenyanPhone(n) ? n.slice(3) : '';
+}
+
+export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, eligibleForFirstDeposit = false, activeBonus = null, defaultPhone }: Props) {
+  const cfg = usePaymentConfig();
   const [tab, setTab] = useState<Tab>('deposit');
   const [amount, setAmount] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(() => prefill(defaultPhone));
+  const [stage, setStage] = useState<DepositStage | null>(null);
+  const [waited, setWaited] = useState(0);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState<Step>('form');
@@ -50,9 +62,17 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
   const dialogRef = useModalA11y(onClose, amountRef);
 
   const parsedAmount = parseFloat(amount) || 0;
-  const minAmount = tab === 'deposit' ? MIN_DEPOSIT : MIN_WITHDRAWAL;
+  const minAmount = tab === 'deposit' ? cfg.minDeposit : cfg.minWithdrawal;
+  const quick = tab === 'deposit' ? quickDepositAmounts(cfg) : WITHDRAW_QUICK;
 
-  const reset = () => { setStep('form'); setAmount(''); setPhone(''); setPassword(''); setShowPassword(false); setError(''); setDepositConfirmed(false); };
+  // Seconds since the prompt went out — shown so the player knows we're still listening.
+  useEffect(() => {
+    if (step !== 'processing' || stage !== 'awaiting_pin') { setWaited(0); return; }
+    const t = setInterval(() => setWaited((w) => w + 1), 1000);
+    return () => clearInterval(t);
+  }, [step, stage]);
+
+  const reset = () => { setStep('form'); setAmount(''); setPhone(prefill(defaultPhone)); setPassword(''); setShowPassword(false); setError(''); setDepositConfirmed(false); setStage(null); };
   const switchTab = (t: Tab) => { setTab(t); reset(); };
 
   const inputBase =
@@ -60,7 +80,10 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
 
   const handleSubmit = async () => {
     setError('');
-    if (!Number.isInteger(parsedAmount) || parsedAmount < minAmount) {
+    if (tab === 'deposit') {
+      const bad = validateDepositAmount(parsedAmount, cfg);
+      if (bad) { setError(bad); return; }
+    } else if (!Number.isInteger(parsedAmount) || parsedAmount < minAmount) {
       setError(`Enter a whole amount of at least ${formatCurrency(minAmount)}`); return;
     }
     if (!isValidKenyanPhone('254' + phone)) { setError('Enter a valid M-Pesa phone number'); return; }
@@ -70,7 +93,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
     setStep('processing');
     try {
       if (tab === 'deposit') {
-        const confirmed = await onDeposit(parsedAmount, 'mpesa', { phone });
+        const confirmed = await onDeposit(parsedAmount, 'mpesa', { phone }, setStage);
         setDepositConfirmed(confirmed);
       } else {
         await onWithdraw(parsedAmount, 'mpesa', { phone, password });
@@ -84,12 +107,12 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
 
   const successTitle = tab === 'withdraw'
     ? 'Processing Withdrawal'
-    : depositConfirmed ? 'Deposit Confirmed' : 'STK Push Sent';
+    : depositConfirmed ? 'Deposit Confirmed' : 'Waiting for M-Pesa';
   const successBody = tab === 'withdraw'
     ? `${formatCurrency(parsedAmount)} to +254${phone} is being processed. You will receive the money shortly.`
     : depositConfirmed
       ? `${formatCurrency(parsedAmount)} added to your wallet.`
-      : `Approve the M-Pesa prompt on +254${phone} to add ${formatCurrency(parsedAmount)}. Your balance updates automatically once confirmed.`;
+      : `M-Pesa hasn't confirmed the payment yet. If you entered your PIN on +254${phone}, ${formatCurrency(parsedAmount)} is added automatically within a few minutes. You can keep playing.`;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm">
@@ -110,8 +133,10 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
         {/* ============ SUCCESS ============ */}
         {step === 'success' && (
           <div className="px-8 py-14 text-center">
-            <div className="w-16 h-16 rounded-full bg-win/10 flex items-center justify-center mx-auto mb-5">
-              <CheckCircle size={28} className="text-win" />
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${tab === 'deposit' && !depositConfirmed ? 'bg-amber-400/10' : 'bg-win/10'}`}>
+              {tab === 'deposit' && !depositConfirmed
+                ? <Clock size={28} className="text-amber-400" />
+                : <CheckCircle size={28} className="text-win" />}
             </div>
             <h3 className="text-white font-bold text-xl">{successTitle}</h3>
             <p className="text-slate-400 text-sm mt-2 leading-relaxed">{successBody}</p>
@@ -127,13 +152,38 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
         {/* ============ PROCESSING ============ */}
         {step === 'processing' && (
           <div className="px-8 py-16 text-center">
-            <Loader size={28} className="text-win animate-spin mx-auto mb-5" />
-            <p className="text-white font-medium">
-              {tab === 'deposit' ? 'Sending M-Pesa prompt…' : 'Submitting your request…'}
-            </p>
-            <p className="text-slate-500 text-xs mt-1">
-              {tab === 'deposit' ? `Enter your PIN on +254${phone} when prompted` : 'This will only take a moment'}
-            </p>
+            {tab === 'deposit' && stage === 'awaiting_pin' ? (
+              <div data-testid="deposit-awaiting-pin">
+                <div className="w-16 h-16 rounded-full bg-win/10 flex items-center justify-center mx-auto mb-5">
+                  <Smartphone size={28} className="text-win" />
+                </div>
+                <p className="text-white font-bold text-lg">Check your phone</p>
+                <p className="text-slate-400 text-sm mt-2 leading-relaxed">
+                  Enter your M-Pesa PIN on <span className="text-white font-semibold">+254{phone}</span> to pay{' '}
+                  <span className="text-white font-semibold">{formatCurrency(parsedAmount)}</span>.
+                </p>
+                <p className="flex items-center justify-center gap-2 text-slate-500 text-xs mt-4" aria-live="polite">
+                  <Loader size={12} className="animate-spin" /> Waiting for confirmation · {waited}s
+                </p>
+                <button
+                  onClick={onClose}
+                  className="mt-7 px-6 py-2.5 rounded-xl text-xs font-semibold text-slate-300 bg-[#1c2237] border border-edge-strong hover:text-white transition-all"
+                >
+                  Close — I'll keep playing
+                </button>
+                <p className="text-slate-600 text-[10px] mt-2">Your balance updates by itself once M-Pesa confirms.</p>
+              </div>
+            ) : (
+              <>
+                <Loader size={28} className="text-win animate-spin mx-auto mb-5" />
+                <p className="text-white font-medium">
+                  {tab === 'deposit' ? 'Sending M-Pesa prompt…' : 'Submitting your request…'}
+                </p>
+                <p className="text-slate-500 text-xs mt-1">
+                  {tab === 'deposit' ? `To +254${phone}` : 'This will only take a moment'}
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -184,7 +234,7 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
                 <div className="flex-1">
                   <p className="text-white text-sm font-semibold">M-Pesa</p>
                   <p className="text-slate-400 text-[11px]">
-                    {tab === 'deposit' ? 'Instant STK push to your phone' : 'Sent to your M-Pesa number'}
+                    {tab === 'deposit' ? 'Instant prompt to your phone · no fees' : 'Sent to your M-Pesa number'}
                   </p>
                 </div>
               </div>
@@ -236,13 +286,19 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0"
                     min={minAmount}
+                    max={tab === 'deposit' ? cfg.maxDeposit : undefined}
                     step={1}
                     aria-label="Amount in Kenyan shillings"
                     className="w-full bg-[#1c2237] border border-edge-strong rounded-xl pl-12 pr-4 py-4 text-white text-xl font-bold tabular-nums placeholder:text-edge-strong focus:outline-none focus:border-win/60 focus:ring-1 focus:ring-win/20 transition-all"
                   />
                 </div>
+                {tab === 'deposit' && (
+                  <p className="text-slate-500 text-[11px] mt-2" data-testid="deposit-limits">
+                    Min {formatCurrency(cfg.minDeposit)} · Max {formatCurrency(cfg.maxDeposit)}
+                  </p>
+                )}
                 <div className="grid grid-cols-6 gap-1.5 mt-3">
-                  {QUICK_AMOUNTS.map((q) => {
+                  {quick.map((q) => {
                     const displayQ = tab === 'withdraw' ? Math.min(q, Math.floor(balance)) : q;
                     const isActive = parseFloat(amount) === displayQ && displayQ > 0;
                     return (
@@ -282,7 +338,9 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                    onChange={(e) => setPhone(localNine(e.target.value))}
+                    aria-label="M-Pesa phone number"
+                    inputMode="numeric"
                     placeholder="7XX XXX XXX"
                     className={inputBase + ' flex-1'}
                   />

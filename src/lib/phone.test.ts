@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeKenyanPhone, isValidKenyanPhone, toDarajaMsisdn } from './phone';
+import { normalizeKenyanPhone, isValidKenyanPhone, toDarajaMsisdn, localNine } from './phone';
 
 describe('normalizeKenyanPhone', () => {
   it('prepends 254 to a 9-digit 7XX/1XX number', () => {
@@ -42,5 +42,18 @@ describe('toDarajaMsisdn', () => {
   it('returns null for invalid input', () => {
     expect(toDarajaMsisdn('012345678')).toBeNull();
     expect(toDarajaMsisdn('')).toBeNull();
+  });
+});
+
+describe('localNine (cashier phone field after +254)', () => {
+  it('keeps the 9 local digits however the number is typed or pasted', () => {
+    expect(localNine('712345678')).toBe('712345678');
+    expect(localNine('0712345678')).toBe('712345678');
+    expect(localNine('254712345678')).toBe('712345678');
+    expect(localNine('+254 712 345 678')).toBe('712345678');
+    expect(localNine('0110 123 456')).toBe('110123456');
+  });
+  it('never grows past 9 digits', () => {
+    expect(localNine('71234567899')).toBe('712345678');
   });
 });

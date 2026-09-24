@@ -1,7 +1,7 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, ShieldAlert, Building2, Bell, Ticket } from 'lucide-react';
+import { LayoutDashboard, Users, Gamepad2, Banknote, Wallet, Settings, Megaphone, ShieldAlert, Building2, Bell, Ticket, ArrowDownToLine } from 'lucide-react';
 import { useAdmin, canAccess, type Section } from '../roleContext';
 import { useSiteTheme } from '../../hooks/useSiteTheme';
 import BirdMark from '../../components/game/BirdMark';
@@ -18,6 +18,7 @@ const NAV: { icon: typeof LayoutDashboard; label: string; path: string; section:
   { icon: Ticket, label: 'Promo Codes', path: '/admin/promo-codes', section: 'marketing' },
   { icon: Users, label: 'Players', path: '/admin/users', section: 'users' },
   { icon: Gamepad2, label: 'Game Control', path: '/admin/game', section: 'game' },
+  { icon: ArrowDownToLine, label: 'Deposits', path: '/admin/deposits', section: 'deposits' },
   { icon: Banknote, label: 'Withdrawals', path: '/admin/withdrawals', section: 'withdrawals' },
   { icon: ShieldAlert, label: 'Risk & Fraud', path: '/admin/risk', section: 'risk' },
   { icon: Wallet, label: 'Finance', path: '/admin/finance', section: 'finance' },

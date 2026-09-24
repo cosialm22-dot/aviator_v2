@@ -28,7 +28,7 @@ export type Role =
 
 export type Section =
   | 'platform'
-  | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'finance' | 'settings' | 'staff'
+  | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'deposits' | 'finance' | 'settings' | 'staff'
   | 'marketing' | 'commissions' | 'risk' | 'notifications';
 
 // Operator roles that may enter the admin panel at all (AdminGuard gate).
@@ -43,6 +43,8 @@ const ACCESS: Record<Section, Role[]> = {
   users:       ['platform_superadmin', 'super_admin', 'admin', 'support'],
   game:        ['platform_superadmin', 'super_admin', 'admin'],
   withdrawals: ['platform_superadmin', 'super_admin', 'admin', 'finance_admin'],
+  // Deposits: support can look (to help players); only finance+ can confirm by hand (server-enforced).
+  deposits:    ['platform_superadmin', 'super_admin', 'admin', 'finance_admin', 'support'],
   finance:     ['platform_superadmin', 'super_admin', 'admin', 'finance_admin'],
   // Risk & fraud monitoring is an operations function (see module 7 spec).
   risk:        ['platform_superadmin', 'super_admin', 'admin', 'support'],
