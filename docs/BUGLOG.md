@@ -4,6 +4,71 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #15 — Admin dashboard, phase 1: shell, brand scope, Overview, Players, Audit, platform switches — DONE (branch `feat/admin-tenancy`)
+- **Layout, modelled on the invest254 console:**
+  - grouped navigation: Money / Players / Game / Growth / Administration / Platform;
+  - a workspace header that always names the brand or "all brands";
+  - ⌘K jump menu (same list as the sidebar), a collapsible icon rail (⌘/Ctrl+B), and a phone drawer;
+  - one UI kit (`src/admin/ui/kit.tsx`): page header, stat cards that never cut figures, tables, pagination, empty, error and loading states, modal, two-step confirm, switch, tabs.
+- **Brand scope:**
+  - The platform owner picks "All brands" or one brand in the header; the choice is remembered.
+  - A gold banner shows while looking at one brand.
+  - Pages that don't follow the scope yet say so rather than silently mixing brands.
+  - Everyone else is pinned to their own brand, and the server enforces it (`_admin_scope`).
+- **Overview (rebuilt):**
+  - Figures are computed on the server by `admin_overview`: Nairobi days, bots excluded, no 1,000-row cap. The old page added up capped client queries across every brand.
+  - Contents: today's KPIs with change against yesterday, charts of money in and out and of players over 7, 14 or 30 days, a "Needs attention" queue with links, and balances owed to players.
+- **Players (rebuilt):**
+  - `admin_list_players` does the search (username, phone or id), status filters, account types and sorting on the server, with pagination and the full total.
+  - Filters are kept in the URL; there is a CSV export.
+  - The old page read `profiles` directly, so every brand saw every brand's players.
+- **Audit log (new page):**
+  - filters by action, staff member, date range and brand;
+  - plain-language action names with the raw code;
+  - a "Full record" view of each entry;
+  - the log is read-only.
+- **Brands & controls:**
+  - the 5 platform switches (deposits, withdrawals, real-money betting, sign-ups, new marketers), each confirmed, versioned and audited; all 5 are enforced server-side;
+  - "Open" on a brand scopes the back office to it;
+  - the invalid "Archived" status is replaced by "Disabled".
+- **Tests:**
+
+  | Test | Result |
+  |---|---|
+  | `admin_tenancy_e2e.py` (rolled back) | 47/47 |
+  | `e2e/admin_ui_e2e.py` (live brand tiers + mocked platform owner) | 42/42 |
+  | `megapay_ui_e2e.py` re-run | 56/56 |
+  | vitest | 90/90 |
+
+## #14 — Multi-tenant security gaps (from #7) — FIXED (migration `20260926090000_admin_tenancy`)
+- **Global controls belong to the platform owner:** `admin_set_setting` (game, finance, maintenance) and the crash-queue RPCs were allowed for any `super_admin`. They are now platform owner only.
+  - **Effect today:** the aviator brand's `super_admin` can no longer change platform-wide game settings or queue crash points. The platform owner can.
+- **Staff tables are read-only:**
+  - Direct writes are gone on `admin_audit_log`, `withdrawal_requests`, `player_risk_scores`, `crash_queue` and `system_settings`. The catch-all `admin_full_access` policies are dropped and INSERT/UPDATE/DELETE are revoked from API roles.
+  - The audit trail can no longer be edited or deleted by staff.
+- **M-Pesa paybill:**
+  - `mpesa_config` is no longer readable through the API. The old Payments tab downloaded the passkey, consumer secret and security credential into the browser.
+  - `admin_get_mpesa_config` returns only "saved" flags.
+  - `admin_save_mpesa_config` is platform owner only, validated, and audited with secret names only.
+- **Missing brand checks added:**
+  - promotions (create now tags the brand; edit, switch and delete check it);
+  - `admin_get_mpesa_detail`;
+  - `admin_set_site_theme` (a brand owner themes only their own brand).
+- **Support role fixed:** support can read players, risk alerts and the live round, and the player page is view-only for them. Before, the UI showed support pages that the server refused.
+- **One owner per brand:** `uniq_one_super_admin` (one in total) is now `uniq_one_super_admin_per_site`.
+- **Audit rows land on the right brand:** rows written without a brand went to the default brand. A trigger now attributes them to the target player's brand, or else to the acting staff member's brand.
+- **Settings:**
+  - the General, Game, Finance and paybill tabs show only for the platform owner; brand owners keep Theme and Staff;
+  - Game control hides the queue controls from everyone except the platform owner.
+- **Applying it:** production takes every lock up front, in one statement with a timeout, because the game driver's long transaction caused a deadlock on the first test run. The game kept running throughout.
+- **Still open (phase 2):**
+  - Withdrawals, Finance, Risk, Marketing, Promo codes, Notifications and Game control do not follow the brand picker yet. The page says so.
+  - Role lists in Staff and player detail are stale: finance_admin and support can't be assigned, because `admin_set_role` rejects them.
+
+## Observation — game driver "fails" every 2 minutes (not changed: engine)
+- `cron.job_run_details` shows `game_driver` ending with "canceling statement due to statement timeout" about 720 times a day. `game_drive()` sleeps in a loop until the 2-minute statement timeout stops it, and the next run picks up. Rounds keep flowing.
+- This looks like the intended design, but it fills the cron history with failures and holds locks for long stretches. It is in the engine, so I left it alone.
+
 ## #13 — Deposits screen for operators — DONE
 - **Sections:**
   - gateway health: a live connection test and the automatic-check status (booleans only);

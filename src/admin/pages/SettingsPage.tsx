@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, Gamepad2, Wallet, Users, ScrollText, Smartphone, Palette } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { SlidersHorizontal, Gamepad2, Wallet, Users, Smartphone, Palette } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import SystemSettingsTab, { type SettingRecord } from './settings/SystemSettingsTab';
 import { type SettingsTabId } from './settings/registry';
 import PaymentsTab from './settings/PaymentsTab';
 import StaffTab from './settings/StaffTab';
-import AuditTab from './settings/AuditTab';
+import { useAdmin } from '../roleContext';
 import SiteThemePanel from './settings/SiteThemePanel';
 import { friendly } from './settings/shared';
 
@@ -30,14 +30,14 @@ import { friendly } from './settings/shared';
 // super_admin (roleContext ACCESS); the RPCs are the real gate.
 // ============================================================================
 
+// `platform`: settings shared by every brand — only the platform owner sees and edits them.
 const TABS = [
-  { k: 'general', label: 'General', icon: SlidersHorizontal },
-  { k: 'game', label: 'Game', icon: Gamepad2 },
-  { k: 'theme', label: 'Theme', icon: Palette },
-  { k: 'finance', label: 'Finance', icon: Wallet },
-  { k: 'payments', label: 'Payments', icon: Smartphone },
-  { k: 'staff', label: 'Staff & Roles', icon: Users },
-  { k: 'audit', label: 'Audit Log', icon: ScrollText },
+  { k: 'general', label: 'General', icon: SlidersHorizontal, platform: true },
+  { k: 'game', label: 'Game', icon: Gamepad2, platform: true },
+  { k: 'finance', label: 'Finance', icon: Wallet, platform: true },
+  { k: 'payments', label: 'M-Pesa paybill', icon: Smartphone, platform: true },
+  { k: 'theme', label: 'Brand theme', icon: Palette, platform: false },
+  { k: 'staff', label: 'Staff & roles', icon: Users, platform: false },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['k'];
@@ -45,9 +45,11 @@ const TAB_KEYS = TABS.map(t => t.k) as readonly string[];
 const SYSTEM_TABS: TabKey[] = ['general', 'game', 'finance'];
 
 export default function SettingsPage() {
+  const { isPlatform } = useAdmin();
+  const visible = TABS.filter((t) => isPlatform || !t.platform);
   const [params, setParams] = useSearchParams();
-  const raw = params.get('tab') ?? 'general';
-  const tab: TabKey = (TAB_KEYS.includes(raw) ? raw : 'general') as TabKey;
+  const raw = params.get('tab') ?? visible[0].k;
+  const tab: TabKey = (TAB_KEYS.includes(raw) && visible.some((t) => t.k === raw) ? raw : visible[0].k) as TabKey;
 
   const setTab = (k: TabKey) => setParams(prev => {
     const next = new URLSearchParams(prev);
@@ -68,7 +70,7 @@ export default function SettingsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void loadSettings(); }, [loadSettings]);
+  useEffect(() => { if (isPlatform) void loadSettings(); else setLoading(false); }, [loadSettings, isPlatform]);
 
   // Persist a single system_settings value through the server-authoritative
   // admin_set_setting RPC. The RPC is the SOLE write path: it enforces the
@@ -83,19 +85,22 @@ export default function SettingsPage() {
     return { ok: true };
   }, []);
 
-  const isSystemTab = SYSTEM_TABS.includes(tab);
+  const isSystemTab = isPlatform && SYSTEM_TABS.includes(tab);
 
   return (
-    <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
+    <div className="space-y-6">
       <div className="space-y-6">
         <div>
           <h1 className="text-[22px] font-semibold text-ink tracking-tight">Settings</h1>
-          <p className="text-[13px] text-muted mt-1">System configuration, payments, staff roles, and the audit trail</p>
+          <p className="text-[13px] text-muted mt-1">
+            {isPlatform ? 'Platform-wide game, finance and paybill settings, plus each brand\'s theme and staff.' : 'Your brand\'s theme and staff. Game and payment settings are managed by the platform owner.'}
+            {' '}Every change is recorded in the <Link to="/admin/audit" className="text-brand hover:underline">audit log</Link>.
+          </p>
         </div>
 
         <div className="border-b border-line">
           <nav className="flex gap-1 -mb-px overflow-x-auto" role="tablist" aria-label="Settings sections">
-            {TABS.map(({ k, label, icon: Icon }) => {
+            {visible.map(({ k, label, icon: Icon }) => {
               const active = tab === k;
               return (
                 <button key={k} role="tab" aria-selected={active} onClick={() => setTab(k)}
@@ -121,7 +126,6 @@ export default function SettingsPage() {
         {tab === 'theme' && <SiteThemePanel />}
         {tab === 'payments' && <PaymentsTab />}
         {tab === 'staff' && <StaffTab />}
-        {tab === 'audit' && <AuditTab />}
       </div>
     </div>
   );

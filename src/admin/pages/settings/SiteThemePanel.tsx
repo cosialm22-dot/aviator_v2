@@ -26,7 +26,7 @@ const THEMES: { id: string; label: string; tokens: Record<string, string> }[] = 
 const ARCH_LABEL: Record<string, string> = { swift: 'Swift', soar: 'Soaring', song: 'Songbird', exotic: 'Exotic' };
 
 export default function SiteThemePanel() {
-  const { isSuperAdmin } = useAdmin();
+  const { isSuperAdmin, isPlatform, siteId: ownSite } = useAdmin();
   const [sites, setSites] = useState<SiteRow[]>([]);
   const [sel, setSel] = useState<string | null>(null);
   const [skin, setSkin] = useState<string>('fisheagle');
@@ -38,11 +38,12 @@ export default function SiteThemePanel() {
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from('sites').select('id, slug, name, plane_skin, color_primary').order('created_at', { ascending: true });
-    if (!error && data) {
-      setSites(data as SiteRow[]);
-      if (!sel && data.length) { setSel(data[0].id); setSkin(data[0].plane_skin ?? 'fisheagle'); }
-    }
-  }, [sel]);
+    if (error) { setErr('Could not load brands.'); return; }
+    // A brand owner themes only their own brand (the server enforces this too).
+    const mine = ((data ?? []) as SiteRow[]).filter((s) => isPlatform || s.id === ownSite);
+    setSites(mine);
+    if (!sel && mine.length) { setSel(mine[0].id); setSkin(mine[0].plane_skin ?? 'fisheagle'); }
+  }, [sel, isPlatform, ownSite]);
 
   useEffect(() => { void load(); }, [load]);
 

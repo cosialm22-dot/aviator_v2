@@ -25,7 +25,8 @@ function cpTone(v:number|null):string{
 }
 
 export default function GameControlPage(){
-  const { isSuperAdmin }=useAdmin();
+  // The crash queue and algorithm switch are shared by every brand: platform owner only.
+  const { isPlatform: isSuperAdmin }=useAdmin();
   const [qEnabled,setQEnabled]=useState(false);
   const [round,setRound]=useState<LiveRound|null>(null);
   const [queue,setQueue]=useState<CQItem[]>([]);
@@ -99,7 +100,7 @@ export default function GameControlPage(){
   }
 
   return(
-    <div className="-m-6 min-h-[calc(100dvh-3.5rem)] bg-canvas px-4 py-6 sm:px-8 sm:py-8">
+    <div className="space-y-6">
       <div className="mx-auto max-w-3xl space-y-5">
 
         {/* Header */}

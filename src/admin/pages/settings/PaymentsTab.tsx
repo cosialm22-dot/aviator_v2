@@ -1,22 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine, ShieldCheck, Save, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-import { errMsg } from './shared';
+import { staffError } from '../../ui/format';
 
 // ============================================================================
-// PaymentsTab - manage the M-Pesa paybills used to RECEIVE money from players
-// (STK Push / C2B) and to SEND money to players (B2C payouts).
-// ----------------------------------------------------------------------------
-// Backed by the single `mpesa_config` row. RLS (`admin_full_access`) already
-// restricts the table to admin/super_admin, and this whole Settings section is
-// super_admin-only, so we read/write the row directly (same pattern as the
-// system_settings tabs) rather than adding an RPC.
-//
-// SECRET HANDLING: the three credential secrets (passkey, consumer_secret,
-// security_credential) are NEVER read back into the DOM. If a secret already
-// has a value we show a "saved" placeholder and leave the input empty; the
-// secret is only overwritten when the operator types a replacement. Non-secret
-// fields are prefilled normally so they can be reviewed and edited.
+// PaymentsTab — the M-Pesa (Daraja) paybill: B2C payouts for withdrawals (and STK only if
+// deposits are switched back from Mega Pay). PLATFORM OWNER ONLY: the row is shared by every
+// brand. The browser never receives secret values: admin_get_mpesa_config returns only
+// "saved" flags, and admin_save_mpesa_config replaces a secret only when a new one is typed.
+// Every save is audited server-side (names of rotated secrets only).
 // ============================================================================
 
 interface MpesaConfig {
@@ -48,41 +40,36 @@ const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
 
 export default function PaymentsTab() {
   const [cfg, setCfg] = useState<MpesaConfig>(EMPTY);
-  // Secret inputs are tracked separately; empty string = "leave unchanged".
+  // Secret inputs; empty string = "leave unchanged".
   const [secrets, setSecrets] = useState({ passkey: '', consumer_secret: '', security_credential: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  const apply = (d: Record<string, unknown> | null) => {
+    if (!d) { setCfg(EMPTY); return; }
+    setCfg({
+      id: (d.id as string) ?? null,
+      environment: (d.environment as string) ?? 'sandbox',
+      consumer_key: (d.consumer_key as string) ?? '',
+      passkey_set: Boolean(d.passkey_set),
+      consumer_secret_set: Boolean(d.consumer_secret_set),
+      security_credential_set: Boolean(d.security_credential_set),
+      shortcode: (d.shortcode as string) ?? '',
+      b2c_shortcode: (d.b2c_shortcode as string) ?? '',
+      initiator_name: (d.initiator_name as string) ?? '',
+      callback_base_url: (d.callback_base_url as string) ?? '',
+      is_active: d.is_active !== false,
+    });
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
-    const { data, error } = await supabase
-      .from('mpesa_config')
-      .select('id, environment, consumer_key, consumer_secret, passkey, security_credential, shortcode, b2c_shortcode, initiator_name, callback_base_url, is_active')
-      .order('is_active', { ascending: false })
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) { setErr(errMsg(error, 'Could not load M-Pesa configuration.')); setLoading(false); return; }
-    if (data) {
-      setCfg({
-        id: data.id,
-        environment: data.environment ?? 'sandbox',
-        consumer_key: data.consumer_key ?? '',
-        passkey_set: Boolean(data.passkey),
-        consumer_secret_set: Boolean(data.consumer_secret),
-        security_credential_set: Boolean(data.security_credential),
-        shortcode: data.shortcode ?? '',
-        b2c_shortcode: data.b2c_shortcode ?? '',
-        initiator_name: data.initiator_name ?? '',
-        callback_base_url: data.callback_base_url ?? '',
-        is_active: data.is_active ?? true,
-      });
-    } else {
-      setCfg(EMPTY);
-    }
+    const { data, error } = await supabase.rpc('admin_get_mpesa_config');
+    if (error) setErr(staffError(error, 'Could not load the M-Pesa configuration.'));
+    else apply(data as Record<string, unknown> | null);
     setSecrets({ passkey: '', consumer_secret: '', security_credential: '' });
     setLoading(false);
   }, []);
@@ -95,56 +82,20 @@ export default function PaymentsTab() {
     setSaving(true);
     setErr(null);
     setSaved(false);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      // Build the row. Non-secret fields always written; secrets only when the
-      // operator typed a replacement (empty input = keep existing value).
-      const row: Record<string, unknown> = {
-        environment: cfg.environment,
-        consumer_key: cfg.consumer_key.trim(),
-        shortcode: cfg.shortcode.trim(),
-        b2c_shortcode: cfg.b2c_shortcode.trim() || null,
-        initiator_name: cfg.initiator_name.trim() || null,
-        callback_base_url: cfg.callback_base_url.trim(),
-        is_active: cfg.is_active,
-        updated_by: session?.user.id ?? null,
-        updated_at: new Date().toISOString(),
-      };
-      if (secrets.passkey.trim()) row.passkey = secrets.passkey;
-      if (secrets.consumer_secret.trim()) row.consumer_secret = secrets.consumer_secret;
-      if (secrets.security_credential.trim()) row.security_credential = secrets.security_credential;
-
-      const changedSecrets = Object.keys(secrets).filter(k => secrets[k as keyof typeof secrets].trim());
-
-      let savedId = cfg.id;
-      if (cfg.id) {
-        const { error } = await supabase.from('mpesa_config').update(row).eq('id', cfg.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.from('mpesa_config').insert(row).select('id').single();
-        if (error) throw error;
-        savedId = data?.id ?? null;
-      }
-
-      // Best-effort audit. Never log secret VALUES - only which fields changed.
-      if (session) {
-        await supabase.from('admin_audit_log').insert({
-          admin_id: session.user.id,
-          action: 'mpesa_config_updated',
-          target_type: 'mpesa_config',
-          target_id: savedId,
-          details: { environment: cfg.environment, is_active: cfg.is_active, secrets_rotated: changedSecrets },
-        });
-      }
-
-      setSaved(true);
-      await load();
-    } catch (e) {
-      setErr(errMsg(e, 'Could not save M-Pesa configuration.'));
-    } finally {
-      setSaving(false);
-    }
+    const typed = Object.fromEntries(Object.entries(secrets).filter(([, v]) => v.trim()));
+    const { data, error } = await supabase.rpc('admin_save_mpesa_config', {
+      p_data: {
+        environment: cfg.environment, consumer_key: cfg.consumer_key.trim(), shortcode: cfg.shortcode.trim(),
+        b2c_shortcode: cfg.b2c_shortcode.trim(), initiator_name: cfg.initiator_name.trim(),
+        callback_base_url: cfg.callback_base_url.trim(), is_active: cfg.is_active,
+      },
+      p_secrets: typed,
+    });
+    setSaving(false);
+    if (error) { setErr(staffError(error, 'Could not save the M-Pesa configuration.')); return; }
+    apply(data as Record<string, unknown>);
+    setSecrets({ passkey: '', consumer_secret: '', security_credential: '' });
+    setSaved(true);
   }
 
   if (loading) {
@@ -156,8 +107,8 @@ export default function PaymentsTab() {
       {err && <div role="alert" className="rounded-lg border border-down/30 bg-down/10 px-4 py-2.5 text-down text-[13px]">{err}</div>}
 
       <p className="text-[13px] text-muted">
-        Configure the M-Pesa Daraja credentials used to collect deposits from players and to pay out withdrawals.
-        Credentials are write-only here for safety: existing secrets are masked and only replaced when you enter a new value.
+        The Safaricom Daraja paybill that pays out withdrawals (B2C). Player deposits go through Mega Pay — see Deposits.
+        This paybill is shared by every brand. Secrets are write-only: saved values are never shown, and are replaced only when you type a new one.
       </p>
 
       {/* Status */}
@@ -193,7 +144,7 @@ export default function PaymentsTab() {
       <section className="rounded-xl border border-line bg-surface p-6">
         <div className="flex items-center gap-2">
           <ArrowDownToLine size={16} className="text-up" />
-          <h3 className={HEAD}>Receive money - STK Push (deposits)</h3>
+          <h3 className={HEAD}>Receive money — STK push (only if deposits are switched back to Daraja)</h3>
         </div>
         <p className="text-[12px] text-muted mt-1 mb-4">The paybill/till that prompts players to pay into the platform.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

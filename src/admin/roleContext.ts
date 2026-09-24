@@ -28,7 +28,7 @@ export type Role =
 
 export type Section =
   | 'platform'
-  | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'deposits' | 'finance' | 'settings' | 'staff'
+  | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'deposits' | 'finance' | 'settings' | 'staff' | 'audit'
   | 'marketing' | 'commissions' | 'risk' | 'notifications';
 
 // Operator roles that may enter the admin panel at all (AdminGuard gate).
@@ -50,6 +50,8 @@ const ACCESS: Record<Section, Role[]> = {
   risk:        ['platform_superadmin', 'super_admin', 'admin', 'support'],
   settings:    ['platform_superadmin', 'super_admin'],
   staff:       ['platform_superadmin', 'super_admin'],
+  // Audit trail: owners and admins (server: admin_list_audit).
+  audit:       ['platform_superadmin', 'super_admin', 'admin'],
   // Operator-only Marketing hub (affiliates + promotions + commissions). Marketers
   // manage their own affiliate data in the /marketer hub (player shell), not here.
   marketing:   ['platform_superadmin', 'super_admin', 'admin'],
@@ -68,6 +70,8 @@ export interface AdminIdentity {
   isSuperAdmin: boolean; // 'super_admin' or 'platform_superadmin' (settings/staff tier)
   isAdmin: boolean;      // any operator role (broad ops visibility)
   isStaff: boolean;      // operator (can enter the admin panel); marketers are not operators
+  username: string;
+  siteId: string | null; // the staff member's own brand
 }
 
 export const AdminContext = createContext<AdminIdentity | null>(null);
@@ -78,7 +82,7 @@ export function useAdmin(): AdminIdentity {
   return v;
 }
 
-export function makeIdentity(userId: string, role: Role): AdminIdentity {
+export function makeIdentity(userId: string, role: Role, extra: { username?: string; siteId?: string | null } = {}): AdminIdentity {
   const isPlatform = role === 'platform_superadmin';
   return {
     userId,
@@ -87,5 +91,7 @@ export function makeIdentity(userId: string, role: Role): AdminIdentity {
     isSuperAdmin: role === 'super_admin' || isPlatform,
     isAdmin: OPERATOR_ROLES.includes(role),
     isStaff: OPERATOR_ROLES.includes(role),
+    username: extra.username ?? 'Admin',
+    siteId: extra.siteId ?? null,
   };
 }
