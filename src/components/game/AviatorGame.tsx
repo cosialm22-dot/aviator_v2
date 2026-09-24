@@ -51,9 +51,9 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
     window.addEventListener('aviator:open-chat', open);
     return () => window.removeEventListener('aviator:open-chat', open);
   }, []);
-  // Second bet panel (dual-bet): shown by default on phones and hidden on desktop, as in the
-  // mocks; ⊕ adds it, ⊖ removes it. A panel with a live or queued bet is never hidden.
-  const [dual, setDual] = useState(() => typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches);
+  // Two bet panels (two Bet buttons) by default on every screen, as in the mock; ⊖ on the second
+  // removes it and ⊕ on the first brings it back. A panel with a live or queued bet is never hidden.
+  const [dual, setDual] = useState(true);
   // Dialog opened from the ☰ game menu (Free Bets, My Bet History, Game Limits, How To Play).
   const [panel, setPanel] = useState<GamePanel | null>(null);
   useEffect(() => {
