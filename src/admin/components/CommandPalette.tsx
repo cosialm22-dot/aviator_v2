@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Globe, Megaphone, Ticket, Bell, Users, Gamepad2,
   Banknote, ShieldAlert, Wallet, Settings, Search, CornerDownLeft,
-  type LucideIcon,
-} from 'lucide-react';
+  type LucideIcon, ArrowDownToLine } from 'lucide-react';
 import { useAdmin, canAccess, type Section } from '../roleContext';
 
 // ============================================================================
@@ -32,6 +31,7 @@ const ALL_COMMANDS: Cmd[] = [
   { id: 'notifications',label: 'Notifications',   hint: 'Broadcasts & alerts',    section: 'notifications',path: '/admin/notifications',icon: Bell },
   { id: 'users',        label: 'Players',         hint: 'Accounts & balances',    section: 'users',        path: '/admin/users',       icon: Users },
   { id: 'game',         label: 'Game Control',    hint: 'Rounds & settings',      section: 'game',         path: '/admin/game',        icon: Gamepad2 },
+  { id: 'deposits',     label: 'Deposits',        hint: 'Mega Pay M-Pesa deposits', section: 'deposits',   path: '/admin/deposits',    icon: ArrowDownToLine },
   { id: 'withdrawals',  label: 'Withdrawals',     hint: 'Review payouts',         section: 'withdrawals',  path: '/admin/withdrawals', icon: Banknote },
   { id: 'risk',         label: 'Risk & Fraud',    hint: 'Flags & scoring',        section: 'risk',         path: '/admin/risk',        icon: ShieldAlert },
   { id: 'finance',      label: 'Finance',         hint: 'Ledger & totals',        section: 'finance',      path: '/admin/finance',     icon: Wallet },

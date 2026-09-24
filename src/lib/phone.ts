@@ -27,3 +27,11 @@ export function toDarajaMsisdn(raw: string): string | null {
   const n = normalizeKenyanPhone(raw);
   return MSISDN.test(n) ? n : null;
 }
+
+/** Keep the 9 digits after +254 whatever the player types or pastes (07…, 254…, +254 …). */
+export function localNine(raw: string): string {
+  let d = (raw || '').replace(/\D/g, '');
+  if (d.startsWith('254') && d.length > 9) d = d.slice(3);
+  else if (d.startsWith('0')) d = d.slice(1);
+  return d.slice(0, 9);
+}
