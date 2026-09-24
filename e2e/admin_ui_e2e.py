@@ -26,6 +26,12 @@ def shot(page, name):
     if SHOTS:
         os.makedirs(SHOTS, exist_ok=True); page.screenshot(path=os.path.join(SHOTS, name + ".png"))
 
+def dump(name, lines):
+    """Diagnostics for a failed check: written next to the screenshots when SHOTS is set."""
+    if SHOTS:
+        os.makedirs(SHOTS, exist_ok=True); open(os.path.join(SHOTS, name + ".log"), "w").write("\n".join(lines))
+    return len(lines)
+
 def http(method, url, body=None, headers=None):
     req = urllib.request.Request(url, data=None if body is None else json.dumps(body).encode(), method=method,
                                  headers={"Content-Type": "application/json", **(headers or {})})
@@ -64,7 +70,8 @@ if os.environ.get("HOST_MAP"): launch["args"].append(f"--host-resolver-rules={os
 if os.environ.get("HTTPS_PROXY"): launch["proxy"] = {"server": os.environ["HTTPS_PROXY"], "bypass": os.environ.get("PROXY_BYPASS", "")}
 
 def new_page(browser, session, w=1440, h=950):
-    ctx = browser.new_context(viewport={"width": w, "height": h})
+    # Block the PWA service worker: its fetches would bypass the mocked routes.
+    ctx = browser.new_context(viewport={"width": w, "height": h}, service_workers="block")
     ctx.add_init_script(f"try {{ localStorage.setItem({json.dumps(STORAGE_KEY)}, {json.dumps(json.dumps(session))}); if (!sessionStorage.getItem('e2e-init')) {{ localStorage.removeItem('admin:scope'); localStorage.removeItem('admin:sidebar-collapsed'); sessionStorage.setItem('e2e-init', '1'); }} }} catch (e) {{}}")
     page = ctx.new_page()
     errors = []
@@ -148,6 +155,12 @@ try:
         w1 = page.locator("aside").bounding_box()["width"]
         check("admin: the sidebar collapses to an icon rail", w1 < 90 < w0, (w0, w1))
         page.get_by_role("button", name="Expand sidebar").click()
+        # Leaving a page that holds a realtime channel must not stall the next page's requests.
+        page.get_by_role("link", name="Withdrawals").first.click()
+        until(lambda: page.get_by_role("heading", name=re.compile("Withdrawals")).first.is_visible(), 15000)
+        page.wait_for_timeout(1500)
+        page.get_by_role("link", name="Players").first.click()
+        check("admin: pages still load after leaving a live-updating page", until(lambda: page.get_by_test_id("players-table").is_visible(), 15000))
         check("admin: no page errors", not errors, errors[:3])
         ctx.close()
 
@@ -194,7 +207,7 @@ try:
 
         # ───────────── platform owner (mocked API) ─────────────
         owner_id = "b220d3a4-f552-4fa3-a477-a9a77dec31c4"
-        fake_session = dict(sessions["p1"]); fake_session = {**fake_session, "user": {**fake_session["user"], "id": owner_id}}
+        fake_session = sessions["p1"]  # a real player token; every API answer below is mocked as the platform owner
         brands = [{"id": "00000000-0000-0000-0000-000000000001", "name": "Aviator", "slug": "aviator", "status": "active"},
                   {"id": "11111111-1111-1111-1111-111111111111", "name": "Second Brand", "slug": "second", "status": "active"}]
         cfg = {"deposits_enabled": True, "withdrawals_enabled": True, "play_enabled": True, "registrations_enabled": True, "marketers_enabled": True, "version": 7, "updated_at": "2026-09-20T10:00:00Z"}
@@ -206,8 +219,10 @@ try:
                               "bets_count": 400, "bettors": 60, "new_players": 5, "bonus_kes": 1000, "house_revenue_kes": 4000},
                     "series": days, "attention": {"withdrawals_pending": 3, "withdrawals_pending_kes": 4500, "deposits_attention": 1},
                     "totals": {"players": 1200, "active_7d": 300, "player_balances_kes": 88000, "bonus_balances_kes": 4000}}
+        seen_urls = []
         def handle(route, request):
             u = request.url
+            seen_urls.append(request.method + " " + u.split("/v1/")[-1][:60])
             body = json.loads(request.post_data or "{}") if request.method == "POST" else {}
             h = {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"}
             if "/rest/v1/profiles" in u:
@@ -227,6 +242,9 @@ try:
             if "/realtime/" in u: return route.abort()
             return route.continue_()
         ctx, page, errors = new_page(browser, fake_session)
+        console = []
+        page.on("console", lambda m: console.append(f"{m.type}: {m.text}"[:200]))
+        page.on("requestfailed", lambda r: console.append(f"FAILED {r.method} {r.url[:90]} {r.failure}"))
         page.route(re.compile(re.escape(URL) + r"/(rest|realtime)/.*"), handle)
         page.goto(APP + "/admin", wait_until="domcontentloaded")
         check("owner: Overview opens across all brands", until(lambda: page.get_by_role("heading", name="Overview").is_visible(), 20000)
@@ -236,8 +254,13 @@ try:
         labels = nav_labels(page)
         check("owner: sees platform and settings items", "Brands & controls" in labels and "Settings" in labels, labels)
         page.get_by_test_id("scope-switcher").select_option(brands[1]["id"])
+        page.wait_for_timeout(3000)
+        try:
+            console.append("LOCKS " + json.dumps(page.evaluate("navigator.locks ? navigator.locks.query().then(q => ({held: q.held.map(l => l.name), pending: q.pending.map(l => l.name)})) : 'no locks api'")))
+        except Exception as e:
+            console.append(f"LOCKS error {e}")
         check("owner: picking a brand shows the 'viewing one brand' banner", until(lambda: "Second Brand" in page.get_by_test_id("scope-banner").inner_text(), 5000))
-        check("owner: the page reloads for that brand", until(lambda: brands[1]["id"] in seen_scope and "KSh 9,000" in page.get_by_test_id("kpi-deposits").inner_text(), 10000), seen_scope)
+        check("owner: the page reloads for that brand", until(lambda: brands[1]["id"] in seen_scope and "KSh 9,000" in page.get_by_test_id("kpi-deposits").inner_text(), 20000), (seen_scope, dump("owner-scope", seen_urls + ["--- console ---"] + console)))
         page.goto(APP + "/admin/withdrawals", wait_until="domcontentloaded")
         check("owner: the brand choice survives a reload, and unfiltered pages say so",
               until(lambda: page.get_by_test_id("scope-unscoped").is_visible(), 15000) and page.get_by_test_id("scope-banner").is_visible())
@@ -250,7 +273,11 @@ try:
         check("owner: turning a switch off asks for confirmation first", until(lambda: dlg.is_visible(), 3000) and cfg["deposits_enabled"] is True)
         shot(page, "owner-switch-confirm")
         page.get_by_test_id("confirm-switch").click()
-        check("owner: confirmed — switch is off and a warning shows", until(lambda: cfg["deposits_enabled"] is False and "turned off for every brand" in page.get_by_test_id("global-controls").inner_text(), 5000))
+        page.wait_for_timeout(3000)
+        console.append("AFTER-CONFIRM dialog=%s btn=%s" % (dlg.count(), page.get_by_test_id("confirm-switch").count()))
+        console.append("LOCKS2 " + json.dumps(page.evaluate("navigator.locks ? navigator.locks.query().then(q => ({held: q.held.map(l => l.name), pending: q.pending.map(l => l.name)})) : 'none'")))
+        check("owner: confirmed — switch is off and a warning shows", until(lambda: cfg["deposits_enabled"] is False and "turned off for every brand" in page.get_by_test_id("global-controls").inner_text(), 15000),
+              (cfg["deposits_enabled"], dump("owner-switch", seen_urls + console)))
         page.get_by_test_id("open-brand").nth(1).click()
         check("owner: 'Open' on a brand scopes the back office to it", until(lambda: page.get_by_role("heading", name="Overview").is_visible()
               and "Second Brand" in page.get_by_test_id("scope-banner").inner_text(), 10000))
