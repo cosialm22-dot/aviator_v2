@@ -4,6 +4,50 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #17 — CRITICAL: the crash time of the live round is public — OPEN, needs the owner's authorisation (engine)
+- **What:** `start_round` writes `game_rounds.crashes_at` (when the plane will crash) at take-off.
+  - `game_rounds` is readable by anyone (RLS `true` for anon and authenticated).
+  - It is in the realtime publication, so every client also receives it at take-off.
+- **Evidence:** round 116233 took off at 23:13:13.38. Anyone could read `crashes_at = 23:13:28.36` straight away, and the round crashed at 23:13:28.23 at 3.85x. A script can therefore cash out a tick before every crash and win every round.
+- **Why it matters:** no real players have bet yet. The first player who notices can drain the house.
+- **Proposed fix (engine, not yet made):**
+  - stop publishing `crashes_at` and the override fields (`is_override`, `override_reason`, `source`, `queue_id`) to clients;
+  - let the client learn about the crash from the crash event only;
+  - keep `crashes_at` in `round_secrets`, where `game_tick` already reads it.
+
+## #16 — Database kept running out of memory — FIXED (migration `20260927090000_db_memory_pressure`)
+- **Symptoms, measured over 5 minutes:**
+  - About 158 pages a second swapped in and 335 major page faults a second.
+  - Disk was read at 4.3 MiB/s around the clock, about 6.8 TB since boot.
+  - About 500 MB of the 1 GB swap was in use, with 123 MB of RAM free on a 426 MB machine.
+- **Root cause:** two engine lookups had no index and read whole tables many times a minute.
+  - `SELECT max(crashed_at) FROM game_rounds WHERE status='crashed'` runs on every tick of the 3-second pause after each crash: 1.35 million full scans, 76.7 billion rows read, 5,357 pages each time.
+  - `max(position)` on `crash_queue` runs every round: 214,000 full scans.
+  - Both tables grow by about 4,400 rows a day, so the load grew every day whatever else was tuned.
+- **Fix:**
+  - Partial and descending indexes were built concurrently, with no downtime and no engine code changed. Each lookup now reads 5 pages instead of 5,357.
+  - The player "Top" tab got an index too.
+  - Full scans of both tables dropped to zero.
+- **Measured after, same 5-minute method:**
+
+  | Measure | Before | After |
+  |---|---|---|
+  | Swap-in (pages a second) | 158 | 56 |
+  | Major page faults a second | 335 | 127 |
+  | Disk reads (MiB a second) | 4.3 | 2.3 |
+  | CPU busy | 7.5% | 4.1% |
+
+- **Errors fixed at the same time:**
+  - `game_drive` looped for 3,600 s but was killed by the 120 s statement timeout. That produced about 720 "canceling statement due to statement timeout" errors a day, each cancelling a tick in flight. `game.driver_max_seconds` is now 110, so the loop ends cleanly; runs now finish as "succeeded" at 1:50.
+  - The Deposits screen's gateway card sorted the whole cron history table. Under memory pressure it hit the 120 s timeout, which caused the only two 500 errors in the API logs. It now reads the newest run by primary key.
+  - `prune_cron_logs` never removed runs that had no end time. It now falls back to the start time.
+- **Still costing memory (owner's decisions):**
+  - **The machine:** it is Nano (0.5 GB RAM), which is too small for Postgres plus the Supabase services on the same box. In a paid (Pro) organisation Nano is billed at the Micro price (1 GB), so upgrading to Micro doubles the RAM at no extra cost. It needs a restart of a few minutes.
+  - **Bot bets:** 15–30 bot rows are inserted, updated and deleted every round. That is 7.85 million of the 9.7 million row changes since stats were reset, and each change goes through the WAL (7.8 GB so far) and realtime decoding. The top statement in `pg_stat_statements` is realtime's WAL reader (2,830 s, 280,000 calls). Turning bots off, or keeping them out of the realtime publication, would remove most of the remaining write load.
+- **Other log findings (harmless):**
+  - PostgREST's "Warp server error: Thread killed by timeout manager" (about 160 a day) is PostgREST closing idle keep-alive connections.
+  - Every other error in the last 24 hours came from test runs and was expected.
+
 ## #15 — Admin dashboard, phase 1: shell, brand scope, Overview, Players, Audit, platform switches — DONE (branch `feat/admin-tenancy`)
 - **Layout, modelled on the invest254 console:**
   - grouped navigation: Money / Players / Game / Growth / Administration / Platform;
@@ -196,10 +240,9 @@ Running log of bugs found while working through issues, with what was wrong, the
 ---
 
 ## Needs the owner's action
-- **Turn on automatic deposit checks.** In the Supabase SQL editor, once:
-  `select vault.create_secret('https://yhfxgzfmcwinpgmzcgma.supabase.co', 'project_url');`
-  `select vault.create_secret('<the MEGAPAY_CRON_SECRET value>', 'megapay_cron_secret');`
-  The `megapay_reconcile` job already runs every minute and starts working as soon as both exist. Deposits → Automatic checks will then show "Every minute".
+- **Automatic deposit checks:** DONE on 2026-09-25. Both vault secrets were created at the owner's instruction, and a test call through pg_net to `megapay-reconcile` returned HTTP 200.
+- **Authorise the fix for #17** (crash time readable by players). This is urgent before real players arrive.
+- **Upgrade the compute from Nano to Micro:** see #16. It costs the same on the Pro plan.
 - **Make one real KES 100 deposit** from a player account to confirm the whole path with real money.
 
 ## Needs the owner's decision (not changed)
