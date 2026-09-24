@@ -92,19 +92,6 @@ function drawPlaneSprite(ctx: CanvasRenderingContext2D, x: number, y: number, an
   ctx.restore();
 }
 
-// ── Partner splash (UFC × Aviator "official partners" card) ────────────────────
-// Drawn on the canvas ONLY during the waiting phase — i.e. after a round crashes
-// and before the next flight starts — as a between-rounds branding interstitial.
-const PARTNER_IMG_SRC = '/partners-ufc-aviator.png';
-const partnerSprite: HTMLImageElement | null =
-  typeof Image !== 'undefined' ? new Image() : null;
-let partnerSpriteReady = false;
-if (partnerSprite) {
-  partnerSprite.onload  = () => { partnerSpriteReady = true; };
-  partnerSprite.onerror = () => { partnerSpriteReady = false; };
-  partnerSprite.src = PARTNER_IMG_SRC;
-}
-
 // ── Palette (sampled from the reference recording) ───────────────────────────
 const C_BG          = '#0d0d0d';
 const C_SPOKE_LIGHT = '#1e1e1e';
@@ -361,30 +348,11 @@ function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, n
 
 // ── Waiting overlay: "WAITING FOR NEXT ROUND" + animated loader bar ───────────
 function drawWaiting(ctx: CanvasRenderingContext2D, W: number, H: number, now: number, countdown: number, status: GameStatus) {
-  // Between-rounds partner splash: drawn only during the waiting phase (after a
-  // crash, before the next flight). The artwork carries its own background, so we
-  // frame it with a rounded mask, soft shadow and a thin brand-red border so it
-  // reads as a deliberate "official partners" card rather than a pasted rectangle.
-  // The waiting label + loader + countdown then stack below the card.
-  let anchorY = H * 0.42;
-  if (status === 'waiting' && partnerSprite && partnerSpriteReady && partnerSprite.naturalWidth > 0) {
-    const aspect = partnerSprite.naturalWidth / partnerSprite.naturalHeight;
-    let logoW = Math.min(W * 0.40, 250);
-    let logoH = logoW / aspect;
-    const maxLogoH = H * 0.34;
-    if (logoH > maxLogoH) { logoH = maxLogoH; logoW = logoH * aspect; }
-    const logoX = (W - logoW) / 2;
-    const logoY = H * 0.08;
-
-    // The artwork is a transparent cut-out (no background), so it sits directly
-    // on the scene; a soft shadow lifts it off the rotating spokes for legibility.
-    ctx.save();
-    ctx.shadowBlur = 18; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowOffsetY = 2;
-    ctx.drawImage(partnerSprite, logoX, logoY, logoW, logoH);
-    ctx.restore();
-
-    anchorY = Math.min(logoY + logoH + H * 0.085, H * 0.82);
-  }
+  // No partner card: the old "UFC × Aviator official partners / SPRIBE official game" artwork
+  // claimed partnerships this game does not have, so the waiting screen shows only the label,
+  // the loader and the countdown.
+  const anchorY = H * 0.42;
+  void status;
 
   ctx.save();
   ctx.textAlign = 'center';

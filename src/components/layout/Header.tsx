@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, LogOut, Menu, X, ChevronDown, LayoutDashboard, UserCircle } from 'lucide-react';
+import { Wallet, Menu, X } from 'lucide-react';
+import GameMenu from './GameMenu';
 import type { Profile } from '../../types';
 import NotificationBell from '../notifications/NotificationBell';
 import { useSiteTheme } from '../../hooks/useSiteTheme';
@@ -17,9 +18,6 @@ interface Props {
   onSignOut: () => void;
 }
 
-// Marketers get their own hub in the PLAYER shell (they are signed-in players,
-// never operators). The operator admin panel (/admin) is operators-only.
-const MARKETER_DASHBOARD_PATH = '/marketer';
 
 // The global chrome carries ONE job per state:
 //   signed-out -> a single dominant "Register" CTA (+ a quiet "Log in" link)
@@ -32,11 +30,14 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
   const { planeSkin } = useSiteTheme();
   const streamer = useStreamerMode();
   const domain = typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : '';
-  const [menuOpen, setMenuOpen] = useState(false);       // mobile hamburger sheet
-  const [profileOpen, setProfileOpen] = useState(false); // desktop profile dropdown
+  const [menuOpen, setMenuOpen] = useState(false); // the ☰ game menu (all screen sizes, as in the mock)
+  const [freeBets, setFreeBets] = useState(0);      // published by the game screen
+  useEffect(() => {
+    const on = (e: Event) => setFreeBets(Number((e as CustomEvent<number>).detail) || 0);
+    window.addEventListener('aviator:freebets', on);
+    return () => window.removeEventListener('aviator:freebets', on);
+  }, []);
   const navigate = useNavigate();
-
-  const isMarketer = profile?.role === 'marketer';
 
   return (
     <header className="bg-night border-b border-edge px-3 sm:px-4 h-10 flex items-center justify-between gap-2 relative z-30 flex-shrink-0">
@@ -101,70 +102,7 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
             {/* Notifications bell (live) */}
             <NotificationBell />
 
-            {/* Profile dropdown (desktop) - avatar is the menu trigger */}
-            <div className="hidden sm:block relative">
-              <button
-                onClick={() => setProfileOpen(o => !o)}
-                aria-haspopup="menu"
-                aria-expanded={profileOpen}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-edge hover:border-[#3a3a55] transition"
-              >
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                  style={{ backgroundColor: profile.avatar_color }}
-                >
-                  {profile.username[0]?.toUpperCase()}
-                </div>
-                <span className="text-slate-300 text-xs font-medium max-w-[120px] truncate">{profile.username}</span>
-                <ChevronDown size={12} className={`text-slate-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {profileOpen && (
-                <>
-                  {/* click-away backdrop */}
-                  <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} />
-                  <div role="menu" className="absolute right-0 top-full mt-1 w-56 bg-night border border-edge rounded-xl shadow-2xl z-40 overflow-hidden py-1">
-                    <button
-                      onClick={() => { setProfileOpen(false); navigate('/profile'); }}
-                      role="menuitem"
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-panel-raised transition"
-                    >
-                      <UserCircle size={15} className="text-[#60a5fa]" />
-                      My Profile
-                    </button>
-                    {isMarketer && (
-                      <button
-                        onClick={() => { setProfileOpen(false); navigate(MARKETER_DASHBOARD_PATH); }}
-                        role="menuitem"
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-200 hover:bg-panel-raised transition"
-                      >
-                        <LayoutDashboard size={15} className="text-win" />
-                        Marketer Hub
-                      </button>
-                    )}
-                    <button
-                      onClick={() => { setProfileOpen(false); onSignOut(); }}
-                      role="menuitem"
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-panel-raised transition"
-                    >
-                      <LogOut size={15} className="text-slate-500" />
-                      Sign Out
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Mobile menu toggle */}
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="sm:hidden p-2 -mr-1 text-slate-300 hover:text-white transition"
-              aria-label="Menu"
-              aria-expanded={menuOpen}
-            >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-          </>
+</>
         ) : (
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button
@@ -181,60 +119,22 @@ export default function Header({ profile, balance, onSignInOpen, onRegisterOpen,
             </button>
           </div>
         )}
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="-mr-1 p-1.5 text-[#9ea0a3] transition hover:text-white"
+          aria-label="Game menu"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </div>
 
-      {/* Mobile dropdown */}
-      {menuOpen && profile && (
-        <div className="sm:hidden absolute top-14 right-0 left-0 bg-night border-b border-edge p-4 space-y-3 shadow-xl z-40">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                style={{ backgroundColor: profile.avatar_color }}
-              >
-                {profile.username[0]?.toUpperCase()}
-              </div>
-              <div>
-                <div className="text-white font-semibold text-sm">{profile.username}</div>
-                <div style={{ color: '#22c55e' }} className="text-xs font-bold">
-                  KShs {balance.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={() => { setMenuOpen(false); navigate('/profile'); }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-panel-raised border border-edge text-slate-200 rounded-lg text-sm font-semibold"
-          >
-            <UserCircle size={14} className="text-[#60a5fa]" /> My Profile
-          </button>
-
-          {isMarketer && (
-            <button
-              onClick={() => { setMenuOpen(false); navigate(MARKETER_DASHBOARD_PATH); }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-panel-raised border border-edge text-slate-200 rounded-lg text-sm font-semibold"
-            >
-              <LayoutDashboard size={14} className="text-win" /> Marketer Hub
-            </button>
-          )}
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => { onWalletOpen(); setMenuOpen(false); }}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-win text-white rounded-lg text-sm font-bold"
-            >
-              <Wallet size={14} /> Deposit
-            </button>
-            <button
-              onClick={() => { onSignOut(); setMenuOpen(false); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-panel-raised text-slate-300 rounded-lg text-sm"
-            >
-              <LogOut size={14} /> Sign Out
-            </button>
-          </div>
-        </div>
+      {menuOpen && (
+        <GameMenu profile={profile} freeBetCount={freeBets} onClose={() => setMenuOpen(false)} onWalletOpen={onWalletOpen} onSignOut={onSignOut} />
       )}
+
     </header>
   );
 }
