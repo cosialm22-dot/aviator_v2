@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Spin } from '../components/Spin';
-import { useAdmin } from '../roleContext';
+import { useScope } from '../scopeContext';
 import { fmtKES } from './settings/shared';
 import {
   adminDepositError, attentionReason, canCheckNow, canConfirmByHand, maskPhone, normaliseReceipt,
@@ -45,7 +45,8 @@ interface Overview {
 interface Gateway { configured: boolean; env: string; base_url: string; email: string | null; cron: boolean; test?: { ok: boolean; message?: string } }
 
 export default function DepositsPage() {
-  const { isPlatform } = useAdmin();
+  const scope = useScope();
+  const isPlatform = scope.multiBrand;
   const [ov, setOv] = useState<Overview | null>(null);
   const [gw, setGw] = useState<Gateway | null>(null);
   const [rows, setRows] = useState<DepositRow[]>([]);
@@ -53,8 +54,7 @@ export default function DepositsPage() {
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
-  const [site, setSite] = useState<string>('');
-  const [sites, setSites] = useState<{ id: string; name: string }[]>([]);
+  const site = scope.siteId ?? '';
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -62,12 +62,6 @@ export default function DepositsPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<DepositRow | null>(null);
   const [testing, setTesting] = useState(false);
-
-  // Platform owner can focus on one brand.
-  useEffect(() => {
-    if (!isPlatform) return;
-    supabase.from('sites').select('id, name').order('name').then(({ data }) => setSites((data ?? []) as { id: string; name: string }[]));
-  }, [isPlatform]);
 
   const loadOverview = useCallback(async () => {
     const { data, error } = await supabase.rpc('fn_admin_megapay_overview', { p_site: site || null });
@@ -174,12 +168,6 @@ export default function DepositsPage() {
           <p className="text-[13px] text-muted mt-1">M-Pesa deposits through Mega Pay — live status, checks and hand confirmation</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {isPlatform && (
-            <select value={site} onChange={(e) => setSite(e.target.value)} aria-label="Brand" className={INPUT}>
-              <option value="">All brands</option>
-              {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          )}
           <button onClick={checkAllNow} disabled={busy === 'all'} className={BTN} data-testid="deposits-check-all">
             {busy === 'all' ? <Spin /> : <RefreshCw size={14} />} Check waiting deposits now
           </button>

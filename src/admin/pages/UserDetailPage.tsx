@@ -3,6 +3,7 @@ import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useAdmin } from '../roleContext';
 
 // ============================================================================
 // UserDetailPage - admin player detail (Milestone 2)
@@ -86,12 +87,15 @@ function txnBadge(type: string): string {
   }
 }
 
-const SHELL = '-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]';
+const SHELL = 'space-y-6';
 
 export default function UserDetailPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const [d, setD] = useState<UserDetail | null>(null);
+  // Support can look but not act (the server refuses too).
+  const { role: myRole } = useAdmin();
+  const canAct = myRole !== 'support';
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -204,7 +208,9 @@ export default function UserDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {p.role === 'super_admin' ? (
+            {!canAct ? (
+              <span className="inline-flex items-center px-3 py-2 rounded-lg border border-line bg-canvas text-muted text-xs" data-testid="view-only">View only — support cannot change accounts</span>
+            ) : p.role === 'super_admin' || p.role === 'platform_superadmin' ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line bg-canvas text-muted text-xs font-medium" title="The super admin is permanent: it cannot be demoted, banned, or removed.">Protected super admin</span>
             ) : (
               <>

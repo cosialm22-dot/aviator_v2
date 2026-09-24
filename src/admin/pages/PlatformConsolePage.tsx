@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useScope } from '../scopeContext';
+import { Button, PageHeader } from '../ui/kit';
+import GlobalControls from '../components/GlobalControls';
 import { Building2, Plus, X, Users, TrendingUp, Banknote, Clock, Check, AlertCircle } from 'lucide-react';
 
 // ============================================================================
@@ -60,10 +64,12 @@ function friendly(msg: string | undefined): string {
 const STATUS_STYLE: Record<string, string> = {
   active: 'bg-up/15 text-up',
   suspended: 'bg-gold/15 text-gold',
-  archived: 'bg-white/10 text-muted',
+  disabled: 'bg-down/15 text-down',
 };
 
 export default function PlatformConsolePage() {
+  const scope = useScope();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<SiteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -94,25 +100,14 @@ export default function PlatformConsolePage() {
   );
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
+    <div className="w-full">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-brand/15 flex items-center justify-center">
-            <Building2 size={20} className="text-brand" strokeWidth={1.75} />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-ink tracking-tight">Platform Console</h1>
-            <p className="text-[13px] text-muted">All brands run on one shared game engine. Manage each brand below.</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-brand hover:bg-brand/90 text-white text-[13px] font-medium transition-colors self-start"
-        >
-          <Plus size={16} strokeWidth={2} /> New Brand
-        </button>
+      <div className="mb-6">
+        <PageHeader eyebrow="Platform" title="Brands & controls"
+          subtitle="Every brand runs on one shared game engine. Switches here apply to all brands at once; open a brand to work in its back office."
+          actions={<Button variant="primary" onClick={() => setShowCreate(true)}><Plus size={15} /> New brand</Button>} />
       </div>
+      <div className="mb-6"><GlobalControls /></div>
 
       {/* Platform roll-up */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
@@ -177,7 +172,11 @@ export default function PlatformConsolePage() {
                         : <span className="inline-flex items-center gap-1 text-down text-[12px]"><X size={13} /> Off</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => setEditing(r)} className="px-2.5 py-1 rounded-md border border-line text-muted hover:text-ink hover:border-brand text-[12px] transition-colors">Edit</button>
+                      <span className="inline-flex gap-1.5">
+                        <button onClick={() => { scope.setSiteId(r.site_id); navigate('/admin'); }} data-testid="open-brand"
+                          className="px-2.5 py-1 rounded-md border border-brand/40 text-brand hover:bg-brand/10 text-[12px] transition-colors">Open</button>
+                        <button onClick={() => setEditing(r)} className="px-2.5 py-1 rounded-md border border-line text-muted hover:text-ink hover:border-brand text-[12px] transition-colors">Edit</button>
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -299,7 +298,7 @@ function EditBrandModal({ site, onClose, onDone }: { site: SiteRow; onClose: () 
           <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="active">Active</option>
             <option value="suspended">Suspended (blocks new signups)</option>
-            <option value="archived">Archived</option>
+            <option value="disabled">Disabled (brand offline)</option>
           </select>
         </div>
         <label className="flex items-center justify-between py-2 px-3 rounded-lg bg-canvas border border-line cursor-pointer">

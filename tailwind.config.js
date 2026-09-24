@@ -37,6 +37,8 @@ export default {
         line: '#26303c',   // hairline borders
         canvas: '#0b0f14', // page background (dark)
         surface: '#141b24',// card background (dark, lifted from canvas)
+        raised: '#1b2430', // controls / hover rows / skeletons (one step above surface)
+        warn: '#f0b90b',   // needs attention (amber)
       },
     },
   },

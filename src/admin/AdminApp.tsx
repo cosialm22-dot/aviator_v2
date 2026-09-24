@@ -9,6 +9,7 @@ import GameControlPage from './pages/GameControlPage';
 import WithdrawalsPage from './pages/WithdrawalsPage';
 import FinancePage from './pages/FinancePage';
 import DepositsPage from './pages/DepositsPage';
+import AuditPage from './pages/AuditPage';
 import RiskPage from './pages/RiskPage';
 import SettingsPage from './pages/SettingsPage';
 import MarketingAdminPage from './pages/MarketingAdminPage';
@@ -43,6 +44,7 @@ export default function AdminApp() {
           <Route path="game" element={<RequireSection section="game"><GameControlPage /></RequireSection>} />
           <Route path="withdrawals" element={<RequireSection section="withdrawals"><WithdrawalsPage /></RequireSection>} />
           <Route path="deposits" element={<RequireSection section="deposits"><DepositsPage /></RequireSection>} />
+          <Route path="audit" element={<RequireSection section="audit"><AuditPage /></RequireSection>} />
           <Route path="risk" element={<RequireSection section="risk"><RiskPage /></RequireSection>} />
           <Route path="finance" element={<RequireSection section="finance"><FinancePage /></RequireSection>} />
           <Route path="settings" element={<RequireSection section="settings"><SettingsPage /></RequireSection>} />

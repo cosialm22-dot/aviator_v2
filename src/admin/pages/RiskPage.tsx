@@ -74,7 +74,7 @@ export default function RiskPage() {
   }
 
   return (
-    <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
+    <div className="space-y-6">
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>

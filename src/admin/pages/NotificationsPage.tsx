@@ -76,7 +76,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1100px] mx-auto">
+    <div className="w-full max-w-[1100px]">
       <div className="flex items-center gap-3 mb-6">
         <div className="h-10 w-10 rounded-xl bg-brand/15 flex items-center justify-center">
           <Megaphone size={20} className="text-brand" strokeWidth={1.75} />

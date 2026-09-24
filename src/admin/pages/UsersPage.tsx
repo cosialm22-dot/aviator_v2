@@ -1,158 +1,149 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Spin } from '../components/Spin';
-import { errMsg } from '../../lib/errors';
-import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useScope } from '../scopeContext';
+import { Badge, Button, Card, Empty, ErrorState, PageHeader, Pagination, Pills, SearchInput, Select, Skeleton, TableWrap, Td, Th } from '../ui/kit';
+import { kes, maskPhone, relTime, ROLE_LABEL, staffError } from '../ui/format';
 
-interface PlayerRow {
-  id: string;
-  username: string;
-  avatar_color: string;
-  role: string;
-  is_banned: boolean;
-  total_wagered: number;
-  created_at: string;
+// ============================================================================
+// PLAYERS — every account on the brand (platform owner: all brands or one), searched and
+// filtered server-side (admin_list_players), 50 per page, with the full total.
+// ============================================================================
+
+interface Row {
+  id: string; username: string; phone_number: string | null; role: string; is_banned: boolean;
+  created_at: string; last_active_at: string | null; total_deposited: number; total_withdrawn: number;
+  total_wagered: number; total_won: number; balance: number; bonus: number; risk_level: string | null; site_name: string | null;
+}
+type Status = 'all' | 'active' | 'depositors' | 'dormant' | 'banned' | 'high_risk';
+type RoleF = 'player' | 'marketer' | 'staff' | 'any';
+type Sort = 'newest' | 'oldest' | 'last_active' | 'deposited' | 'balance' | 'wagered' | 'username';
+
+const STATUS: { value: Status; label: string }[] = [
+  { value: 'all', label: 'All' }, { value: 'active', label: 'Active 7d' }, { value: 'depositors', label: 'Depositors' },
+  { value: 'dormant', label: 'Dormant 30d+' }, { value: 'high_risk', label: 'High risk' }, { value: 'banned', label: 'Banned' },
+];
+const PAGE = 50;
+
+function useDebounced<T>(v: T, ms = 300): T {
+  const [d, setD] = useState(v);
+  useEffect(() => { const t = setTimeout(() => setD(v), ms); return () => clearTimeout(t); }, [v, ms]);
+  return d;
 }
 
-function friendly(code: string): string {
-  if (code.includes('FORBIDDEN_TARGET')) return 'Only a super admin can act on an admin account.';
-  if (code.includes('CANNOT_TARGET_SELF')) return 'You cannot ban your own account.';
-  if (code.includes('REASON_REQUIRED')) return 'A reason is required.';
-  if (code.includes('FORBIDDEN')) return 'You do not have permission for this action.';
-  return code || 'Action failed. Please try again.';
+function csv(rows: Row[]): string {
+  const head = ['username', 'id', 'role', 'status', 'balance_kes', 'bonus_kes', 'deposited_kes', 'withdrawn_kes', 'wagered_kes', 'risk', 'joined', 'last_active'];
+  const esc = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  return [head.join(','), ...rows.map((r) => [r.username, r.id, r.role, r.is_banned ? 'banned' : 'active', r.balance, r.bonus, r.total_deposited,
+    r.total_withdrawn, r.total_wagered, r.risk_level ?? '', r.created_at, r.last_active_at ?? ''].map(esc).join(','))].join('\n');
 }
 
 export default function UsersPage() {
-  const [players, setPlayers] = useState<PlayerRow[]>([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [banRow, setBanRow] = useState<PlayerRow | null>(null);
-  const [banReason, setBanReason] = useState('');
+  const scope = useScope();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const [q, setQ] = useState(params.get('q') ?? '');
+  const status = (params.get('status') as Status) || 'all';
+  const role = (params.get('role') as RoleF) || 'player';
+  const sort = (params.get('sort') as Sort) || 'newest';
+  const page = Math.max(0, Number(params.get('page') ?? 0) || 0);
+  const dq = useDebounced(q);
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const reqId = useRef(0);
 
-  const runSearch = useCallback(async (term: string) => {
+  const setParam = useCallback((k: string, v: string | null, resetPage = true) => {
+    setParams((p) => { const n = new URLSearchParams(p); if (v == null || v === '') n.delete(k); else n.set(k, v); if (resetPage && k !== 'page') n.delete('page'); return n; }, { replace: true });
+  }, [setParams]);
+
+  useEffect(() => { setParam('q', dq || null); }, [dq, setParam]);
+
+  const load = useCallback(async () => {
+    const id = ++reqId.current;
     setLoading(true);
-    setErr(null);
-    let q = supabase.from('profiles').select('id, username, avatar_color, role, is_banned, total_wagered, created_at').order('created_at', { ascending: false }).limit(100);
-    if (term.trim()) q = q.ilike('username', `%${term.trim()}%`);
-    const { data } = await q;
-    setPlayers((data ?? []) as PlayerRow[]);
+    const { data, error } = await supabase.rpc('admin_list_players', {
+      p_site: scope.siteId, p_q: dq || null, p_status: status, p_role: role, p_sort: sort, p_limit: PAGE, p_offset: page * PAGE,
+    });
+    if (id !== reqId.current) return; // a newer search already answered
     setLoading(false);
-  }, []);
+    if (error) { setErr(staffError(error, 'Could not load players.')); return; }
+    setErr(null);
+    const d = data as { total: number; rows: Row[] };
+    setRows(d.rows); setTotal(d.total);
+  }, [scope.siteId, dq, status, role, sort, page]);
+  useEffect(() => { void load(); }, [load]);
 
-  // Live search: debounce keystrokes into a query (runs on mount with '' too).
-  // No Enter key or button needed -- results follow as you type.
-  useEffect(() => {
-    const id = setTimeout(() => void runSearch(search), 300);
-    return () => clearTimeout(id);
-  }, [search, runSearch]);
-
-  async function setBan(row: PlayerRow, ban: boolean, reason?: string) {
-    setBusyId(row.id); setErr(null);
-    try {
-      const { error } = await supabase.rpc('admin_set_ban', { p_user_id: row.id, p_ban: ban, p_reason: reason ?? null });
-      if (error) throw new Error(friendly(error.message));
-      setBanRow(null); setBanReason('');
-      await runSearch(search);
-    } catch (e) { setErr(errMsg(e, 'Action failed')); }
-    finally { setBusyId(null); }
+  function exportCsv() {
+    if (!rows) return;
+    const blob = new Blob([csv(rows)], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `players-page-${page + 1}.csv`; a.click();
+    URL.revokeObjectURL(a.href);
   }
 
-  const roleBadge = (role: string) =>
-    role === 'super_admin' ? 'bg-down/10 text-down' :
-    role === 'admin' ? 'bg-brand/10 text-brand' :
-    role === 'marketer' ? 'bg-violet-500/10 text-violet-300' :
-    'bg-white/[0.06] text-muted';
-
   return (
-    <div className="-m-6 p-6 sm:p-8 bg-canvas min-h-[calc(100dvh-3.5rem)]">
-      <div className="space-y-6">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-[22px] font-semibold text-ink tracking-tight">Players</h1>
-            <p className="text-[13px] text-muted mt-1">Search and manage registered accounts</p>
+    <>
+      <PageHeader title="Players" subtitle={`${scope.label} · search, filter and open any account`}
+        actions={<Button onClick={exportCsv} disabled={!rows?.length}><Download size={14} /> Export this page</Button>} />
+
+      <Card pad={false}>
+        <div className="p-4 flex flex-wrap items-center gap-2 border-b border-line">
+          <Pills items={STATUS} value={status} onChange={(v) => setParam('status', v === 'all' ? null : v)} label="Player status" />
+          <div className="flex flex-wrap items-center gap-2 ml-auto w-full lg:w-auto">
+            <SearchInput value={q} onChange={setQ} placeholder="Username, phone or id" label="Search players" className="flex-1 lg:w-64" />
+            <Select<RoleF> value={role} onChange={(v) => setParam('role', v === 'player' ? null : v)} label="Account type"
+              options={[{ value: 'player', label: 'Players' }, { value: 'marketer', label: 'Marketers' }, { value: 'staff', label: 'Staff' }, { value: 'any', label: 'Everyone' }]} />
+            <Select<Sort> value={sort} onChange={(v) => setParam('sort', v === 'newest' ? null : v)} label="Sort"
+              options={[{ value: 'newest', label: 'Newest' }, { value: 'last_active', label: 'Last active' }, { value: 'deposited', label: 'Most deposited' },
+                { value: 'balance', label: 'Highest balance' }, { value: 'wagered', label: 'Most wagered' }, { value: 'username', label: 'Username A–Z' }, { value: 'oldest', label: 'Oldest' }]} />
           </div>
-          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
         </div>
 
-        <div className="relative max-w-sm">
-          <Search size={16} strokeWidth={1.75} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint pointer-events-none" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search username..."
-            className="w-full pl-9 pr-4 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition-colors"
-          />
-        </div>
+        {err && <div className="p-4"><ErrorState message={err} onRetry={() => void load()} /></div>}
 
-        <div className="rounded-xl border border-line bg-surface overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
-                  <th className="text-left font-medium px-5 py-3">Player</th>
-                  <th className="text-left font-medium px-5 py-3">Role</th>
-                  <th className="text-right font-medium px-5 py-3">Wagered</th>
-                  <th className="text-left font-medium px-5 py-3">Status</th>
-                  <th className="text-left font-medium px-5 py-3 hidden sm:table-cell">Joined</th>
-                  <th className="text-right font-medium px-5 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {loading ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-faint">Loading...</td></tr>
-                ) : players.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-faint">No players</td></tr>
-                ) : players.map(p => (
-                  <tr key={p.id} onClick={() => navigate(`/admin/users/${p.id}`)} className="hover:bg-canvas cursor-pointer transition-colors">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold" style={{ backgroundColor: p.avatar_color }}>{p.username[0]?.toUpperCase()}</div>
-                        <span className="text-ink font-medium">{p.username}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3"><span className={'text-[10px] px-2 py-0.5 rounded font-semibold ' + roleBadge(p.role)}>{p.role}</span></td>
-                    <td className="px-5 py-3 text-right text-ink tabular-nums">KSh {Number(p.total_wagered).toLocaleString()}</td>
-                    <td className="px-5 py-3">
-                      {p.is_banned
-                        ? <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-down"><span className="h-1.5 w-1.5 rounded-full bg-down" />Banned</span>
-                        : <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-up"><span className="h-1.5 w-1.5 rounded-full bg-up" />Active</span>}
-                    </td>
-                    <td className="px-5 py-3 text-muted text-xs hidden sm:table-cell">{new Date(p.created_at).toLocaleDateString()}</td>
-                    <td className="px-5 py-3 text-right" onClick={e => e.stopPropagation()}>
-                      {p.role === 'player' ? (
-                        p.is_banned
-                          ? <button onClick={() => setBan(p, false)} disabled={busyId === p.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand/30 text-brand text-[12px] font-semibold hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">{busyId === p.id && <Spin />}Unban</button>
-                          : <button onClick={() => { setErr(null); setBanReason(''); setBanRow(p); }} disabled={busyId === p.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-down/30 text-down text-[12px] font-semibold hover:bg-down/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-down/40 transition-colors disabled:opacity-40">Ban</button>
-                      ) : (
-                        <button onClick={() => navigate(`/admin/users/${p.id}`)} className="text-[12px] text-muted hover:text-ink transition-colors">Manage</button>
-                      )}
-                    </td>
+        {rows === null ? (
+          <div className="p-4 space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}</div>
+        ) : rows.length === 0 ? (
+          <div className="p-4"><Empty title="No accounts match" body="Try another search or filter." /></div>
+        ) : (
+          <div className={loading ? 'opacity-60 transition-opacity' : ''}>
+            <TableWrap testId="players-table" minWidth={scope.multiBrand ? 1040 : 940}>
+              <thead><tr>
+                <Th>Player</Th>{scope.multiBrand && <Th>Brand</Th>}<Th>Phone</Th><Th numeric>Balance</Th><Th numeric>Deposited</Th>
+                <Th numeric>Withdrawn</Th><Th numeric>Wagered</Th><Th>Status</Th><Th>Joined</Th><Th>Last active</Th>
+              </tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} data-testid="player-row" onClick={() => navigate(`/admin/users/${r.id}`)} className="border-b border-line/60 hover:bg-raised/40 cursor-pointer">
+                    <Td>
+                      <Link to={`/admin/users/${r.id}`} onClick={(e) => e.stopPropagation()} className="text-ink font-medium hover:text-brand">{r.username}</Link>
+                      {r.role !== 'player' && <span className="ml-2"><Badge tone="brand">{ROLE_LABEL[r.role] ?? r.role}</Badge></span>}
+                    </Td>
+                    {scope.multiBrand && <Td className="text-muted text-xs">{r.site_name ?? '—'}</Td>}
+                    <Td className="text-muted text-xs font-mono">{maskPhone(r.phone_number)}</Td>
+                    <Td numeric className="text-ink">{kes(r.balance)}{r.bonus > 0 && <span className="block text-[11px] text-faint">+{kes(r.bonus)} bonus</span>}</Td>
+                    <Td numeric className="text-muted">{kes(r.total_deposited)}</Td>
+                    <Td numeric className="text-muted">{kes(r.total_withdrawn)}</Td>
+                    <Td numeric className="text-muted">{kes(r.total_wagered)}</Td>
+                    <Td>
+                      {r.is_banned ? <Badge tone="down">Banned</Badge>
+                        : r.risk_level === 'high' || r.risk_level === 'critical' ? <Badge tone="warn">High risk</Badge>
+                        : r.last_active_at && Date.now() - Date.parse(r.last_active_at) < 7 * 864e5 ? <Badge tone="up">Active</Badge>
+                        : <Badge>Quiet</Badge>}
+                    </Td>
+                    <Td className="text-muted text-xs whitespace-nowrap" title={new Date(r.created_at).toLocaleString()}>{relTime(r.created_at)}</Td>
+                    <Td className="text-muted text-xs whitespace-nowrap">{relTime(r.last_active_at)}</Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </TableWrap>
           </div>
-        </div>
-      </div>
-
-      {/* Ban modal */}
-      {banRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setBanRow(null)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Ban {banRow.username}</h3>
-            <p className="text-muted text-[13px] mt-2 leading-relaxed">The player will be flagged as banned. A reason is required and recorded in the audit log.</p>
-            <textarea value={banReason} onChange={e => setBanReason(e.target.value)} autoFocus rows={3} placeholder="Reason for ban (required)" className="mt-4 w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-down/30 focus:border-down/40 resize-none transition" />
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setBanRow(null)} disabled={busyId === banRow.id} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={() => setBan(banRow, true, banReason)} disabled={busyId === banRow.id || !banReason.trim()} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-down hover:brightness-95">{busyId === banRow.id && <Spin />}Ban</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+        <Pagination page={page} pageSize={PAGE} total={total} onPage={(p) => setParam('page', p ? String(p) : null, false)} label="accounts" />
+      </Card>
+    </>
   );
 }
