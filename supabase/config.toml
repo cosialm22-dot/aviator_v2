@@ -33,3 +33,16 @@ enabled = true
 policy = "per_worker"
 
 [functions]
+
+# The gateway JWT check is off for functions that authenticate themselves:
+#   megapay-callback / megapay-reconcile: provider webhook and pg_cron (x-cron-secret)
+#   brand-domains: pg_cron sweep (x-cron-secret, checked against Vault); every other action runs
+#                  its RPCs AS the caller's JWT, so an anonymous or forged token gets nothing.
+[functions.megapay-callback]
+verify_jwt = false
+
+[functions.megapay-reconcile]
+verify_jwt = false
+
+[functions.brand-domains]
+verify_jwt = false
