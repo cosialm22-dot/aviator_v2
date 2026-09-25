@@ -110,6 +110,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
   const glowRef    = useRef(0);       // eased flight-glow intensity 0..1
   const flashRef   = useRef(0);       // crash flash frames
   const dimRef     = useRef({ w: 0, h: 0, dpr: 1 });
+  const cdRef      = useRef({ value: 0, at: 0, total: 0 }); // smooths the whole-second countdown
 
   const stateRef = useRef({ status, crashPoint, getMultiplier, countdown });
   stateRef.current = { status, crashPoint, getMultiplier, countdown };
@@ -166,9 +167,16 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       const colorMult = status === 'crashed' ? crashPoint : flying ? mult : 1.0;
       drawBackground(ctx, W, H, now, glowRef.current, multiplierColor(colorMult));
 
+      const cd = cdRef.current;
+      if (status !== 'waiting') { cd.total = 0; cd.value = 0; }
+      else if (countdown !== cd.value) {
+        if (countdown > cd.value || cd.total === 0) cd.total = countdown;
+        cd.value = countdown; cd.at = now;
+      }
       if (status === 'idle' || status === 'waiting') {
+        const remain = countdown > 0 ? Math.max(countdown - 1, countdown - (now - cd.at) / 1000) : 0;
         drawRestingPlane(ctx, W, H, now);
-        drawWaiting(ctx, W, H, now, countdown, status);
+        drawWaiting(ctx, W, H, now, status === 'waiting' && cd.total > 0 ? remain / cd.total : -1);
         rafRef.current = requestAnimationFrame(frame);
         return;
       }
@@ -346,54 +354,37 @@ function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, n
   else                drawPlaneSprite(ctx, x, y, heading, W);
 }
 
-// ── Waiting overlay: "WAITING FOR NEXT ROUND" + animated loader bar ───────────
-function drawWaiting(ctx: CanvasRenderingContext2D, W: number, H: number, now: number, countdown: number, status: GameStatus) {
-  // No partner card: the old "UFC × Aviator official partners / SPRIBE official game" artwork
-  // claimed partnerships this game does not have, so the waiting screen shows only the label,
-  // the loader and the countdown.
-  const anchorY = H * 0.42;
-  void status;
-
+// ── Waiting overlay: a bar that drains to take-off (no words). `frac` < 0 = not known yet
+//    (connecting): an indeterminate sweep instead.
+function drawWaiting(ctx: CanvasRenderingContext2D, W: number, H: number, now: number, frac: number) {
+  const bw = Math.min(W * 0.5, 280), bh = Math.max(6, Math.min(H * 0.022, 10));
+  const bx = (W - bw) / 2, by = H * 0.44;
   ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const fs = Math.min(W * 0.028, 22);
-  ctx.font = `700 ${fs}px Inter, Arial, sans-serif`;
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.shadowBlur = 12; ctx.shadowColor = 'rgba(0,0,0,0.6)';
-  const label = status === 'idle' ? 'CONNECTING…' : 'WAITING FOR NEXT ROUND';
-  ctx.fillText(label, W / 2, anchorY);
-  ctx.shadowBlur = 0;
-
-  // Loader bar: indeterminate sweep, tinted red. Shows the countdown when known.
-  const bw = Math.min(W * 0.42, 320), bh = Math.max(4, H * 0.012);
-  const bx = (W - bw) / 2, by = anchorY + fs * 1.4;
-  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
   roundRect(ctx, bx, by, bw, bh, bh / 2); ctx.fill();
-  const seg = bw * 0.32;
-  const t = (now % 1400) / 1400;
-  const sx = bx + (bw + seg) * t - seg;
   ctx.save();
   roundRect(ctx, bx, by, bw, bh, bh / 2); ctx.clip();
-  const grad = ctx.createLinearGradient(sx, 0, sx + seg, 0);
-  grad.addColorStop(0, 'rgba(232,18,60,0)');
-  grad.addColorStop(0.5, 'rgba(232,18,60,1)');
-  grad.addColorStop(1, 'rgba(232,18,60,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(bx, by, bw, bh);
-  ctx.restore();
-
-  if (countdown > 0) {
-    ctx.font = `600 ${Math.min(W * 0.02, 14)}px Inter, Arial, sans-serif`;
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.fillText(`Starting in ${countdown}s`, W / 2, by + bh + fs * 1.1);
+  if (frac >= 0) {
+    ctx.fillStyle = '#e8123c';
+    ctx.fillRect(bx, by, bw * Math.max(0, Math.min(1, frac)), bh);
+  } else {
+    const seg = bw * 0.32;
+    const t = (now % 1400) / 1400;
+    const sx = bx + (bw + seg) * t - seg;
+    const grad = ctx.createLinearGradient(sx, 0, sx + seg, 0);
+    grad.addColorStop(0, 'rgba(232,18,60,0)');
+    grad.addColorStop(0.5, 'rgba(232,18,60,1)');
+    grad.addColorStop(1, 'rgba(232,18,60,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(bx, by, bw, bh);
   }
+  ctx.restore();
   ctx.restore();
 }
 
 // ── Multiplier (flying) ──────────────────────────────────────────────────────
 function drawMultiplier(ctx: CanvasRenderingContext2D, W: number, H: number, m: number, color: string) {
-  const fs = Math.min(W * 0.11, H * 0.26, 132);
+  const fs = multFont(W, H);
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -410,17 +401,17 @@ function drawCrashText(ctx: CanvasRenderingContext2D, W: number, H: number, m: n
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const labelFs = Math.min(W * 0.045, 34);
+  const labelFs = Math.max(16, Math.min(W * 0.045, 34));
   ctx.font = `700 ${labelFs}px Inter, Arial, sans-serif`;
   ctx.shadowBlur = 16; ctx.shadowColor = 'rgba(0,0,0,0.7)';
   ctx.fillStyle = '#ffffff';
   ctx.fillText('FLEW AWAY!', W / 2, H * 0.34);
 
-  const fs = Math.min(W * 0.11, H * 0.26, 132);
+  const fs = multFont(W, H);
   ctx.font = `800 ${fs}px Inter, "Arial Black", Arial, sans-serif`;
   ctx.shadowBlur = fs * 0.4; ctx.shadowColor = 'rgba(232,18,60,0.55)';
   ctx.fillStyle = C_CRASH;
-  ctx.fillText(`${fmt(m)}x`, W / 2, H * 0.34 + fs * 0.62);
+  ctx.fillText(`${fmt(m)}x`, W / 2, H * 0.34 + labelFs * 0.7 + fs * 0.5);
   ctx.restore();
 }
 
@@ -436,6 +427,8 @@ function drawPlane(ctx: CanvasRenderingContext2D, x: number, y: number, angle: n
 
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+/** Multiplier size: big on narrow phones (the number is the game), capped on wide screens. */
+function multFont(W: number, H: number): number { return Math.min(Math.max(W * 0.11, Math.min(W * 0.19, 76)), H * 0.26, 132); }
 function fmt(v: number): string { return v >= 100 ? v.toFixed(0) : v.toFixed(2); }
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();

@@ -1,17 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Volume2, Star, History, Gauge, HelpCircle, MessageSquare, Home, UserCircle, LayoutDashboard, Wallet, LogOut } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Volume2, Star, History, HelpCircle, MessageSquare, LayoutDashboard, Wallet, LogOut, LogIn, Bell, ChevronRight } from 'lucide-react';
 import type { Profile } from '../../types';
 import { useSoundEnabled, setSoundEnabled } from '../../lib/sound';
-import { openGamePanel } from '../../lib/gamePanels';
+import { openGamePanel, type GamePanel } from '../../lib/gamePanels';
 
-/**
- * The ☰ game menu from the owner's mock: player card, Sound, then Free Bets, My Bet History, Game
- * Limits, How To Play and Chat, the account links, and Home at the bottom. Only features the game
- * really has are listed (no Music or Animation switch, no "Provably Fair" page).
- */
-export default function GameMenu({ profile, freeBetCount = 0, onClose, onWalletOpen, onSignOut }: {
-  profile: Profile | null; freeBetCount?: number; onClose: () => void; onWalletOpen: () => void; onSignOut: () => void;
+/** The ☰ menu: only things the game really has, one word each where possible. */
+export default function GameMenu({ profile, freeBetCount = 0, unread = 0, onClose, onWalletOpen, onSignOut, onSignIn, onNotifications }: {
+  profile: Profile | null; freeBetCount?: number; unread?: number; onClose: () => void;
+  onWalletOpen: () => void; onSignOut: () => void; onSignIn: () => void; onNotifications: () => void;
 }) {
   const navigate = useNavigate();
   const sound = useSoundEnabled();
@@ -24,11 +21,19 @@ export default function GameMenu({ profile, freeBetCount = 0, onClose, onWalletO
     return () => { window.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onDown); };
   }, [onClose]);
 
+  const { pathname } = useLocation();
   const go = (fn: () => void) => () => { onClose(); fn(); };
+  // Panels live on the game screen: from any other page, go there first.
+  const panel = (p: GamePanel) => go(() => {
+    if (pathname === '/') { openGamePanel(p); return; }
+    navigate('/');
+    setTimeout(() => openGamePanel(p), 120);
+  });
+  const badge = (n: number) => (n > 0 ? <span className="min-w-[20px] rounded-full bg-danger px-1.5 py-0.5 text-center text-[11px] font-bold text-white">{n > 9 ? '9+' : n}</span> : null);
   const Item = ({ icon: Icon, label, onClick, extra }: { icon: typeof Star; label: string; onClick: () => void; extra?: React.ReactNode }) => (
     <button type="button" role="menuitem" onClick={onClick}
-      className="flex w-full items-center gap-3 border-b border-[#141516] px-4 py-3 text-left text-[14px] text-[#d7d7d7] transition hover:bg-[#2c2d30]">
-      <Icon size={16} className="shrink-0 text-[#9ea0a3]" />
+      className="flex h-12 w-full items-center gap-3 px-4 text-left text-[15px] text-[#d7d7d7] transition hover:bg-[#2c2d30] active:bg-[#2c2d30]">
+      <Icon size={18} className="shrink-0 text-[#9ea0a3]" />
       <span className="flex-1">{label}</span>
       {extra}
     </button>
@@ -36,51 +41,42 @@ export default function GameMenu({ profile, freeBetCount = 0, onClose, onWalletO
 
   return (
     <div ref={ref} role="menu" aria-label="Game menu"
-      className="absolute right-2 top-full z-50 mt-1 w-[320px] max-w-[calc(100vw-16px)] overflow-hidden rounded-xl border border-[#2a2b2e] bg-[#1b1c1d] shadow-2xl">
+      className="absolute right-2 top-full z-50 mt-1 max-h-[calc(100dvh-60px)] w-[300px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-xl border border-[#2a2b2e] bg-[#1b1c1d] py-1 shadow-2xl">
       {profile ? (
-        <div className="flex items-center gap-3 bg-[#2c2d30] px-4 py-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base font-bold text-white" style={{ backgroundColor: profile.avatar_color }}>
+        <button type="button" role="menuitem" onClick={go(() => navigate('/profile'))}
+          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[#2c2d30]">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: profile.avatar_color }}>
             {profile.username[0]?.toUpperCase()}
           </span>
           <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-white">{profile.username}</span>
-          <button type="button" onClick={go(() => navigate('/profile'))}
-            className="flex items-center gap-1.5 rounded-full border border-[#5c5d60] px-3 py-1.5 text-[12px] text-[#d7d7d7] hover:text-white">
-            <UserCircle size={14} />Change Avatar
-          </button>
-        </div>
+          <ChevronRight size={16} className="text-[#7b7b7b]" />
+        </button>
       ) : null}
 
-      <div className="flex items-center gap-3 border-b border-[#141516] px-4 py-3 text-[14px] text-[#d7d7d7]">
-        <Volume2 size={16} className="text-[#9ea0a3]" />
+      <div className="flex h-12 items-center gap-3 px-4 text-[15px] text-[#d7d7d7]">
+        <Volume2 size={18} className="text-[#9ea0a3]" />
         <span className="flex-1">Sound</span>
         <button type="button" role="switch" aria-checked={sound} aria-label="Sound" onClick={() => setSoundEnabled(!sound)}
-          className={`relative h-5 w-9 rounded-full transition ${sound ? 'bg-[#28a909]' : 'bg-[#3a3b3e]'}`}>
-          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${sound ? 'left-[18px]' : 'left-0.5'}`} />
+          className={`relative h-6 w-11 rounded-full transition ${sound ? 'bg-[#28a909]' : 'bg-[#3a3b3e]'}`}>
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${sound ? 'left-[22px]' : 'left-0.5'}`} />
         </button>
       </div>
 
-      <div className="h-2 bg-[#141516]" />
-      {profile ? <Item icon={Star} label="Free Bets" onClick={go(() => openGamePanel('freebets'))}
-        extra={freeBetCount > 0 ? <span className="rounded-full bg-[#28a909] px-2 py-0.5 text-[11px] font-bold text-white">{freeBetCount}</span> : null} /> : null}
-      {profile ? <Item icon={History} label="My Bet History" onClick={go(() => openGamePanel('history'))} /> : null}
-      <Item icon={Gauge} label="Game Limits" onClick={go(() => openGamePanel('limits'))} />
-      <Item icon={HelpCircle} label="How To Play" onClick={go(() => openGamePanel('howto'))} />
-      <Item icon={MessageSquare} label="Chat" onClick={go(() => openGamePanel('chat'))} />
+      <div className="my-1 h-px bg-[#2a2b2e]" />
+      {profile ? <Item icon={Bell} label="Notifications" onClick={go(onNotifications)} extra={badge(unread)} /> : null}
+      {profile ? <Item icon={Star} label="Free bets" onClick={panel('freebets')} extra={badge(freeBetCount)} /> : null}
+      {profile ? <Item icon={History} label="My bets" onClick={panel('history')} /> : null}
+      <Item icon={HelpCircle} label="Rules" onClick={panel('rules')} />
+      <Item icon={MessageSquare} label="Chat" onClick={panel('chat')} />
 
+      <div className="my-1 h-px bg-[#2a2b2e]" />
       {profile ? (
         <>
-          <div className="h-2 bg-[#141516]" />
-          <Item icon={Wallet} label="Deposit" onClick={go(onWalletOpen)} />
-          <Item icon={UserCircle} label="My Profile" onClick={go(() => navigate('/profile'))} />
-          {profile.role === 'marketer' ? <Item icon={LayoutDashboard} label="Marketer Hub" onClick={go(() => navigate('/marketer'))} /> : null}
-          <Item icon={LogOut} label="Sign Out" onClick={go(onSignOut)} />
+          <Item icon={Wallet} label="Wallet" onClick={go(onWalletOpen)} />
+          {profile.role === 'marketer' ? <Item icon={LayoutDashboard} label="Marketer hub" onClick={go(() => navigate('/marketer'))} /> : null}
+          <Item icon={LogOut} label="Log out" onClick={go(onSignOut)} />
         </>
-      ) : null}
-
-      <button type="button" role="menuitem" onClick={go(() => navigate('/'))}
-        className="flex w-full items-center justify-center gap-2 bg-[#2c2d30] py-2.5 text-[13px] text-[#9ea0a3] hover:text-white">
-        <Home size={14} />Home
-      </button>
+      ) : <Item icon={LogIn} label="Log in" onClick={go(onSignIn)} />}
     </div>
   );
 }

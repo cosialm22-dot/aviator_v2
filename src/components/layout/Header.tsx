@@ -1,140 +1,104 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, Menu, X } from 'lucide-react';
+import { Menu, X, Plus, RotateCcw, Radio } from 'lucide-react';
 import GameMenu from './GameMenu';
 import type { Profile } from '../../types';
-import NotificationBell from '../notifications/NotificationBell';
 import { useSiteTheme } from '../../hooks/useSiteTheme';
 import BirdMark from '../game/BirdMark';
 import { useStreamerMode } from '../../hooks/useStreamerMode';
-import { Radio } from 'lucide-react';
+import { useNotifications } from '../../hooks/useNotifications';
+import NotificationsSheet from '../notifications/NotificationsSheet';
 
 interface Props {
   profile: Profile | null;
   balance: number;
+  /** Demo play-money balance while the game is in Demo; null in Real. */
+  demoBalance: number | null;
+  onDemoReset: () => void;
+  /** A deposit or withdrawal is being confirmed: the balance shows a spinner. */
+  busy: 'deposit' | 'withdraw' | null;
   onSignInOpen: () => void;
   onRegisterOpen: () => void;
   onWalletOpen: () => void;
   onSignOut: () => void;
 }
 
+const kes = (n: number) => n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// The global chrome carries ONE job per state:
-//   signed-out -> a single dominant "Register" CTA (+ a quiet "Log in" link)
-//   signed-in  -> balance, deposit, and the account menu
-// The Real/Demo play-mode switch deliberately does NOT live here: it is a
-// betting-context choice and now sits directly above the betting panel (see
-// AviatorGame), which keeps this bar uncluttered and stops it overlapping the
-// logo on narrow phones.
-export default function Header({ profile, balance, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
+// One bar, one job per state. Signed out: Log in + Register. Signed in: the balance (tap = wallet,
+// the + makes deposit obvious) and the menu. Unread notifications show as a dot on the menu.
+export default function Header({ profile, balance, demoBalance, onDemoReset, busy, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
   const { planeSkin } = useSiteTheme();
   const streamer = useStreamerMode();
   const domain = typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : '';
-  const [menuOpen, setMenuOpen] = useState(false); // the ☰ game menu (all screen sizes, as in the mock)
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [freeBets, setFreeBets] = useState(0);      // published by the game screen
   useEffect(() => {
     const on = (e: Event) => setFreeBets(Number((e as CustomEvent<number>).detail) || 0);
     window.addEventListener('aviator:freebets', on);
     return () => window.removeEventListener('aviator:freebets', on);
   }, []);
+  const notes = useNotifications(!!profile);
   const navigate = useNavigate();
+  const dot = notes.unread > 0 || freeBets > 0;
 
   return (
-    <header className="bg-night border-b border-edge px-3 sm:px-4 h-10 flex items-center justify-between gap-2 relative z-30 flex-shrink-0">
-      {/* Logo — allowed to shrink (min-w-0) but never clipped by the right cluster */}
-      <button
-        onClick={() => navigate('/')}
-        className="flex items-center gap-2 min-w-0 shrink"
-        aria-label="Aviator home"
-      >
+    <header className="relative z-30 flex h-[calc(44px+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-2 border-b border-[#232426] bg-[#141516] px-2 pt-[env(safe-area-inset-top)] sm:px-3">
+      <button onClick={() => navigate('/')} className="flex h-11 min-w-0 shrink items-center gap-1.5 pl-1" aria-label="Aviator home">
         {streamer.enabled
-          ? <BirdMark skin={planeSkin} width={34} className="-rotate-12 flex-shrink-0" />
-          : <img src="/plane.png" alt="" aria-hidden="true" className="h-5 w-auto -rotate-12 drop-shadow-[0_0_8px_rgba(200,0,24,0.55)] flex-shrink-0" />}
-        <span
-          className="font-black italic text-xl tracking-tight truncate"
-          style={{ color: '#e51e3c', fontFamily: '"Georgia", serif', textShadow: '0 0 12px rgba(229,30,60,0.45)' }}
-        >
+          ? <BirdMark skin={planeSkin} width={30} className="-rotate-12 shrink-0" />
+          : <img src="/plane.png" alt="" aria-hidden="true" className="hidden h-4 w-auto shrink-0 -rotate-12 min-[380px]:block sm:h-5" />}
+        <span className="truncate text-lg font-extrabold italic tracking-tight text-[#e51e3c] sm:text-xl" style={{ fontFamily: 'Georgia, serif' }}>
           {streamer.enabled ? domain : 'Aviator'}
         </span>
       </button>
 
-      {/* Right side — never shrinks, so the CTA is always fully visible */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {profile ? (
-          <>
-            {/* Balance — always visible (incl. mobile) so players can watch it
-                update live while they bet/cash out. Tapping opens the wallet.
-                Compacts on phones to protect the logo from clipping. */}
-            <button
-              onClick={onWalletOpen}
-              aria-label="Your balance. Tap to open your wallet."
-              className="flex items-center gap-1 sm:gap-1.5 hover:opacity-90 transition"
-            >
-              <span className="text-slate-400 text-[10px] sm:text-xs font-semibold">KES</span>
-              <span className="text-sm font-bold tabular-nums" style={{ color: '#28a745', textShadow: '0 0 8px rgba(40,167,69,0.35)' }}>
-                {balance.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </button>
-
-            {/* Streamer Mode toggle — marketers only. ON = broadcast-safe UI for going LIVE. */}
-            {streamer.canToggle && (
-              <button
-                onClick={streamer.toggle}
-                aria-label={streamer.enabled ? 'Streamer mode on — tap to show full UI' : 'Streamer mode off — tap to go live-safe'}
-                title={streamer.enabled ? 'Live-safe UI ON' : 'Live-safe UI OFF'}
-                className={'inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold transition-colors ' +
-                  (streamer.enabled ? 'bg-red-600/20 text-red-400 border border-red-600/40' : 'bg-white/[0.06] text-slate-400 border border-transparent')}
-              >
-                <Radio size={12} className={streamer.enabled ? 'animate-pulse' : ''} />
-                {streamer.enabled ? 'LIVE' : 'GO LIVE'}
-              </button>
-            )}
-
-            {/* Deposit */}
-            <button
-              onClick={onWalletOpen}
-              className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-win hover:bg-win-dark text-white rounded-md text-xs font-bold transition shadow-lg shadow-green-900/30"
-            >
-              <Wallet size={12} />
-              Deposit
-            </button>
-
-            {/* Notifications bell (live) */}
-            <NotificationBell />
-
-</>
-        ) : (
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <button
-              onClick={onSignInOpen}
-              className="px-2.5 sm:px-3 py-2 text-sm font-semibold text-slate-300 hover:text-white transition whitespace-nowrap rounded-lg"
-            >
-              Log in
-            </button>
-            <button
-              onClick={onRegisterOpen}
-              className="px-4 sm:px-5 py-2 bg-win hover:bg-win-dark text-white rounded-lg text-sm font-bold transition shadow-lg shadow-green-500/20 whitespace-nowrap active:scale-95"
-            >
-              Register
-            </button>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {demoBalance != null ? (
+          <div className="flex h-9 items-center gap-0.5 rounded-full bg-funmode/15 pl-3 pr-0.5 text-funmode" aria-label="Demo balance">
+            <span className="text-sm font-bold tabular-nums">{Math.floor(demoBalance).toLocaleString('en-KE')}</span>
+            <button onClick={onDemoReset} aria-label="Reset demo balance" className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/10"><RotateCcw size={14} /></button>
           </div>
+        ) : profile ? (
+          <button onClick={onWalletOpen} aria-label={`Balance KES ${kes(balance)}. Open wallet`}
+            className="flex h-9 items-center gap-1.5 rounded-full bg-[#1f2a1c] pl-3 pr-1 transition active:scale-95">
+            <span className="text-sm font-bold tabular-nums text-[#5cd334]">{kes(balance)}</span>
+            {busy ? (
+              <span role="status" aria-label={busy === 'deposit' ? 'Waiting for M-Pesa' : 'Processing withdrawal'} title={busy === 'deposit' ? 'Waiting for M-Pesa' : 'Processing withdrawal'}
+                className="grid h-7 w-7 place-items-center"><span className="h-4 w-4 animate-spin rounded-full border-2 border-[#5cd334] border-t-transparent" /></span>
+            ) : (
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-win text-white"><Plus size={16} strokeWidth={3} /></span>
+            )}
+          </button>
+        ) : (
+          <button onClick={onSignInOpen} className="h-9 whitespace-nowrap rounded-full px-3 text-sm font-semibold text-slate-300 hover:text-white">Log in</button>
         )}
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
-          onMouseDown={(e) => e.stopPropagation()}
-          className="-mr-1 p-1.5 text-[#9ea0a3] transition hover:text-white"
-          aria-label="Game menu"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-        >
-          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+        {!profile && (
+          <button onClick={onRegisterOpen} className="h-9 whitespace-nowrap rounded-full bg-win px-3.5 text-sm font-bold text-white transition hover:bg-win-dark active:scale-95">Register</button>
+        )}
+
+        {profile && streamer.canToggle && (
+          <button onClick={streamer.toggle} aria-label={streamer.enabled ? 'Streamer mode on' : 'Streamer mode off'}
+            className={`inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-[11px] font-bold ${streamer.enabled ? 'bg-red-600/20 text-red-400' : 'bg-white/[0.06] text-slate-400'}`}>
+            <Radio size={13} className={streamer.enabled ? 'animate-pulse' : ''} />{streamer.enabled ? 'LIVE' : 'GO LIVE'}
+          </button>
+        )}
+
+        <button onClick={() => setMenuOpen((v) => !v)} onMouseDown={(e) => e.stopPropagation()}
+          className="relative grid h-11 w-11 place-items-center text-[#9ea0a3] transition hover:text-white"
+          aria-label={dot ? 'Game menu, new items' : 'Game menu'} aria-haspopup="menu" aria-expanded={menuOpen}>
+          {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          {dot && !menuOpen ? <span className="absolute right-2 top-2.5 h-2 w-2 rounded-full bg-danger" /> : null}
         </button>
       </div>
 
       {menuOpen && (
-        <GameMenu profile={profile} freeBetCount={freeBets} onClose={() => setMenuOpen(false)} onWalletOpen={onWalletOpen} onSignOut={onSignOut} />
+        <GameMenu profile={profile} freeBetCount={freeBets} unread={notes.unread}
+          onClose={() => setMenuOpen(false)} onWalletOpen={onWalletOpen} onSignOut={onSignOut} onSignIn={onSignInOpen}
+          onNotifications={() => setNotesOpen(true)} />
       )}
-
+      {notesOpen && <NotificationsSheet {...notes} onClose={() => setNotesOpen(false)} />}
     </header>
   );
 }

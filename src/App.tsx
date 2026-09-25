@@ -2,12 +2,10 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import AviatorGame from './components/game/AviatorGame';
-import DemoNudgeToast from './components/game/DemoNudgeToast';
 import { useAuth } from './hooks/useAuth';
 import { useWallet } from './hooks/useWallet';
 import { useBonus } from './hooks/useBonus';
 import { useDemoGame } from './hooks/useDemoGame';
-import { useDemoNudges } from './hooks/useDemoNudges';
 import { StreamerModeProvider } from './hooks/useStreamerMode';
 
 // The operator admin panel is a large, role-gated surface that the vast majority
@@ -40,8 +38,7 @@ export type PlayMode = 'real' | 'demo';
 function PlayerApp() {
   const [authMode, setAuthMode] = useState<AuthMode>(null);
   const [walletOpen, setWalletOpen] = useState(false);
-  // Real vs Demo play mode. Lifted here so the header switch, the game, and the
-  // conversion toast all share one source of truth.
+  // Real vs Demo play mode. Lifted here so the header balance and the game share one source.
   const [mode, setMode] = useState<PlayMode>('real');
   usePrefetchOnIdle();
 
@@ -49,7 +46,7 @@ function PlayerApp() {
   const { deposit, withdraw, depositing, withdrawing } = useWallet(user?.id, refreshWallet);
   const { activeLocked, eligibleForFirstDeposit } = useBonus(user?.id);
 
-  // The demo engine (and its nudges/toast) only make sense on the game screen.
+  // The demo engine only makes sense on the game screen.
   // Off the game route (e.g. /profile, /marketer) the rigged loop is paused so
   // it never burns a rAF in the background.
   const { pathname } = useLocation();
@@ -64,15 +61,11 @@ function PlayerApp() {
     playerName: profile?.username ?? 'You',
     playerColor: profile?.avatar_color ?? '#22c55e',
   });
-  const nudges = useDemoNudges({ active: mode === 'demo' && onGameRoute, lastWin: demo.lastWin, roundsPlayed: demo.roundsPlayed });
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-night flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-2 border-danger border-t-transparent rounded-full animate-spin" />
-          <div className="text-slate-400 text-sm font-medium">Loading Aviator...</div>
-        </div>
+      <div className="flex h-[100dvh] items-center justify-center bg-[#0e0e0e]" role="status" aria-label="Loading">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-danger border-t-transparent" />
       </div>
     );
   }
@@ -82,18 +75,15 @@ function PlayerApp() {
     setWalletOpen(true);
   };
 
-  // CTA from a demo nudge: leave demo and, if not signed in, prompt sign-up.
-  const playForReal = () => {
-    setMode('real');
-    if (!profile) setAuthMode('signup');
-  };
-
   return (
     <StreamerModeProvider role={profile?.role}>
-    <div className="h-[100dvh] bg-night flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-[#0e0e0e] flex flex-col overflow-hidden">
       <Header
         profile={profile}
         balance={wallet?.balance ?? 0}
+        demoBalance={mode === 'demo' && onGameRoute ? demo.balance : null}
+        onDemoReset={demo.reset}
+        busy={depositing ? 'deposit' : withdrawing ? 'withdraw' : null}
         onSignInOpen={() => setAuthMode('signin')}
         onRegisterOpen={() => setAuthMode('signup')}
         onWalletOpen={() => setWalletOpen(true)}
@@ -145,10 +135,6 @@ function PlayerApp() {
         </Routes>
       </main>
 
-      {mode === 'demo' && onGameRoute && (
-        <DemoNudgeToast nudge={nudges.current} onPlayReal={playForReal} onDismiss={nudges.dismiss} />
-      )}
-
       {authMode && (
         <Suspense fallback={null}>
         <AuthModal
@@ -174,23 +160,6 @@ function PlayerApp() {
         </Suspense>
       )}
 
-      {walletOpen && !wallet && profile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-night border border-edge rounded-2xl p-6 text-white text-center">
-            <p className="text-slate-400 mb-4">Loading wallet...</p>
-            <button onClick={() => setWalletOpen(false)} className="px-4 py-2 bg-danger rounded-lg text-sm">Close</button>
-          </div>
-        </div>
-      )}
-
-      {(depositing || withdrawing) && (
-        <div className="fixed bottom-4 right-4 bg-night border border-edge rounded-xl px-4 py-3 flex items-center gap-3 shadow-2xl z-50">
-          <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-          <span className="text-white text-sm font-medium">
-            {depositing ? 'Waiting for M-Pesa…' : 'Processing withdrawal...'}
-          </span>
-        </div>
-      )}
     </div>
     </StreamerModeProvider>
   );

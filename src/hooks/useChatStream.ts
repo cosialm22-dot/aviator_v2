@@ -5,10 +5,7 @@ import { CHAT_MESSAGES } from '../lib/chatMessages';
 // ============================================================================
 // useChatStream - the SINGLE source of truth for the live chat message stream.
 // ----------------------------------------------------------------------------
-// Extracted from Chat.tsx so the full chat panel AND the mobile one-line ticker
-// (ChatTicker) render the exact same stream - bots, real Realtime messages and
-// the user's own optimistic sends - with no divergence. Mount it ONCE in a
-// common parent (AviatorGame) and pass `messages` to every consumer.
+// Mounted by ChatSheet only while chat is open (no channel or bot timer otherwise).
 //
 // Producers (merged, de-duplicated, bounded, chronologically ordered):
 //   1. history load  - last 50 real messages from chat_messages on mount,

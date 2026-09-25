@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Eye, EyeOff, Phone, Gift } from 'lucide-react';
+import { X, Eye, EyeOff, Gift } from 'lucide-react';
+import { usePaymentConfig } from '../../hooks/usePaymentConfig';
 import { normalizeKenyanPhone, isValidKenyanPhone } from '../../lib/phone';
 import { useModalA11y } from '../../hooks/useModalA11y';
 
@@ -23,6 +24,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
   const dialogRef = useModalA11y(onClose, firstFieldRef);
 
   const isSignup = mode === 'signup';
+  const cfg = usePaymentConfig();
 
   // Re-focus the first field when the mode flips (username for sign-up, phone for
   // sign-in). Initial focus on open is handled by useModalA11y.
@@ -33,7 +35,7 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     setError('');
 
     if (!isValidKenyanPhone(phone)) {
-      setError('Enter a valid Kenyan phone number (e.g. 0712345678)');
+      setError('Enter a valid phone number, e.g. 0712345678');
       return;
     }
     // Enforce the minimum only on sign-up (account creation). Supabase enforces
@@ -65,179 +67,59 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     }
   };
 
+  const inputCls = 'h-12 w-full rounded-xl border border-[#2f3033] bg-[#141516] px-4 text-white placeholder:text-[#5c5d60] focus:border-win/60 focus:outline-none';
+  const offer = cfg.offer;
+  const offerText = offer
+    ? [offer.welcome > 0 ? `${offer.welcome.toLocaleString('en-KE')} KES free` : '', offer.matchPct > 0 && offer.matchCap > 0 ? `+${offer.matchPct}% first deposit` : ''].filter(Boolean).join(' · ')
+    : '';
+
   return (
-    // Scrollable overlay: the dialog stays centred when it fits and the whole
-    // overlay scrolls when the form is taller than the viewport (short / landscape
-    // phones) so the CTA is always reachable.
-    // Dark scrim (player `night` token at 80% + blur) dims the page behind the
-    // modal. This keeps the app's dark theme consistent while the elevated card
-    // below still reads as distinct via its lighter gradient, border and shadow.
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-night/80 backdrop-blur-sm">
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="auth-title"
-          className="w-full max-w-[380px] relative overflow-hidden rounded-[20px] border border-edge"
-          style={{
-            // Elevated card: its gradient sits a step lighter than the `night`
-            // page/scrim, and the deep drop shadow lifts it off the dimmed
-            // backdrop for clear separation without breaking the dark theme.
-            background: 'linear-gradient(180deg, #1c1c33 0%, #141426 100%)',
-            boxShadow: '0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06)',
-          }}
-        >
-          {/* ─── CONTENT ─── */}
-          <div className="relative">
-
-            {/* ─── CLOSE BUTTON ─── */}
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-500 hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/60"
-            >
-              <X size={15} />
-            </button>
-
-            {/* ─── HEADER ─── */}
-            <div className="px-8 pt-10 pb-2">
-              <h1 id="auth-title" className="text-[22px] font-bold text-white tracking-tight">
-                {isSignup ? 'Create Account' : 'Welcome back'}
-              </h1>
-              <p className="text-slate-500 text-[13px] mt-1">
-                {isSignup ? 'Start playing in 30 seconds' : 'Sign in to continue'}
-              </p>
-            </div>
-
-            {/* ─── BONUS BANNER ─── */}
-            {isSignup && (
-              <div className="mx-8 mt-5 mb-1">
-                <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/30 px-5 py-4">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/[0.04] rounded-full -translate-y-1/2 translate-x-1/2" />
-                  <div className="relative flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                      <Gift size={18} className="text-emerald-400" />
-                    </div>
-                    <div>
-                      <div className="text-emerald-400 font-bold text-[15px] leading-tight">100% first-deposit match</div>
-                      <div className="text-slate-400 text-[11px] mt-0.5">Double your first deposit up to KSh 500 &mdash; plus KSh 500 free to start</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ─── FORM ─── */}
-            <form onSubmit={handleSubmit} className="px-8 pt-6 pb-8">
-              <div className="space-y-4">
-
-                {/* Username (signup only) */}
-                {isSignup && (
-                  <div>
-                    <label htmlFor="auth-username" className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Username</label>
-                    <input
-                      id="auth-username"
-                      ref={firstFieldRef}
-                      type="text"
-                      value={username}
-                      onChange={e => setUsername(e.target.value)}
-                      placeholder="e.g. Kamau_254"
-                      required
-                      minLength={3}
-                      maxLength={20}
-                      autoComplete="username"
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-500"
-                    />
-                  </div>
-                )}
-
-                {/* Phone */}
-                <div>
-                  <label htmlFor="auth-phone" className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Phone Number</label>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                      <Phone size={15} strokeWidth={1.5} />
-                    </div>
-                    <input
-                      id="auth-phone"
-                      ref={isSignup ? undefined : firstFieldRef}
-                      type="tel"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      placeholder="0712 345 678"
-                      required
-                      maxLength={13}
-                      autoComplete="tel"
-                      inputMode="numeric"
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-11 pr-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div>
-                  <label htmlFor="auth-password" className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block mb-2">Password</label>
-                  <div className="relative">
-                    <input
-                      id="auth-password"
-                      type={showPass ? 'text' : 'password'}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder={isSignup ? 'Min 6 characters' : 'Your password'}
-                      required
-                      minLength={isSignup ? 6 : undefined}
-                      autoComplete={isSignup ? 'new-password' : 'current-password'}
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white text-[14px] focus:outline-none focus:border-win/50 focus:bg-white/[0.05] transition-all pr-12 placeholder:text-slate-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass(!showPass)}
-                      aria-label={showPass ? 'Hide password' : 'Show password'}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/60 rounded"
-                    >
-                      {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* ─── ERROR ─── */}
-              {error && (
-                <div role="alert" className="mt-4 rounded-xl bg-red-500/[0.08] border border-red-500/20 px-4 py-3 text-red-400 text-[13px] leading-snug">
-                  {error}
-                </div>
-              )}
-
-              {/* ─── CTA BUTTON ─── */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-6 py-4 rounded-xl font-semibold text-[15px] text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/70"
-                style={{
-                  background: loading ? '#1e293b' : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                  boxShadow: loading ? 'none' : '0 8px 32px rgba(34, 197, 94, 0.3), inset 0 1px 0 rgba(255,255,255,0.12)',
-                }}
-              >
-                {loading ? 'Please wait...' : isSignup ? 'Create Account' : 'Sign In'}
-              </button>
-
-              {/* ─── MODE TOGGLE ─── */}
-              <div className="mt-6 text-center">
-                <span className="text-slate-400 text-[13px]">
-                  {isSignup ? 'Have an account?' : 'New here?'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(''); }}
-                  className="ml-2 text-win hover:text-[#4ade80] text-[13px] font-medium transition rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-win/60"
-                >
-                  {isSignup ? 'Sign In' : 'Create Account'}
-                </button>
-              </div>
-            </form>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-black/70" />
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="auth-title"
+        className="relative max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl border border-[#2a2b2e] bg-[#1b1c1d] pb-[env(safe-area-inset-bottom)] shadow-2xl animate-[sheetUp_0.2s_ease-out] sm:max-w-[380px] sm:rounded-2xl">
+        <div className="flex items-center justify-between py-2 pl-5 pr-1">
+          <h1 id="auth-title" className="text-xl font-bold text-white">{isSignup ? 'Register' : 'Log in'}</h1>
+          <button onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full text-[#9ea0a3] hover:text-white"><X size={20} /></button>
         </div>
+
+        {isSignup && offerText && (
+          <p className="mx-5 mb-1 flex items-center gap-2 rounded-xl bg-win/10 px-3 py-2.5 text-[13px] font-semibold text-[#5cd334]">
+            <Gift size={16} className="shrink-0" />{offerText}
+          </p>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3 px-5 pb-5 pt-3">
+          {isSignup && (
+            <input id="auth-username" ref={firstFieldRef} type="text" value={username} onChange={e => setUsername(e.target.value)}
+              placeholder="Username" aria-label="Username" required minLength={3} maxLength={20} autoComplete="username"
+              autoCapitalize="none" className={inputCls} />
+          )}
+          <input id="auth-phone" ref={isSignup ? undefined : firstFieldRef} type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+            placeholder="Phone (07XX XXX XXX)" aria-label="Phone number" required maxLength={13} autoComplete="tel" inputMode="numeric"
+            className={inputCls} />
+          <div className="relative">
+            <input id="auth-password" type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+              placeholder={isSignup ? 'Password (6+ characters)' : 'Password'} aria-label="Password" required minLength={isSignup ? 6 : undefined}
+              autoComplete={isSignup ? 'new-password' : 'current-password'} className={`${inputCls} pr-12`} />
+            <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? 'Hide password' : 'Show password'}
+              className="absolute right-1 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center text-[#7b7b7b] hover:text-white">
+              {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+
+          {error && <p role="alert" className="text-center text-[13px] text-red-400">{error}</p>}
+
+          <button type="submit" disabled={loading}
+            className="h-12 w-full rounded-xl bg-win text-[15px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50">
+            {loading ? '…' : isSignup ? 'Register' : 'Log in'}
+          </button>
+
+          <button type="button" onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(''); }}
+            className="h-10 w-full text-[13px] text-[#9ea0a3] hover:text-white">
+            {isSignup ? 'Have an account? ' : 'New here? '}<span className="font-semibold text-[#5cd334]">{isSignup ? 'Log in' : 'Register'}</span>
+          </button>
+        </form>
       </div>
     </div>
   );

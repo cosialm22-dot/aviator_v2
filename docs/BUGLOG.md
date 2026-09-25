@@ -4,6 +4,47 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #27 — Mobile-first player UI, fewer words, no pressure pop-ups — DONE (branch `ux/mobile-first`)
+- **Target:** Kenya's phones. StatCounter, Aug 2026: 360x800 17.6%, 360x806 10.7%, 385x854 9.4%, 412x915 9.1%.
+- **Before:**
+  - On a 360 px phone the second Bet button was below the fold.
+  - Stake −/+ were 19x24 px, and quick amounts and tabs were 24–28 px.
+  - The countdown text was 8 px.
+  - The Redeem button was cut off in the wallet.
+- **Now:**
+  - The first screen is history, the plane and both bet panels. The plane takes whatever height is left, and the bets list sits below.
+  - Controls are 36–48 px.
+  - No visible text is under 11 px.
+  - There is no sideways scroll at 360, 385, 412, 768 or 1440 px.
+- **Removed:**
+  - Low-balance "Deposit now" pop-ups, including the invented "87% win on their comeback bet".
+  - Demo "Play for Real" toasts every 3 rounds.
+  - The random "players online" counter.
+  - The rotating chat line under the plane.
+  - "CASH OUT NOW!" and "Bet in - ready!" overlays, which repeated the button's own state.
+  - The floating "Waiting for M-Pesa…" toast. A spinner now shows on the balance instead.
+  - The bell dropdown. Notifications are now a dot on ☰ plus an inbox sheet.
+  - Home, "Change Avatar" (no avatar editing exists) and the duplicate Game Limits / How To Play pages. They are merged into "Rules", with live limits.
+  - The profile's Account and My Bets tabs (duplicates), the joined-date query, the M-Pesa method card, the long help lines, and the bolt.new og:image.
+- **Notification model:** follows NN/g "Indicators, Validations, and Notifications" and Material snackbar guidance.
+  - Passive events light an indicator (a menu dot).
+  - Validation happens in context: a refused bet or cash-out shows in the button for 2.5 s, for example "Outside limits" or "Too late".
+  - Action-required steps (the M-Pesa PIN) stay in the wallet sheet.
+  - Nothing interrupts play.
+- **Bug fixed:** a refused bet or cash-out failed silently (the promise was rejected and never handled). It now shows in the button.
+- **Copy fixed:** the sign-up banner promised "KSh 500 free to start", but the server grants 200. The banner and wallet offer now come from `bonus_config` through `fn_public_payment_config` (migration `20260929090000`, which also returns the min/max bet and max win for Rules).
+- **Single dialog system:** every dialog is a bottom sheet on phones and a centred card on larger screens, with Escape, backdrop tap and focus trapping. Chat is English throughout. Inputs are 16 px so iOS doesn't zoom. `touch-action: manipulation` is set, safe-area insets are respected, and reduced motion is honoured.
+- **Efficiency:**
+  - The chat stream (history query, realtime channel, bot timer) runs only while chat is open.
+  - Inter now loads through `<link>` with preconnect instead of a render-blocking CSS `@import`, and one unused weight was dropped.
+  - The app's own JS is 38.7 KB gzip, down from 42.3.
+- **Tests:**
+  - New `e2e/mobile_ui_e2e.py` (53/53): fit on 6 sizes, target sizes, text ≥ 11 px, the notification dot and inbox, sheets, wallet and register copy against the live offer, refused-bet feedback, and no pop-ups in demo.
+  - `aviator-ui.e2e.mjs` 67/67 (now also 360x740).
+  - `megapay_ui_e2e.py` 57/57.
+  - `game_live_ui_e2e.py`, `admin_ui_e2e.py` 43/43.
+  - Unit tests 99/99.
+
 ## #26 — Database after the Micro upgrade — MEASURED
 - Compute moved from Nano to Micro on 2026-09-25 at the owner's instruction (1 GB RAM, `shared_buffers` 256 MB). The resize restarted Postgres once. The only errors in that window were the expected "shutting down" and "server restarted" messages, and one driver run cut short. Rounds resumed by themselves.
 - **Same 5-minute method as #16:**
@@ -323,7 +364,5 @@ Running log of bugs found while working through issues, with what was wrong, the
 ## Needs the owner's decision (not changed)
 - **Demo is rigged:** `useDemoGame` / `riggedCrashPoint` set the demo win rate to about 80% (`DEMO_WIN_RATE`), with near-misses on losses, "to drive conversion to real play". Real rounds use an 18% house edge (`game.house_edge_percent`).
 - **Results can be set by operators:** when `game.queue_enabled` is on, operators can queue crash points (`crash_queue`). Those rounds still get a committed seed hash, so a player cannot tell them apart. The menu and footer therefore carry no "Provably Fair" claim.
-- **"Players online" is simulated:** `useOnlineCount` produces a random walk between 140 and 520.
-- **Bot chat:** the chat mixes scripted bot messages in with real ones (`useChatStream`).
-- **Low-balance pop-ups use made-up figures:** for example "87% of players win on their comeback bet!" (`AviatorGame` `LOW_BALANCE_NUDGES`).
+- **Bot chat:** the chat panel still mixes scripted bot messages in with real ones (owner chose to keep them, 2026-09-25). They no longer appear on the game screen.
 - **Name and logo:** the game is called "Aviator", and the header wordmark imitates Spribe's logo.

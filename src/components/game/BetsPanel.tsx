@@ -41,7 +41,7 @@ function BetRows({ bets, status, empty, me }: { bets: BoardBet[]; status: GameSt
   return (
     <>
       <div className="grid grid-cols-[1fr_72px_52px_76px] px-3 pb-1 pt-2 text-[11px] text-[#7b7b7b]">
-        <span>Player</span><span className="text-right">Bet KES</span><span className="text-right">X</span><span className="text-right">Win KES</span>
+        <span>Player</span><span className="text-right">Bet</span><span className="text-right">X</span><span className="text-right">Win</span>
       </div>
       {rows.length === 0 ? <p className="px-3 py-8 text-center text-xs text-[#7b7b7b]">{empty}</p> : null}
       <ul className="flex flex-col gap-[3px] px-1.5 pb-2">
@@ -83,14 +83,14 @@ function AllBets({ bets, status, me }: { bets: BoardBet[]; status: GameStatus; m
           </div>
           <div className="text-right">
             <div className="text-[17px] font-bold tabular-nums text-white">{money(totalWin)}</div>
-            <div className="text-[11px] text-[#9ea0a3]">Total win KES</div>
+            <div className="text-[11px] text-[#9ea0a3]">Total win</div>
           </div>
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#2c2d30]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Share of bets cashed out">
           <div className="h-full rounded-full bg-[#5cd334] transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
-      <BetRows bets={bets} status={status} me={me} empty="No player bets yet this round" />
+      <BetRows bets={bets} status={status} me={me} empty="No bets yet" />
     </>
   );
 }
@@ -118,7 +118,7 @@ function Previous({ round, me }: { round: GameRound | null; me?: string | null }
         <div className="text-[12px] text-[#d7d7d7]">Round Result</div>
         <div className={`text-2xl font-bold tabular-nums ${round ? multColor(round.crash_multiplier) : 'text-[#7b7b7b]'}`}>{round ? fmtX(round.crash_multiplier) : '—'}</div>
       </div>
-      {loading ? <p className="px-3 py-8 text-center text-xs text-[#7b7b7b]">Loading…</p> : <BetRows bets={bets} status="crashed" me={me} empty="No player bets in the last round" />}
+      {loading ? <p className="px-3 py-8 text-center text-xs text-[#7b7b7b]">Loading…</p> : <BetRows bets={bets} status="crashed" me={me} empty="No bets" />}
     </>
   );
 }
@@ -160,7 +160,7 @@ function Top() {
     <div className="grid grid-cols-3 gap-1" role="tablist" aria-label={label}>
       {items.map(([k, l]) => (
         <button key={k} type="button" role="tab" aria-selected={value === k} onClick={() => set(k)}
-          className={`rounded-full py-1.5 text-[12px] transition ${value === k ? 'bg-[#2c2d30] text-white' : 'text-[#9ea0a3] hover:text-white'}`}>{l}</button>
+          className={`h-8 rounded-full text-[13px] transition ${value === k ? 'bg-[#2c2d30] text-white' : 'text-[#9ea0a3] hover:text-white'}`}>{l}</button>
       ))}
     </div>
   );
@@ -215,13 +215,13 @@ export default function BetsPanel({ bets, status, previousRound, me = null, clas
       <div className="m-1.5 grid grid-cols-3 rounded-full bg-[#141516] p-0.5" role="tablist" aria-label="Bets view">
         {([['all', 'All Bets'], ['previous', 'Previous'], ['top', 'Top']] as const).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={`rounded-full py-1.5 text-[12px] transition ${tab === k ? 'bg-[#2c2d30] text-white' : 'text-[#9ea0a3] hover:text-white'}`}>{l}</button>
+            className={`h-8 rounded-full text-[13px] transition ${tab === k ? 'bg-[#2c2d30] text-white' : 'text-[#9ea0a3] hover:text-white'}`}>{l}</button>
         ))}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {tab === 'all' ? <AllBets bets={real} status={status} me={me} /> : tab === 'previous' ? <Previous round={previousRound} me={me} /> : <Top />}
       </div>
-      <div className="flex items-center justify-end border-t border-[#2a2b2e] px-3 py-1.5 text-[10px] text-[#7b7b7b]">
+      <div className="flex items-center justify-end border-t border-[#2a2b2e] px-3 py-1.5 text-[11px] text-[#7b7b7b]">
         Powered by <span className="ml-1 font-bold tracking-wide text-[#9ea0a3]">TRIOCODES</span>
       </div>
     </section>

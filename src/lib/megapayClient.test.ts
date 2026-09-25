@@ -24,7 +24,16 @@ const clock = () => { let t = 0; return { now: () => t, sleep: async (ms: number
 describe('payment config', () => {
   it('reads the server payload', () => {
     expect(parsePaymentConfig({ deposit_provider: 'megapay', min_deposit: 200, max_deposit: 70000, min_withdrawal: 150 }))
-      .toEqual({ depositProvider: 'megapay', minDeposit: 200, maxDeposit: 70000, minWithdrawal: 150 });
+      .toEqual({ ...cfg, depositProvider: 'megapay', minDeposit: 200, maxDeposit: 70000, minWithdrawal: 150 });
+  });
+  it('reads game limits and the live bonus offer', () => {
+    const c = parsePaymentConfig({ min_bet: 20, max_bet: 5000, max_payout: 90000, offer: { welcome: 200, match_pct: 100, match_cap: 500, wager_x: 3 } });
+    expect([c.minBet, c.maxBet, c.maxPayout]).toEqual([20, 5000, 90000]);
+    expect(c.offer).toEqual({ welcome: 200, matchPct: 100, matchCap: 500, wagerX: 3 });
+  });
+  it('drops an offer that grants nothing', () => {
+    expect(parsePaymentConfig({ offer: { welcome: 0, match_pct: 100, match_cap: 0 } }).offer).toBeNull();
+    expect(parsePaymentConfig({ offer: null }).offer).toBeNull();
   });
   it('falls back to safe defaults for missing or junk values', () => {
     expect(parsePaymentConfig(null)).toEqual(cfg);

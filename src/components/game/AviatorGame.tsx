@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Wrench, RotateCcw, X } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import GameCanvas from './GameCanvas';
 import BettingPanel, { type QueuedBet } from './BettingPanel';
 import GameHistory from './GameHistory';
@@ -7,14 +7,11 @@ import BetsPanel from './BetsPanel';
 import { GamePanels } from './GamePanels';
 import { publishFreeBetCount, type GamePanel } from '../../lib/gamePanels';
 import { playSound } from '../../lib/sound';
-import Chat from './Chat';
-import ChatTicker from './ChatTicker';
-import { useChatStream } from '../../hooks/useChatStream';
+import ChatSheet from './ChatSheet';
 import { useGame, BET_SLOTS, type BetSlot } from '../../hooks/useGame';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import type { DemoGame } from '../../hooks/useDemoGame';
 import { usePromos } from '../../hooks/usePromos';
-import { useOnlineCount } from '../../hooks/useOnlineCount';
 import PromoBar from './PromoBar';
 import { formatMultiplier } from '../../lib/gameEngine';
 import type { Profile, Wallet } from '../../types';
@@ -32,19 +29,10 @@ interface Props {
   onDepositOpen: () => void;
 }
 
-const LOW_BALANCE_NUDGES = [
-  { title: 'Your comeback is ONE bet away!', sub: 'Top up KSh 500 and turn the game around.' },
-  { title: 'Big winners always reload fast!', sub: 'Don\'t miss the next big multiplier - deposit now.' },
-  { title: 'The next round could be 50x!', sub: 'Deposit KSh 200 and stay in the game.' },
-  { title: 'Every pilot crashes. The greats fly again.', sub: 'Reload and take back the skies!' },
-  { title: '87% of players win on their comeback bet!', sub: 'Don\'t quit when you\'re this close.' },
-];
-
-
 export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
   const { planeSkin } = useSiteTheme();
   const streamer = useStreamerMode();
-  // Chat opens as a slide-over (from the chat ticker or the game menu), as in the mock layout.
+  // Chat opens as a sheet from the game menu.
   const [chatOpen, setChatOpen] = useState(false);
   useEffect(() => {
     const open = () => setChatOpen(true);
@@ -61,8 +49,6 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
     window.addEventListener('aviator:open-panel', open);
     return () => window.removeEventListener('aviator:open-panel', open);
   }, []);
-  const [nudge, setNudge] = useState<{ title: string; sub: string } | null>(null);
-  const nudgeShownRef = useRef(false);
   // One queued bet per slot (dual-bet): each panel can independently queue a bet
   // for the next round while the current one is in flight.
   const [queuedBets, setQueuedBets] = useState<Record<BetSlot, QueuedBet | null>>({ 1: null, 2: null });
@@ -104,14 +90,6 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
     cashOut,
   } = view;
 
-  // Single shared chat stream (bots + Realtime + own sends). Lifted here so the
-  // full chat panel and the mobile ChatTicker render the identical stream.
-  const chat = useChatStream({ userId: profile?.id, username: profile?.username, avatarColor: profile?.avatar_color });
-
-  // Simulated "players online" presence (no realtime presence channel exists).
-  // Always ≥ the bets visible this round so the headline never under-counts.
-  const onlineCount = useOnlineCount(liveBets.length);
-
   // Player promotions (free bets + rain) - real-money mode only.
   const { freeBets, rain: openRain, busy: promoBusy, placeFreeBet: placeFreeBetRpc, claimRain } = usePromos(profile?.id, onRefreshWallet);
   // A free bet queued to auto-place on the next waiting round (slot 1).
@@ -128,26 +106,9 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
   // Demo never requires authentication.
   const panelAuthed = isDemo ? true : !!profile;
 
-  // Psychology nudge: low balance after a crash (real mode only - demo can be
-  // reset for free, so we never push deposits during free-play).
-  useEffect(() => {
-    if (!profile || isDemo) return;
-    if (balance < 50 && balance >= 0 && !nudgeShownRef.current && gameStatus === 'crashed') {
-      nudgeShownRef.current = true;
-      const msg = LOW_BALANCE_NUDGES[Math.floor(Math.random() * LOW_BALANCE_NUDGES.length)];
-      setNudge(msg);
-    }
-    if (balance >= 50) {
-      nudgeShownRef.current = false;
-      setNudge(null);
-    }
-  }, [balance, profile, gameStatus, isDemo]);
-
-  // Switching modes clears any pending queue and dismisses the nudge so the two
-  // money contexts never leak into one another.
+  // Switching modes clears any pending queue so the two money contexts never mix.
   useEffect(() => {
     setQueuedBets({ 1: null, 2: null });
-    setNudge(null);
   }, [mode]);
 
   // Auto-place each slot's queued bet when the waiting phase begins. Uses the
@@ -191,7 +152,6 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
   }, [panelActiveBets]);
 
   // Aggregate signals across both slots for the shared canvas overlays.
-  const anyActiveInFlight = panelActiveBets[1]?.status === 'active' || panelActiveBets[2]?.status === 'active';
   const anyBetThisRound = !!panelActiveBets[1] || !!panelActiveBets[2];
   const lastWon = (panelActiveBets[1]?.status === 'won' && panelActiveBets[1]) || (panelActiveBets[2]?.status === 'won' && panelActiveBets[2]) || null;
 
@@ -227,7 +187,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
     onPlaceBet: (a: number, c: number | null) => panelPlaceBet(a, c, slot),
     onQueueBet: handleQueueBet(slot),
     onCancelQueue: handleCancelQueue(slot),
-    onCashOut: () => { void panelCashOut(slot); },
+    onCashOut: () => panelCashOut(slot),
     onAuthRequired,
     onDeposit: onDepositOpen,
     isAuthenticated: panelAuthed,
@@ -235,30 +195,28 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
     streamer: streamer.enabled,
   });
 
+  const kes = (n: number) => n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   return (
     <div className="flex h-full min-h-0 bg-[#0e0e0e] lg:gap-2 lg:p-2">
 
-      {/* ── Left (desktop): All Bets / Previous / Top ─────────────────── */}
+      {/* Desktop: All Bets / Previous / Top on the left */}
       {!streamer.enabled && (
         <BetsPanel bets={liveBets} status={gameStatus} previousRound={history[0] ?? null} me={profile?.username ?? (isDemo ? 'You' : null)}
-          className="hidden w-[400px] shrink-0 lg:flex" />
+          className="hidden w-[380px] shrink-0 lg:flex" />
       )}
 
-      {/* ── Main column. Phones: one scrolling page (history, canvas, bet panels, bets list), as in
-          the mock. Desktop: history strip, canvas filling the height, bet panels underneath. ── */}
+      {/* Main column. Phones: the first screen is history + plane + both bet panels (the plane takes
+          whatever height is left); the bets list follows below. Desktop: everything fits, no scroll. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain lg:overflow-hidden">
+        <div className="flex min-h-full shrink-0 flex-col gap-1.5 px-1.5 pb-1.5 lg:h-full lg:min-h-0 lg:px-0 lg:pb-0">
 
-        {/* History strip */}
-        <div className="relative z-20 shrink-0 px-2.5 py-1.5 lg:px-1 lg:pb-2 lg:pt-0.5">
-          <GameHistory history={history} />
-        </div>
+          <div className="relative z-20 shrink-0 px-1 pt-1.5 lg:pt-0">
+            <GameHistory history={history} />
+          </div>
 
-        {/* Canvas card (FUN MODE tab on top in demo) */}
-        <div className="mx-1.5 flex h-[46vh] min-h-[240px] shrink-0 flex-col overflow-hidden rounded-2xl border border-[#2a2b2e] lg:mx-0 lg:h-auto lg:min-h-[260px] lg:flex-1 lg:shrink">
-          {isDemo && (
-            <div className="shrink-0 bg-funmode py-0.5 text-center text-[11px] font-bold tracking-[0.12em] text-white">FUN MODE</div>
-          )}
-          <div className="relative min-h-0 flex-1 overflow-hidden bg-[#0d0d0d]">
+          {/* Plane */}
+          <div className={`relative min-h-[190px] flex-1 overflow-hidden rounded-2xl border bg-[#0d0d0d] lg:min-h-[260px] ${isDemo ? 'border-funmode/70' : 'border-[#2a2b2e]'}`}>
             <GameCanvas
               planeSkin={planeSkin}
               streamer={streamer.enabled}
@@ -269,14 +227,14 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
               countdown={countdown}
             />
 
-            {/* Prompts under the canvas-painted multiplier (fixed fraction of canvas height). */}
-            <div className="pointer-events-none absolute inset-x-0 top-[58%] z-10 flex flex-col items-center">
-              {gameStatus === 'flying' && anyActiveInFlight && (
-                <div className="animate-pulse text-sm font-black tracking-wide text-green-400">CASH OUT NOW!</div>
-              )}
-              {gameStatus === 'waiting' && anyBetThisRound && (
-                <div className="rounded-full border border-amber-500/40 bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-400">Bet in - ready!</div>
-              )}
+            {/* Real / Demo */}
+            <div className="absolute left-2 top-2 z-10 flex rounded-full bg-black/55 p-0.5 backdrop-blur" role="tablist" aria-label="Play mode">
+              {(['real', 'demo'] as const).map((m) => (
+                <button key={m} role="tab" aria-selected={mode === m} onClick={() => onSetMode(m)}
+                  className={`h-8 rounded-full px-3.5 text-[13px] font-bold transition ${mode === m ? (m === 'demo' ? 'bg-funmode text-white' : 'bg-win text-white') : 'text-slate-300 hover:text-white'}`}>
+                  {m === 'real' ? 'Real' : 'Demo'}
+                </button>
+              ))}
             </div>
 
             <div className="sr-only" aria-live="polite" role="status">
@@ -285,122 +243,57 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
               {gameStatus === 'waiting' && 'Waiting for next round'}
             </div>
 
+            {/* Result of the player's own cash-out: the only message drawn over the plane */}
             {lastWon && (
-              <div className="absolute left-1/2 top-10 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-green-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-green-500/40">
-                +KSh {(lastWon.winnings ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} @ {(lastWon.cashout_multiplier ?? currentMultiplier).toFixed(2)}×
+              <div role="status" className="absolute left-1/2 top-12 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#28a909] px-4 py-1.5 text-[15px] font-bold tabular-nums text-white shadow-lg shadow-black/40">
+                +{kes(lastWon.winnings ?? 0)}{streamer.enabled ? '' : ' KES'} · {(lastWon.cashout_multiplier ?? currentMultiplier).toFixed(2)}{streamer.enabled ? '' : 'x'}
               </div>
             )}
+          </div>
 
-            <div className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5">
-              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
-              <span className="text-[10px] font-semibold text-slate-300">{onlineCount.toLocaleString('en-KE')}</span>
+          {maintenance && !isDemo && isOperator && (
+            <div className="shrink-0 rounded-xl bg-amber-500/15 px-3 py-2 text-center text-[13px] font-semibold text-amber-300">Maintenance on · players can't bet</div>
+          )}
+          {maintenanceLock && anyBetThisRound && (
+            <div className="shrink-0 rounded-xl bg-amber-500/15 px-3 py-2 text-center text-[13px] font-semibold text-amber-300">Maintenance · cash out only</div>
+          )}
+
+          {!isDemo && profile && !isOperator && !streamer.enabled && (
+            <PromoBar freeBets={freeBets} rain={openRain} busy={promoBusy} canUseFreeBet={slot1Free && !queuedFreeBet} onClaimRain={claimRain} onUseFreeBet={handleUseFreeBet} />
+          )}
+
+          {/* Bet panels */}
+          {maintenanceLock && !anyBetThisRound ? (
+            <div className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#1b1c1d] px-4 py-6 text-sm font-semibold text-amber-300">
+              <Wrench size={18} />Betting paused for maintenance
             </div>
-
-            {nudge && profile && (
-              <div className="absolute inset-x-3 bottom-12 z-20 md:left-1/2 md:w-80 md:-translate-x-1/2">
-                <div className="rounded-2xl bg-gradient-to-br from-win-dark to-win p-4 text-white shadow-2xl shadow-green-900/60">
-                  <div className="text-base font-black leading-tight">{nudge.title}</div>
-                  <div className="mt-1 text-xs opacity-90">{nudge.sub}</div>
-                  <div className="mt-3 flex gap-2">
-                    <button onClick={() => { setNudge(null); onDepositOpen(); }} className="flex-1 rounded-xl bg-white py-2.5 text-sm font-black text-win-dark transition hover:bg-gray-100 active:scale-95">Deposit Now</button>
-                    <button onClick={() => setNudge(null)} className="rounded-xl bg-white/20 px-4 py-2.5 text-sm font-semibold transition hover:bg-white/30">Later</button>
-                  </div>
+          ) : (
+            <div className="flex shrink-0 flex-col gap-1.5 md:flex-row md:justify-center lg:gap-2">
+              <div className="md:w-full md:max-w-[460px]">
+                <BettingPanel {...panelProps(1)} corner={showSecond ? null : { kind: 'add', onClick: () => setDual(true) }} />
+              </div>
+              {showSecond && (
+                <div className="md:w-full md:max-w-[460px]">
+                  <BettingPanel {...panelProps(2)}
+                    corner={panelActiveBets[2] || queuedBets[2] ? null : { kind: 'remove', onClick: () => setDual(false) }} />
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {!streamer.enabled && <ChatTicker messages={chat.messages} onOpenChat={() => setChatOpen(true)} />}
-
-        {panelOperatorLock && (
-          <div className="mx-1.5 mt-1.5 shrink-0 rounded-xl bg-amber-500/10 px-4 py-2 text-center text-[11px] font-semibold text-amber-300 lg:mx-0">
-            You are signed in as an operator. Operator accounts cannot place real bets - switch to Demo to practise.
-          </div>
-        )}
-        {maintenance && !isDemo && isOperator && (
-          <div className="mx-1.5 mt-1.5 shrink-0 rounded-xl bg-amber-500/15 px-4 py-2 text-center text-[11px] font-semibold text-amber-300 lg:mx-0">
-            Maintenance mode is ON - players are blocked from placing bets. You are viewing as staff.
-          </div>
-        )}
-        {maintenanceLock && anyBetThisRound && (
-          <div className="mx-1.5 mt-1.5 shrink-0 rounded-xl bg-amber-500/15 px-4 py-2 text-center text-[11px] font-semibold text-amber-300 lg:mx-0">
-            New bets are closed for maintenance. You can still cash out your active bet.
-          </div>
-        )}
-
-        {!isDemo && profile && !isOperator && !streamer.enabled && (
-          <PromoBar freeBets={freeBets} rain={openRain} busy={promoBusy} canUseFreeBet={slot1Free && !queuedFreeBet} onClaimRain={claimRain} onUseFreeBet={handleUseFreeBet} />
-        )}
-
-        {/* Real / Demo play-mode switch, directly above the bet panels. */}
-        <div className="mx-1.5 mt-1.5 flex shrink-0 items-center justify-between gap-2 lg:mx-0">
-          <div className="flex rounded-full bg-[#1b1c1d] p-0.5" role="tablist" aria-label="Play mode">
-            {(['real', 'demo'] as const).map((m) => (
-              <button key={m} role="tab" aria-selected={mode === m} onClick={() => onSetMode(m)}
-                className={`rounded-full px-4 py-1 text-xs font-bold transition-all ${mode === m ? (m === 'demo' ? 'bg-funmode text-white' : 'bg-win text-white') : 'text-slate-400 hover:text-slate-200'}`}>
-                {m === 'real' ? 'Real' : 'Demo'}
-              </button>
-            ))}
-          </div>
-          {isDemo ? (
-            <div className="flex items-center gap-1.5 rounded-full bg-[#1b1c1d] px-2.5 py-1">
-              <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Demo</span>
-              <span className="text-xs font-bold tabular-nums text-funmode">KSh {demo.balance.toLocaleString('en-KE', { maximumFractionDigits: 0 })}</span>
-              <button onClick={demo.reset} title="Reset demo balance" aria-label="Reset demo balance" className="text-slate-400 transition hover:text-white active:scale-90"><RotateCcw size={12} /></button>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Bet panels */}
-        {maintenanceLock && !anyBetThisRound ? (
-          <div className="mx-1.5 mt-1.5 shrink-0 rounded-2xl bg-[#1b1c1d] px-4 py-8 lg:mx-0">
-            <div className="mx-auto max-w-sm text-center">
-              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-amber-500/15 text-amber-400"><Wrench size={20} /></div>
-              <div className="text-sm font-bold text-white">Game under maintenance</div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">Betting is paused while we carry out scheduled maintenance. Your balance is safe - please check back shortly.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="mx-1.5 mt-1.5 flex shrink-0 flex-col gap-1.5 lg:mx-0 lg:flex-row lg:justify-center lg:gap-2">
-            <div className="lg:w-full lg:max-w-[460px]">
-              <BettingPanel {...panelProps(1)} corner={showSecond ? null : { kind: 'add', onClick: () => setDual(true) }} />
-            </div>
-            {showSecond && (
-              <div className="lg:w-full lg:max-w-[460px]">
-                <BettingPanel {...panelProps(2)}
-                  corner={panelActiveBets[2] || queuedBets[2] ? null : { kind: 'remove', onClick: () => setDual(false) }} />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Phones: the bets list sits under the panels (page scroll), as in the mock */}
+        {/* Phones and tablets: the bets list under the panels */}
         {!streamer.enabled && (
           <BetsPanel bets={liveBets} status={gameStatus} previousRound={history[0] ?? null} me={profile?.username ?? (isDemo ? 'You' : null)}
-            className="mx-1.5 my-1.5 min-h-[420px] shrink-0 lg:hidden" />
+            className="mx-1.5 mb-[calc(6px+env(safe-area-inset-bottom))] min-h-[420px] shrink-0 lg:hidden" />
         )}
       </div>
 
       <GamePanels panel={panel} onClose={() => setPanel(null)} userId={profile?.id ?? null}
         freeBets={isDemo ? [] : freeBets} canUseFreeBet={!isDemo && !isOperator && slot1Free && !queuedFreeBet}
-        onUseFreeBet={handleUseFreeBet} minBet={50} stakeStep={50} minAuto={1.01} />
+        onUseFreeBet={handleUseFreeBet} minAuto={1.01} />
 
-      {/* Chat slide-over (opened from the ticker or the game menu) */}
-      {chatOpen && !streamer.enabled && (
-        <div className="fixed inset-0 z-40 flex justify-end" role="dialog" aria-modal="true" aria-label="Chat">
-          <button type="button" aria-label="Close chat" onClick={() => setChatOpen(false)} className="absolute inset-0 bg-black/50" />
-          <div className="relative flex h-full w-full max-w-sm flex-col border-l border-edge bg-panel">
-            <div className="flex items-center justify-between border-b border-edge px-3 py-2">
-              <span className="flex items-center gap-1.5 text-sm font-semibold text-white"><MessageSquare size={14} />Chat</span>
-              <button type="button" onClick={() => setChatOpen(false)} aria-label="Close chat" className="text-slate-400 hover:text-white"><X size={16} /></button>
-            </div>
-            <div className="min-h-0 flex-1">
-              <Chat messages={chat.messages} sending={chat.sending} onSend={chat.send} userId={profile?.id} username={profile?.username} />
-            </div>
-          </div>
-        </div>
-      )}
+      {chatOpen && !streamer.enabled && <ChatSheet profile={profile} onClose={() => setChatOpen(false)} />}
     </div>
   );
 }

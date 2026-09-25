@@ -125,15 +125,15 @@ try:
             page.route("**/functions/v1/megapay-stk-push", stk)
             page.route("**/functions/v1/megapay-status", status)
             page.goto(APP + "/", wait_until="domcontentloaded")
-            # Desktop has a Deposit button; on phones the balance pill opens the wallet.
-            dep_btn = page.get_by_role("button", name=re.compile(r"^Deposit$" if w >= 640 else r"open your wallet"))
+            # The balance pill (with its +) opens the wallet on every screen size.
+            dep_btn = page.get_by_role("button", name=re.compile(r"Open wallet"))
             ok = until(lambda: dep_btn.first.is_visible(), 20000)
-            check(f"{lbl}: signed-in player can open the wallet ({'Deposit button' if w >= 640 else 'balance pill'})", ok)
+            check(f"{lbl}: signed-in player can open the wallet from the balance", ok)
             dep_btn.first.click()
             dlg = page.get_by_role("dialog", name="Wallet")
             check(f"{lbl}: wallet opens", until(lambda: dlg.is_visible()))
             check(f"{lbl}: limits come from the server (KES 100 – 150,000)",
-                  until(lambda: "Min KES 100.00 · Max KES 150,000.00" in page.get_by_test_id("deposit-limits").inner_text()),
+                  until(lambda: "Min 100 · Max 150,000" in page.get_by_test_id("deposit-limits").inner_text()),
                   page.get_by_test_id("deposit-limits").inner_text())
             phone_in = page.get_by_label("M-Pesa phone number")
             check(f"{lbl}: the M-Pesa number is prefilled from the account", phone_in.input_value() == p_phone[3:], phone_in.input_value())
@@ -141,7 +141,7 @@ try:
             check(f"{lbl}: quick amounts start at the minimum", chips[:3] == ["100", "250", "500"], chips)
 
             amt = page.get_by_label("Amount in Kenyan shillings")
-            cta = page.get_by_role("button", name="Deposit via M-Pesa")
+            cta = page.get_by_role("button", name=re.compile(r"^Deposit( [\d,]+ KES)?$"))
             for val, pat, name in [("50", "smallest deposit is KES 100", "below the minimum"),
                                    ("100.5", "whole number", "a fractional amount"),
                                    ("200000", "largest single deposit is KES 150,000", "above the maximum")]:
@@ -183,9 +183,9 @@ try:
             status_script[:] = ["pending"] * 200
             amt.fill("500"); cta.click()
             until(lambda: page.get_by_test_id("deposit-awaiting-pin").is_visible(), 8000)
-            page.get_by_role("button", name=re.compile("Close — I'll keep playing")).click()
-            check(f"{lbl}: the player can close the prompt screen and keep playing",
-                  until(lambda: not dlg.is_visible(), 3000) and page.get_by_text("Waiting for M-Pesa…").is_visible())
+            page.get_by_role("button", name="Keep playing").click()
+            check(f"{lbl}: the player can close the prompt screen and keep playing (spinner on the balance)",
+                  until(lambda: not dlg.is_visible(), 3000) and page.get_by_role("status", name="Waiting for M-Pesa").is_visible())
             overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
             check(f"{lbl}: no sideways scroll", overflow <= 1, overflow)
             check(f"{lbl}: no page errors", not errors, errors[:2])
