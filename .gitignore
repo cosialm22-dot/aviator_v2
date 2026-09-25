@@ -32,3 +32,5 @@ dist-ssr
 # Cloudflare) always have them regardless of dashboard env-var config.
 !.env.production
 supabase/.temp/
+__pycache__/
+*.pyc
