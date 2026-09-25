@@ -28,7 +28,8 @@ BEGIN
   DELETE FROM bets; DELETE FROM round_secrets; DELETE FROM game_rounds; DELETE FROM crash_queue;
   v_round := open_round();
   SELECT crash_point INTO v_cp FROM round_secrets WHERE round_id=v_round;
-  IF v_cp < 1.5 THEN UPDATE round_secrets SET crash_point=5.00 WHERE round_id=v_round; v_cp:=5.00; END IF;
+  IF v_cp < 3 THEN  -- both auto cash-outs (2.00x) must land below the crash point
+     UPDATE round_secrets SET crash_point=5.00 WHERE round_id=v_round; v_cp:=5.00; END IF;
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub',v_mkt::text,'role','authenticated')::text, true);
   PERFORM place_bet(v_round, 1000, 2.00, 1::smallint);

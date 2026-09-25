@@ -77,13 +77,14 @@ try:
     for n in range(ROUNDS):
         # wait for a fresh betting window with at least 2 s left
         r = None
+        # balances first: each Management-API query can take ~1.5 s, which must not eat the betting window
+        b0 = {k: cents(k) for k in ("p1", "p2")}
         for _ in range(300):
             w = sql("select id from game_rounds where status='waiting' and betting_ends_at - clock_timestamp() > interval '3.5 seconds' limit 1")
             if w and all(p["id"] != w[0]["id"] for p in played):
                 r = {"id": w[0]["id"]}; break
             time.sleep(0.2)
         rid = r["id"]
-        b0 = {k: cents(k) for k in ("p1", "p2")}
         # place the three bets concurrently (sequential calls through a slow link can miss the window)
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(3) as ex:

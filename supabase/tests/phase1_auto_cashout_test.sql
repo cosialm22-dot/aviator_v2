@@ -21,7 +21,7 @@ BEGIN
   -- Fixture: auth.users insert fires handle_new_user -> profile + wallet(500) + welcome txn.
   INSERT INTO auth.users(id, raw_user_meta_data)
     VALUES (v_uid, jsonb_build_object('username','e2e_'||substr(v_uid::text,1,8)));
-  UPDATE wallets SET balance=10000 WHERE user_id=v_uid;          -- known starting balance
+  UPDATE wallets SET real_balance=1000000, bonus_balance=0 WHERE user_id=v_uid;  -- known starting balance (KES 10,000; balance is derived)
   INSERT INTO game_rounds(id,status,betting_ends_at,seed_hash,source)
     VALUES (v_round,'waiting',now()+interval '5 min','testhash','algorithm');
   INSERT INTO round_secrets(round_id,server_seed,crash_point,crashes_at)

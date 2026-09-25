@@ -68,6 +68,7 @@ export function maskPhone(p: string | null | undefined): string {
 
 export const ROLE_LABEL: Record<string, string> = {
   platform_superadmin: 'Platform owner',
+  platform_admin: 'Platform admin',
   super_admin: 'Brand owner',
   admin: 'Admin',
   finance_admin: 'Finance',

@@ -13,6 +13,10 @@ import json, os, re, sys, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 MIG = open(os.path.join(HERE, "..", "migrations", "20260928110000_rls_and_index_tuning.sql"), encoding="utf-8").read()
 TX = MIG[MIG.index("BEGIN;") + len("BEGIN;"):MIG.index("COMMIT;")]
+# The migration is live; re-applying it inside the test would roll later migrations' versions of the same
+# functions back to this one's. REAPPLY_MIGRATION=1 restores the original apply-then-test mode (only valid
+# on a database where this is the newest migration).
+REAPPLY = os.environ.get('REAPPLY_MIGRATION') == '1'
 TOKEN, REF = os.environ["SUPABASE_ACCESS_TOKEN"], os.environ["SUPABASE_REF"]
 
 def run(sql):
@@ -94,6 +98,8 @@ BEGIN
             AND NOT (after->'admin B'->'withdrawal_requests') @> (after->'player A'->'withdrawal_requests'));
   out := out || jsonb_build_object('t', 'a player sees only their own withdrawal', 'ok', jsonb_array_length(after->'player A'->'withdrawal_requests') = 1
             AND after->'other player A'->'withdrawal_requests' = '"none"');
+  out := out || jsonb_build_object('t', 'brand staff never see the crash queue', 'ok', after->'admin A'->'crash_queue' = '"none"'
+            AND after->'support A'->'crash_queue' = '"none"' AND after->'admin B'->'crash_queue' = '"none"');
   out := out || jsonb_build_object('t', 'anon sees no staff or money rows', 'ok', NOT EXISTS (
             SELECT 1 FROM jsonb_each(after->'anon') e(k, v) WHERE v <> '"none"'));
   out := out || jsonb_build_object('t', 'no policy still calls auth.uid() or _is_admin() per row', 'ok', NOT EXISTS (
@@ -103,7 +109,7 @@ BEGIN
 END $t$;
 """
 
-sql = "BEGIN;\nSET LOCAL lock_timeout='15s';\n" + SNAP + TEST.replace("%MIGRATION%", "EXECUTE $mig$" + TX + "$mig$;")
+sql = "BEGIN;\nSET LOCAL lock_timeout='15s';\n" + SNAP + TEST.replace("%MIGRATION%", ("EXECUTE $mig$" + TX + "$mig$;") if REAPPLY else "")
 st, body = run(sql)
 try: msg = json.loads(body).get("message", body)
 except Exception: msg = body

@@ -4,6 +4,38 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #34 — Multi-brand foundation: operator tiers, one brand-config contract, server-enforced brand limits — DONE (branch `brand/p1-foundation`)
+- **Ask:** every marketer gets their own site with its own look (different planes; marketers stream a bird), every setting configurable per brand, roles and scope borrowed from invest254.
+- **Tiers (from invest254 docs/41):** new `platform_admin` tier and `platforms` table. A platform admin runs a group of brands and works on one brand at a time. Its pick is stored on the server (`profiles.acting_site_id`, re-checked on every read), so every existing brand-scoped RPC and RLS policy serves it without being rewritten. `src/admin/capabilities.ts` is the capability map with `can()`, ported from invest254; `capabilities.test.ts` pins it.
+- **One contract for brand settings:** `brand_setting_defs` holds 87 settings in 14 sections: look, plane, stream, copy, SEO, support, social, features, limits, bonuses, payments, legal, analytics and PWA. Each row carries its type, bounds, default, the platform value it inherits, whether players can see it, and who may edit it (`owner`, `platform` or `brand`). A brand stores only its overrides (`sites.config`). The console renders its forms from `admin_brand_schema()`, and `admin_brand_save` validates against the same rows.
+- **Saves are versioned:** each save is checked against the version the editor loaded, so a stale save is refused. It writes a snapshot and a field-by-field diff (`site_config_versions`) and an audit row, and broadcasts `{site_id, version}` so open pages re-skin. `admin_brand_rollback` restores an old version as a new one.
+- **Enforced by the database:**
+  - Bets: `features.play`, `features.maintenance`, `features.two_bets` and `features.free_bets`, plus the minimum and maximum bet.
+  - Payout cap: stored on the bet itself (`bets.max_payout`), so cash-out and the engine's auto cash-out pay under the cap that applied when the bet was placed.
+  - Deposits: one guard, `fn_deposit_guard`, used by every rail.
+  - Withdrawals: minimum, per-request cap, daily cap (Nairobi day) and auto-approve threshold.
+  - Also: sign-ups, welcome and first-deposit bonuses, promo codes, rain and chat.
+- **Public payload:** `public_site_by_host(host, slug)` matches the host in `site_domains` (ignoring `www.` and the port). `?brand=` previews active brands only. It returns only public settings, never payment or owner data.
+- **Tests:** `supabase/tests/brand_config_e2e.py` has 115 checks across every tier, validation rule, bound, version, broadcast and enforcement path, and passes 115/115. `capabilities.test.ts` passes.
+
+## #33 — Cross-brand holes in the back office — FIXED (same branch)
+Found while auditing every role guard for the new tier:
+- **Shared engine:** any brand's staff could read the crash queue (RLS `staff_read`) and the live crash point (`admin_current_round`), force a crash, recover rounds and start rain. The engine runs one round for every brand, so this is now owner-only.
+- **Brand not checked:** `admin_adjust_balance_kind`, `admin_add_marketer_expense`, `fn_marketer_funnel`, `fn_marketer_ledger`, `fn_support_send` and `fn_support_escalate` checked the role but not the brand. A brand admin could move money for, or read, another brand's player or marketer.
+- **RLS:** any brand's admin could read every brand's `affiliate_clicks`, `marketer_expenses`, `support_conversations` and `support_messages`.
+- **Global writes:** any brand's owner could edit the global notification templates, commission rate and qualifying deposit. These are now owner-only.
+- **Not assignable:** `finance_admin` and `support` could not be given to anyone (`admin_set_role` rejected them). They can now, within scope; only the owner or the platform admin can appoint a brand owner.
+- **Also fixed:** `platform_update_site` accepted status `archived`, which the table's CHECK rejects. The vocabulary is now `active | suspended | disabled`.
+
+## #32 — Test fixtures committed to production; the live game stalled for ~5 minutes — FIXED (process), cleanup pending the owner
+- **What:** while running regressions I sent each `supabase/tests/*.sql` file on its own through the Management API.
+  - Seven files end with `RAISE NOTICE … PASSED` and expect the caller to roll back. Sent alone, they committed.
+  - One of them left a synthetic round (number 900101, betting open for 1 hour). The engine waited behind it from 13:06 to 13:11 UTC.
+- **Fix now:** I deleted the synthetic rounds (900001–900003, 900101 and 996001) and the engine resumed at round 118839. No real bets were open during that window. The kill switches ended where they were, though with extra history rows.
+- **Fix for good:** `supabase/tests/run_sql_tests.py` is now the only way to run those files. It wraps every file in `BEGIN … ROLLBACK` and refuses a file that contains `COMMIT`.
+- **Stale tests also fixed:** phase 1 and 3 set the legacy `balance` column; the crash-queue test hit a foreign key on cleanup; the marketer-isolation test was flaky when the crash point landed between 1.5x and 2x. The three old Python e2e files re-applied their own migrations on top of newer ones; they now test the live schema, and `REAPPLY_MIGRATION=1` brings back the old mode.
+- **Still to do (needs the owner's OK):** delete the 15 fixture accounts and their rows: player_t, admin_t, tester_p1–p3, accr_mktr, accr_player, mktr_one, admin_one, ref_a, ref_b, player_pc, promo_target, support_u, support_v. Until then, the test files that use those fixed ids cannot run.
+
 ## #31 — Admin back office and marketer hub on Apple's dark design language — DONE (branch `ui/apple-grade-admin`)
 - **Tokens:** the admin colours were remapped to Apple system colours, with the same names so every page follows.
   - Black window and `#1c1c1e` cards; `#2c2c2e` controls; `#38383a` separators.
@@ -447,6 +479,7 @@ Running log of bugs found while working through issues, with what was wrong, the
 ---
 
 ## Needs the owner's action
+- **Delete the 15 committed test-fixture accounts (#32).**
 - **Automatic deposit checks:** DONE on 2026-09-25. Both vault secrets were created at the owner's instruction, and a test call through pg_net to `megapay-reconcile` returned HTTP 200.
 - **Authorise the fix for #17:** DONE. Authorised on 2026-09-25 and fixed (#18).
 - **Upgrade the compute from Nano to Micro:** DONE on 2026-09-25 (#26).
