@@ -60,7 +60,7 @@ def cents(kind):
     return int(sql(f"select real_balance from wallets where user_id='{users[kind]}'")[0]["real_balance"])
 
 def live_round():
-    st, r = http("GET", f"{URL}/rest/v1/game_rounds?select=id,round_number,status,betting_ends_at,started_at,crash_multiplier,server_seed,crashes_at&status=in.(waiting,flying)&order=round_number.desc&limit=1", None, {"apikey": PUB})
+    st, r = http("GET", f"{URL}/rest/v1/game_rounds?select=id,round_number,status,betting_ends_at,started_at,crash_multiplier,server_seed&status=in.(waiting,flying)&order=round_number.desc&limit=1", None, {"apikey": PUB})
     return (r[0] if isinstance(r, list) and r else None), st, r
 
 listener = None
@@ -78,15 +78,19 @@ try:
         # wait for a fresh betting window with at least 2 s left
         r = None
         for _ in range(300):
-            w = sql("select id from game_rounds where status='waiting' and betting_ends_at - clock_timestamp() > interval '2.5 seconds' limit 1")
+            w = sql("select id from game_rounds where status='waiting' and betting_ends_at - clock_timestamp() > interval '3.5 seconds' limit 1")
             if w and all(p["id"] != w[0]["id"] for p in played):
                 r = {"id": w[0]["id"]}; break
             time.sleep(0.2)
         rid = r["id"]
         b0 = {k: cents(k) for k in ("p1", "p2")}
-        s1, x1 = rpc("p1", "place_bet", {"p_round_id": rid, "p_amount": 100, "p_auto_cashout": 1.20, "p_slot": 1})
-        s2, x2 = rpc("p1", "place_bet", {"p_round_id": rid, "p_amount": 100, "p_auto_cashout": 50, "p_slot": 2})
-        s3, x3 = rpc("p2", "place_bet", {"p_round_id": rid, "p_amount": 200, "p_slot": 1})
+        # place the three bets concurrently (sequential calls through a slow link can miss the window)
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(3) as ex:
+            f1 = ex.submit(rpc, "p1", "place_bet", {"p_round_id": rid, "p_amount": 100, "p_auto_cashout": 1.20, "p_slot": 1})
+            f2 = ex.submit(rpc, "p1", "place_bet", {"p_round_id": rid, "p_amount": 100, "p_auto_cashout": 50, "p_slot": 2})
+            f3 = ex.submit(rpc, "p2", "place_bet", {"p_round_id": rid, "p_amount": 200, "p_slot": 1})
+            (s1, x1), (s2, x2), (s3, x3) = f1.result(), f2.result(), f3.result()
         check(f"round {n+1}: three bets accepted", s1 < 300 and s2 < 300 and s3 < 300,
               (s1, s2, s3, x3, sql(f"select status, betting_ends_at, clock_timestamp() now from game_rounds where id='{rid}'")))
         if s3 >= 300: continue
@@ -95,8 +99,10 @@ try:
             r, _, _ = live_round()
             if r and r["id"] == rid and r["status"] == "flying": break
             time.sleep(0.05)
-        check(f"round {n+1}: in flight the public sees no crash time, crash point or seed",
-              r and r.get("crashes_at") is None and r.get("crash_multiplier") is None and r.get("server_seed") is None, r)
+        check(f"round {n+1}: in flight the public sees no crash point or seed",
+              r and r.get("crash_multiplier") is None and r.get("server_seed") is None, r)
+        st_ca, body_ca = http("GET", f"{URL}/rest/v1/game_rounds?select=crashes_at&id=eq.{rid}", None, {"apikey": PUB})
+        check(f"round {n+1}: the crash-time column cannot be read at all", st_ca in (401, 403) and "permission denied" in str(body_ca), (st_ca, body_ca))
         time.sleep(0.4)
         sc, co = rpc("p2", "cash_out", {"p_round_id": rid, "p_slot": 1})
         # wait for the crash
