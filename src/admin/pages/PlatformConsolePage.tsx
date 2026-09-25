@@ -98,8 +98,8 @@ export default function PlatformConsolePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Platform" title="Brands & controls"
-        subtitle="Every brand runs on one shared game engine. Switches here apply to all brands at once; open a brand to work in its back office."
+      <PageHeader eyebrow="Platform" title="Controls"
+        subtitle="Every brand runs on one shared game engine. Switches here apply to all brands at once. Each brand's look, plane, limits and domain live under Brands."
         actions={<Button variant="primary" onClick={() => setShowCreate(true)}><Plus size={14} /> New brand</Button>} />
       <GlobalControls />
 
@@ -158,6 +158,7 @@ export default function PlatformConsolePage() {
                   <Td className="pr-5 text-right">
                     <span className="inline-flex gap-1.5">
                       <Button size="sm" variant="ghost" onClick={() => { scope.setSiteId(r.site_id); navigate('/admin'); }} data-testid="open-brand">Open</Button>
+                      <Button size="sm" onClick={() => navigate(`/admin/brands/${r.site_id}`)} data-testid="brand-console">Brand</Button>
                       <Button size="sm" onClick={() => setEditing(r)}>Edit</Button>
                     </span>
                   </Td>

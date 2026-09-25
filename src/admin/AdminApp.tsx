@@ -16,6 +16,9 @@ import MarketingAdminPage from './pages/MarketingAdminPage';
 import PlatformConsolePage from './pages/PlatformConsolePage';
 import NotificationsPage from './pages/NotificationsPage';
 import PromoCodesPage from './pages/PromoCodesPage';
+import BrandsPage from './pages/BrandsPage';
+import BrandDetailPage from './pages/BrandDetailPage';
+import PlatformsPage from './pages/PlatformsPage';
 import { useAdmin, canAccess, type Section } from './roleContext';
 
 // Route-level authorisation (defence in depth alongside the hidden nav items):
@@ -35,6 +38,9 @@ export default function AdminApp() {
         <Routes>
           <Route index element={<DashboardPage />} />
           <Route path="platform" element={<RequireSection section="platform"><PlatformConsolePage /></RequireSection>} />
+          <Route path="brands" element={<RequireSection section="brands"><BrandsPage /></RequireSection>} />
+          <Route path="brands/:siteId" element={<RequireSection section="brands"><BrandDetailPage /></RequireSection>} />
+          <Route path="platforms" element={<RequireSection section="platforms"><PlatformsPage /></RequireSection>} />
           <Route path="dashboard" element={<RequireSection section="dashboard"><DashboardPage /></RequireSection>} />
           <Route path="marketing" element={<RequireSection section="marketing"><MarketingAdminPage /></RequireSection>} />
           <Route path="notifications" element={<RequireSection section="notifications"><NotificationsPage /></RequireSection>} />

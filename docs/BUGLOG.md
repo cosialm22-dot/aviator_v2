@@ -4,6 +4,36 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #36 — Brand console in the back office — DONE (branch `brand/p4-console`)
+- **Brands page** (`/admin/brands`): one card per brand, drawn in its own colours, plane and bird, with its domain, marketer, status and config version.
+  - A platform admin sees only its platform's brands; a brand owner goes straight to its own brand.
+  - **New-brand wizard:** name and address → a look from the gallery → the marketer (searched by name or phone, scoped to the caller's platform). It creates the brand, assigns the marketer and lands on the Domains tab.
+- **Brand page** (`/admin/brands/:id`), with tabs: Overview, Look, Plane & bird, Content, Features, Limits & bonuses, Payments, Domains, Legal, People, History. Status (active / suspended / disabled) is set on Overview.
+  - Every form is drawn from `admin_brand_schema()`, so a new setting in the database appears in the console with its bounds, options and help text.
+  - Fields the caller's tier cannot edit are shown read-only with the reason. Inherited values show where they come from and can be reset to inherit.
+  - **Look:** 24 looks, 16 one-colour seeds, every token with a contrast hint, fonts, heading weight, radius, logo and wordmark.
+  - **Plane & bird:** the 10-model library plus an uploaded image (brand-scoped storage), plane colours, the streamer bird and its flight line.
+  - **Live preview:** a phone mock-up redraws as you type, switchable between the player's view (plane) and the marketer's streaming view (bird).
+  - **Sticky save bar:** lists the unsaved changes and takes an optional note.
+    - All edits go out as one versioned save.
+    - A stale save is refused with a Reload offer.
+    - Errors come back in plain words, named by the setting ("Minimum bet: …").
+  - **History:** every version with who, when, note and a field-by-field diff; restore any version as a new one.
+- **Platforms page** (`/admin/platforms`, owner only): create or suspend platforms and add or remove platform admins. A brand is moved between platforms from its People tab (owner only).
+- **Navigation** now comes from the capability map. The Platform group holds Brands, Platforms and Controls (the old Platform page).
+  - A platform admin sees Brands only.
+  - A brand owner sees Brands and its own brand.
+  - Neither sees Controls, Platforms or Game control.
+- **Scope fixes:**
+  - A platform admin starts on its first brand, and the pick is stored on the server.
+  - The layout waits for the scope before rendering, so dialogs no longer close when the scope settles.
+  - "All brands" is offered only to the owner.
+- **Settings → Theme** now points to the brand console. The old theme panel is removed, and theme writes go through the same versioned save.
+- **Tests:**
+  - `e2e/brand_console_e2e.py`: 25 checks, live, as a real platform admin and a brand owner. It tears down its own fixtures.
+    - Covers the list scope, a one-version save of look + plane + bird + words + switch + limit, the public payload, the history diff, plain-word validation, the stale-save refusal, restore, plane upload to the brand's folder, the wizard, and the brand owner's read-only look.
+  - `admin_ui_e2e.py` 43/43; vitest 119/119 (nav and capabilities pinned).
+
 ## #35 — Brand skins in the player app, a plane library, and an edge renderer — DONE (branch `brand/p2-theming`)
 - **One token contract, the whole UI themed:** a brand's `theme_tokens` (invest254's keys) become CSS variables (`src/brand/tokens.ts`).
   - Every colour on the game screen and on the sheets reads a brand variable: 36 hard-coded hexes are gone.

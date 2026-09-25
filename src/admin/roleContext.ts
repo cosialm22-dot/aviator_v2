@@ -10,15 +10,16 @@ import { can, OPERATOR_ROLES as OPS, type Capability, type Role as R } from './c
 export type Role = R;
 
 export type Section =
-  | 'platform' | 'brands'
+  | 'platform' | 'brands' | 'platforms'
   | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'deposits' | 'finance' | 'settings' | 'staff' | 'audit'
   | 'marketing' | 'commissions' | 'risk' | 'notifications';
 
 export const OPERATOR_ROLES: Role[] = OPS;
 
 const SECTION_CAP: Record<Section, Capability> = {
-  platform: 'console.enter',
+  platform: 'engine.config',
   brands: 'console.brand.copy',
+  platforms: 'console.platforms',
   dashboard: 'backoffice.dashboard',
   users: 'backoffice.players',
   game: 'engine.control',

@@ -122,7 +122,7 @@ try:
         check("admin: hovering a day shows its figures", until(lambda: page.get_by_test_id("money-chart-tip").is_visible(), 3000))
         labels = nav_labels(page)
         check("admin: grouped navigation without platform or settings items",
-              "Brands & controls" not in labels and "Settings" not in labels and "Audit log" in labels and "Players" in labels, labels)
+              "Brands" not in labels and "Controls" not in labels and "Settings" not in labels and "Audit log" in labels and "Players" in labels, labels)
         groups = page.locator("aside nav").inner_text()
         check("admin: nav groups are labelled", all(g in groups.upper() for g in ["MONEY", "PLAYERS", "GROWTH", "ADMINISTRATION"]), groups[:200])
         shot(page, "admin-overview")
@@ -252,7 +252,7 @@ try:
         check("owner: KPIs show the all-brands figures", until(lambda: "KSh 25,000" in page.get_by_test_id("kpi-deposits").inner_text(), 10000))
         check("owner: needs-attention lists queue links", "Withdrawals waiting for review" in page.get_by_test_id("attention").inner_text())
         labels = nav_labels(page)
-        check("owner: sees platform and settings items", "Brands & controls" in labels and "Settings" in labels, labels)
+        check("owner: sees platform and settings items", "Brands" in labels and "Platforms" in labels and "Controls" in labels and "Settings" in labels, labels)
         page.get_by_test_id("scope-switcher").select_option(brands[1]["id"])
         page.wait_for_timeout(3000)
         try:
@@ -267,7 +267,7 @@ try:
         page.get_by_role("button", name="Show all brands").click()
         check("owner: 'Show all brands' clears the scope", until(lambda: page.get_by_test_id("scope-banner").count() == 0, 5000))
         page.goto(APP + "/admin/platform", wait_until="domcontentloaded")
-        check("owner: Brands & controls shows five platform switches", until(lambda: page.get_by_role("switch").count() == 5, 15000))
+        check("owner: Controls shows five platform switches", until(lambda: page.get_by_role("switch").count() == 5, 15000))
         page.get_by_test_id("switch-deposits_enabled").click()
         dlg = page.get_by_role("dialog", name=re.compile("Turn off deposits"))
         check("owner: turning a switch off asks for confirmation first", until(lambda: dlg.is_visible(), 3000) and cfg["deposits_enabled"] is True)

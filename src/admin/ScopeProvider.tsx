@@ -55,7 +55,7 @@ export default function ScopeProvider({ children }: { children: ReactNode }) {
     const brand = brands.find((b) => b.id === siteId);
     return {
       brands, siteId, setSiteId, canSwitch: isPlatformTier && (isPlatform || brands.length > 1), canPickAll: isPlatform, ready,
-      label: siteId ? (brand?.name ?? 'Your brand') : 'All brands',
+      label: siteId ? (brand?.name ?? 'Your brand') : isPlatform ? 'All brands' : 'Your brands',
       multiBrand: isPlatform && !siteId && brands.length > 1,
     };
   }, [brands, isPlatform, isPlatformTier, ownSite, picked, ready, setSiteId]);

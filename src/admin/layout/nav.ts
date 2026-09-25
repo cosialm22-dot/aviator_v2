@@ -1,5 +1,5 @@
 import {
-  ArrowDownToLine, Banknote, Bell, Building2, Gamepad2, LayoutDashboard, Megaphone, ScrollText, Settings,
+  ArrowDownToLine, Banknote, Bell, Building2, Gamepad2, LayoutDashboard, Megaphone, Network, Palette, ScrollText, Settings,
   ShieldAlert, Ticket, Users, Wallet, type LucideIcon,
 } from 'lucide-react';
 import { canAccess, type Role, type Section } from '../roleContext';
@@ -35,7 +35,9 @@ export const NAV: NavGroup[] = [
     { label: 'Settings', path: '/admin/settings', icon: Settings, section: 'settings', hint: 'Brand, staff, payments' },
   ] },
   { id: 'platform', label: 'Platform', items: [
-    { label: 'Brands & controls', path: '/admin/platform', icon: Building2, section: 'platform', hint: 'Every brand, platform switches', scoped: true},
+    { label: 'Brands', path: '/admin/brands', icon: Palette, section: 'brands', hint: 'Looks, planes, marketers, limits, domains' },
+    { label: 'Platforms', path: '/admin/platforms', icon: Network, section: 'platforms', hint: 'Groups of brands and their admins' },
+    { label: 'Controls', path: '/admin/platform', icon: Building2, section: 'platform', hint: 'Platform switches and brand totals', scoped: true},
   ] },
 ];
 

@@ -6,8 +6,17 @@ const labels = (role: Parameters<typeof navFor>[0]) => navFor(role).flatMap((g) 
 
 describe('admin navigation', () => {
   it('each tier sees exactly its tools', () => {
-    expect(labels('platform_superadmin')).toContain('Brands & controls');
-    expect(labels('super_admin')).not.toContain('Brands & controls');
+    expect(labels('platform_superadmin')).toEqual(expect.arrayContaining(['Brands', 'Platforms', 'Controls', 'Game control']));
+    // a platform admin runs its brands, never the shared engine or the platform list
+    expect(labels('platform_admin')).toContain('Brands');
+    expect(labels('platform_admin')).not.toContain('Controls');
+    expect(labels('platform_admin')).not.toContain('Platforms');
+    expect(labels('platform_admin')).not.toContain('Game control');
+    // a brand owner edits its own brand's words, contacts and legal pages
+    expect(labels('super_admin')).toContain('Brands');
+    expect(labels('super_admin')).not.toContain('Controls');
+    expect(labels('super_admin')).not.toContain('Game control');
+    expect(labels('admin')).not.toContain('Brands');
     expect(labels('support')).toEqual(['Overview', 'Deposits', 'Players', 'Risk & fraud']);
     expect(labels('finance_admin')).toEqual(['Overview', 'Deposits', 'Withdrawals', 'Finance']);
     expect(labels('admin')).toContain('Audit log');
