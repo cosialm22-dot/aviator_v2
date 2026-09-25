@@ -166,7 +166,7 @@ try:
         until(pg, lambda: wal.is_visible(), 5000)
         wt = wal.inner_text()
         if offer.get("match_pct"):
-            check("wallet: first-deposit offer is the live one", f"+{int(float(offer['match_pct']))}% on your first deposit, up to {int(offer['match_cap']):,} KES" in wt, wt[:200])
+            check("wallet: first-deposit offer is the live one", f"+{int(float(offer['match_pct']))}% first deposit, up to {int(offer['match_cap']):,} KES" in wt, wt[:200])
         check("wallet: no method card or long help text", "Instant prompt" not in wt and "For your security" not in wt and len(wt.split()) <= 40, len(wt.split()))
         pg.get_by_label("Amount in Kenyan shillings").fill("500")
         check("wallet: the CTA carries the amount", wal.get_by_role("button", name="Deposit 500 KES").is_visible())
@@ -174,7 +174,7 @@ try:
         pg.get_by_label("Amount in Kenyan shillings").fill("100")
         check("wallet: withdraw asks for the password and shows the amount", pg.get_by_label("Password", exact=True).is_visible() and wal.get_by_role("button", name="Withdraw 100 KES").is_visible())
         wal.get_by_role("tab", name="Deposit").click()
-        wal.get_by_role("button", name="Promo code").click()
+        wal.get_by_role("button", name="Add promo code").click()
         pr = pg.get_by_label("Promo code").bounding_box(); ap = wal.get_by_role("button", name="Apply").bounding_box(); wb = wal.bounding_box()
         check("wallet: promo code field and Apply fit inside the sheet", ap and wb and ap["x"] + ap["width"] <= wb["x"] + wb["width"] and pr["width"] > 100, (pr, ap, wb))
         pg.keyboard.press("Escape")

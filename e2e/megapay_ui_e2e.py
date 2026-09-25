@@ -154,7 +154,12 @@ try:
             phone_in.fill(p_phone[3:])
             shot(page, f"wallet-form-{lbl}")
 
-            # success: pending, pending, completed
+            # success: pending, pending, completed — started from the profile page's Wallet row
+            page.keyboard.press("Escape"); until(lambda: not dlg.is_visible(), 3000)
+            page.goto(APP + "/profile", wait_until="domcontentloaded")
+            prof_wallet = page.get_by_role("button", name=re.compile(r"^Wallet"))
+            until(lambda: prof_wallet.is_visible(), 15000); prof_wallet.click()
+            until(lambda: dlg.is_visible(), 5000)
             status_script[:] = ["pending", "pending", "completed"]
             amt.fill("500"); cta.click()
             check(f"{lbl}: 'Check your phone' shows the number and amount",
@@ -163,8 +168,12 @@ try:
                   and "KES 500.00" in page.get_by_test_id("deposit-awaiting-pin").inner_text())
             shot(page, f"wallet-awaiting-{lbl}")
             check(f"{lbl}: only amount and phone are sent (never a user id)", sent and sent[-1] == {"amount": 500, "phone": p_phone}, sent[-1:] if sent else sent)
-            check(f"{lbl}: confirmed deposit shows 'Deposit Confirmed'", until(lambda: page.get_by_text("Deposit Confirmed").is_visible(), 20000))
-            page.get_by_role("button", name="Done").click()
+            chip = page.locator("#win-fx-layer span")
+            check(f"{lbl}: a confirmed deposit closes the wallet and returns to the game (no confirmation page)",
+                  until(lambda: not dlg.is_visible(), 20000) and until(lambda: page.url.rstrip("/") == APP.rstrip("/"), 5000)
+                  and page.get_by_text(re.compile("Deposit Confirmed", re.I)).count() == 0, page.url)
+            check(f"{lbl}: the deposited amount flies into the balance", until(lambda: chip.count() > 0 and chip.first.inner_text() == "+500.00", 3000))
+            dep_btn.first.click(); until(lambda: dlg.is_visible(), 5000)
 
             # failed
             status_script[:] = ["failed"]

@@ -124,9 +124,9 @@ try {
     if (before === 'true') await sw.click();
     await menu.getByRole('menuitem', { name: 'Rules' }).click();
     const rules = page.getByRole('dialog', { name: 'Rules' });
-    check(`${tag}: Rules shows the steps and the live limits`, await until(async () => /Cash out before[\s\S]*Min bet[\s\S]*50 KES[\s\S]*Max bet[\s\S]*100,000 KES/.test(await rules.innerText()), 5000), await rules.innerText().catch(() => ''));
+    check(`${tag}: Rules shows the steps and the live limits`, await until(async () => /Cash out before[\s\S]*Minimum bet[\s\S]*50 KES[\s\S]*Maximum bet[\s\S]*100,000 KES/.test(await rules.innerText()), 5000), await rules.innerText().catch(() => ''));
     await page.keyboard.press('Escape');
-    check(`${tag}: Escape closes the sheet`, !(await rules.isVisible()));
+    check(`${tag}: Escape closes the sheet (animated out)`, await until(async () => !(await rules.isVisible()), 2000));
     await page.getByRole('button', { name: 'Game menu' }).click();
     await page.getByRole('menu', { name: 'Game menu' }).getByRole('menuitem', { name: 'Chat' }).click();
     check(`${tag}: Chat opens as a panel`, await page.getByRole('dialog', { name: 'Chat' }).isVisible());

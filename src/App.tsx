@@ -1,5 +1,7 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { flyToBalance } from './lib/winFx';
+import type { DepositResult } from './components/wallet/WalletModal';
 import Header from './components/layout/Header';
 import AviatorGame from './components/game/AviatorGame';
 import { useAuth } from './hooks/useAuth';
@@ -50,6 +52,7 @@ function PlayerApp() {
   // Off the game route (e.g. /profile, /marketer) the rigged loop is paused so
   // it never burns a rAF in the background.
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const onGameRoute = pathname === '/' || pathname === '';
 
   // Self-contained, rigged, client-only demo engine (no DB writes). Always
@@ -61,6 +64,32 @@ function PlayerApp() {
     playerName: profile?.username ?? 'You',
     playerColor: profile?.avatar_color ?? '#22c55e',
   });
+
+  // A deposit M-Pesa has not confirmed yet (the reconcile job will): keep the spinner on the
+  // balance until the balance rises, for at most 3 minutes.
+  const [pendingDeposit, setPendingDeposit] = useState(false);
+  const lastBalance = useRef(wallet?.balance ?? 0);
+  useEffect(() => {
+    const b = wallet?.balance ?? 0;
+    if (b > lastBalance.current) setPendingDeposit(false);
+    lastBalance.current = b;
+  }, [wallet?.balance]);
+  useEffect(() => {
+    if (!pendingDeposit) return;
+    const t = setTimeout(() => setPendingDeposit(false), 180_000);
+    return () => clearTimeout(t);
+  }, [pendingDeposit]);
+
+  // After a deposit: no "confirmed" page. Close the wallet, go back to the game, and fly the amount
+  // into the balance (which counts up as it lands).
+  const onDepositDone = ({ amount, confirmed, from }: DepositResult) => {
+    setWalletOpen(false);
+    if (pathname !== '/') navigate('/');
+    if (!confirmed) { setPendingDeposit(true); return; }
+    const rect = from ?? new DOMRect(window.innerWidth / 2 - 60, window.innerHeight - 90, 120, 50);
+    const label = `+${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    requestAnimationFrame(() => requestAnimationFrame(() => { void flyToBalance(label, rect); }));
+  };
 
   if (loading) {
     return (
@@ -85,7 +114,7 @@ function PlayerApp() {
         onSetMode={setMode}
         demoBalance={mode === 'demo' && onGameRoute ? demo.balance : null}
         onDemoReset={demo.reset}
-        busy={depositing ? 'deposit' : withdrawing ? 'withdraw' : null}
+        busy={depositing || pendingDeposit ? 'deposit' : withdrawing ? 'withdraw' : null}
         onSignInOpen={() => setAuthMode('signin')}
         onRegisterOpen={() => setAuthMode('signup')}
         onWalletOpen={() => setWalletOpen(true)}
@@ -117,6 +146,7 @@ function PlayerApp() {
                   profile={profile}
                   wallet={wallet}
                   onSignInRequired={() => setAuthMode('signin')}
+                  onWalletOpen={openDeposit}
                 />
               </Suspense>
             }
@@ -154,6 +184,7 @@ function PlayerApp() {
           onDeposit={deposit}
           onWithdraw={withdraw}
           onClose={() => setWalletOpen(false)}
+          onDepositDone={onDepositDone}
           eligibleForFirstDeposit={eligibleForFirstDeposit}
           activeBonus={activeLocked}
           defaultPhone={user?.phone}
@@ -169,7 +200,7 @@ function PlayerApp() {
 function InlineFallback() {
   return (
     <div className="h-full flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-win border-t-transparent rounded-full animate-spin" />
+      <div className="h-7 w-7 animate-spin rounded-full border-2 border-ios-label3 border-t-white" />
     </div>
   );
 }

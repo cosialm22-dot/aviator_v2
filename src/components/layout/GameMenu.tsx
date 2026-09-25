@@ -1,11 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Volume2, Star, History, HelpCircle, MessageSquare, LayoutDashboard, Wallet, LogOut, LogIn, Bell, ChevronRight } from 'lucide-react';
+import { Star, History, HelpCircle, MessageSquare, LayoutDashboard, Wallet, LogOut, LogIn, Bell, ChevronRight } from 'lucide-react';
 import type { Profile } from '../../types';
 import { useSoundEnabled, setSoundEnabled } from '../../lib/sound';
 import { openGamePanel, type GamePanel } from '../../lib/gamePanels';
+import { Switch } from '../ui/ios';
 
-/** The ☰ menu: only things the game really has, one word each where possible. */
+/**
+ * The ☰ menu, drawn like an iOS menu: a blurred material card, 44 pt rows with the label on the
+ * left and the symbol on the right, groups split by a thick gap. Real / Demo is a segmented
+ * control at the top; picking one closes the menu so the game is in view.
+ */
 export default function GameMenu({ profile, freeBetCount = 0, unread = 0, onClose, onWalletOpen, onSignOut, onSignIn, onNotifications, mode, onSetMode }: {
   mode: 'real' | 'demo'; onSetMode: (m: 'real' | 'demo') => void;
   profile: Profile | null; freeBetCount?: number; unread?: number; onClose: () => void;
@@ -30,67 +35,72 @@ export default function GameMenu({ profile, freeBetCount = 0, unread = 0, onClos
     navigate('/');
     setTimeout(() => openGamePanel(p), 120);
   });
-  const badge = (n: number) => (n > 0 ? <span className="min-w-[20px] rounded-full bg-danger px-1.5 py-0.5 text-center text-[11px] font-bold text-white">{n > 9 ? '9+' : n}</span> : null);
-  const Item = ({ icon: Icon, label, onClick, extra }: { icon: typeof Star; label: string; onClick: () => void; extra?: React.ReactNode }) => (
+  const badge = (n: number) => (n > 0 ? <span className="min-w-[22px] rounded-full bg-ios-red px-1.5 text-center text-footnote font-semibold leading-[22px] text-white">{n > 9 ? '9+' : n}</span> : null);
+  const Item = ({ icon: Icon, label, onClick, extra, destructive }: { icon: typeof Star; label: string; onClick: () => void; extra?: React.ReactNode; destructive?: boolean }) => (
     <button type="button" role="menuitem" onClick={onClick}
-      className="flex h-12 w-full items-center gap-3 px-4 text-left text-[15px] text-[#d7d7d7] transition hover:bg-[#2c2d30] active:bg-[#2c2d30]">
-      <Icon size={18} className="shrink-0 text-[#9ea0a3]" />
-      <span className="flex-1">{label}</span>
+      className={`relative flex h-11 w-full items-center gap-3 px-4 text-left text-body transition-colors active:bg-white/10 after:absolute after:bottom-0 after:left-4 after:right-0 after:h-px after:origin-bottom after:scale-y-50 after:bg-ios-sep last:after:hidden ${destructive ? 'text-ios-red' : 'text-white'}`}>
+      <span className="flex-1 truncate">{label}</span>
       {extra}
+      <Icon size={19} strokeWidth={1.9} className="shrink-0" />
     </button>
   );
+  const Gap = () => <div aria-hidden className="h-2 bg-black/30" />;
 
   return (
     <div ref={ref} role="menu" aria-label="Game menu"
-      className="absolute right-2 top-full z-50 mt-1 max-h-[calc(100dvh-60px)] w-[300px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-xl border border-[#2a2b2e] bg-[#1b1c1d] py-1 shadow-2xl">
-      {profile ? (
-        <button type="button" role="menuitem" onClick={go(() => navigate('/profile'))}
-          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[#2c2d30]">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: profile.avatar_color }}>
-            {profile.username[0]?.toUpperCase()}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-white">{profile.username}</span>
-          <ChevronRight size={16} className="text-[#7b7b7b]" />
-        </button>
-      ) : null}
-
-      {/* Real / Demo: picking one closes the menu so the game is in view */}
-      <div className="px-3 pb-1 pt-2">
-        <div className="grid grid-cols-2 rounded-full bg-[#141516] p-1" role="group" aria-label="Play mode">
+      className="absolute right-2 top-full z-50 mt-1.5 max-h-[calc(100dvh-64px)] w-[280px] max-w-[calc(100vw-16px)] origin-top-right animate-[menuIn_0.2s_cubic-bezier(0.32,0.72,0,1)] overflow-y-auto overscroll-contain rounded-[14px] bg-[rgba(37,37,38,0.88)] shadow-[0_12px_40px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.07] backdrop-blur-2xl backdrop-saturate-150">
+      <div className="p-2.5">
+        <div className="relative grid h-8 grid-cols-2 rounded-[9px] bg-ios-fill p-[2px]" role="group" aria-label="Play mode">
+          <span aria-hidden style={{ left: 2 }}
+            className={`absolute bottom-[2px] top-[2px] w-[calc(50%-2px)] rounded-[7px] shadow-[0_3px_8px_rgba(0,0,0,0.12)] transition-[transform,background-color] duration-200 ease-ios ${mode === 'demo' ? 'translate-x-full bg-funmode' : 'bg-ios-cta'}`} />
           {(['real', 'demo'] as const).map((m) => (
-            <button key={m} type="button" role="menuitemradio" aria-checked={mode === m}
-              onClick={go(() => onSetMode(m))}
-              className={`h-10 rounded-full text-sm font-bold transition ${mode === m ? (m === 'demo' ? 'bg-funmode text-white' : 'bg-win text-white') : 'text-[#9ea0a3] hover:text-white'}`}>
+            <button key={m} type="button" role="menuitemradio" aria-checked={mode === m} onClick={go(() => onSetMode(m))}
+              className={`relative z-10 text-footnote font-semibold ${mode === m ? 'text-white' : 'text-ios-label2'}`}>
               {m === 'real' ? 'Real' : 'Demo'}
             </button>
           ))}
         </div>
       </div>
+      <Gap />
 
-      <div className="flex h-12 items-center gap-3 px-4 text-[15px] text-[#d7d7d7]">
-        <Volume2 size={18} className="text-[#9ea0a3]" />
-        <span className="flex-1">Sound</span>
-        <button type="button" role="switch" aria-checked={sound} aria-label="Sound" onClick={() => setSoundEnabled(!sound)}
-          className={`relative h-6 w-11 rounded-full transition ${sound ? 'bg-[#28a909]' : 'bg-[#3a3b3e]'}`}>
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${sound ? 'left-[22px]' : 'left-0.5'}`} />
-        </button>
-      </div>
-
-      <div className="my-1 h-px bg-[#2a2b2e]" />
-      {profile ? <Item icon={Bell} label="Notifications" onClick={go(onNotifications)} extra={badge(unread)} /> : null}
-      {profile ? <Item icon={Star} label="Free bets" onClick={panel('freebets')} extra={badge(freeBetCount)} /> : null}
-      {profile ? <Item icon={History} label="My bets" onClick={panel('history')} /> : null}
-      <Item icon={HelpCircle} label="Rules" onClick={panel('rules')} />
-      <Item icon={MessageSquare} label="Chat" onClick={panel('chat')} />
-
-      <div className="my-1 h-px bg-[#2a2b2e]" />
       {profile ? (
         <>
+          <button type="button" role="menuitem" onClick={go(() => navigate('/profile'))} className="flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-white/10">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-headline text-white" style={{ backgroundColor: profile.avatar_color }}>
+              {profile.username[0]?.toUpperCase()}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-headline text-white">{profile.username}</span>
+              <span className="block text-footnote text-ios-label2">Profile</span>
+            </span>
+            <ChevronRight size={18} strokeWidth={2.5} className="text-ios-label3" />
+          </button>
+          <Gap />
+        </>
+      ) : null}
+
+      <div className="flex h-11 items-center gap-3 pl-4 pr-3 text-body text-white">
+        <span className="flex-1">Sound</span>
+        <Switch checked={sound} onChange={setSoundEnabled} label="Sound" />
+      </div>
+      <Gap />
+
+      <div>
+        {profile ? <Item icon={Bell} label="Notifications" onClick={go(onNotifications)} extra={badge(unread)} /> : null}
+        {profile ? <Item icon={Star} label="Free bets" onClick={panel('freebets')} extra={badge(freeBetCount)} /> : null}
+        {profile ? <Item icon={History} label="My bets" onClick={panel('history')} /> : null}
+        <Item icon={HelpCircle} label="Rules" onClick={panel('rules')} />
+        <Item icon={MessageSquare} label="Chat" onClick={panel('chat')} />
+      </div>
+      <Gap />
+
+      {profile ? (
+        <div>
           <Item icon={Wallet} label="Wallet" onClick={go(onWalletOpen)} />
           {profile.role === 'marketer' ? <Item icon={LayoutDashboard} label="Marketer hub" onClick={go(() => navigate('/marketer'))} /> : null}
-          <Item icon={LogOut} label="Log out" onClick={go(onSignOut)} />
-        </>
-      ) : <Item icon={LogIn} label="Log in" onClick={go(onSignIn)} />}
+          <Item icon={LogOut} label="Log out" onClick={go(onSignOut)} destructive />
+        </div>
+      ) : <div><Item icon={LogIn} label="Log in" onClick={go(onSignIn)} /></div>}
     </div>
   );
 }

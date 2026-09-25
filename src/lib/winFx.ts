@@ -49,18 +49,20 @@ function pulse(target: HTMLElement) {
   try { navigator.vibrate?.(12); } catch { /* not allowed */ }
 }
 
-/**
- * Fly `label` (e.g. "+75.00") from the bet button of `slot` to the balance. Resolves when it lands
- * (immediately when there is nothing to animate).
- */
+/** Fly `label` (e.g. "+75.00") from the bet button of `slot` to the balance; resolves on landing. */
 export function flyWin(label: string, slot: 1 | 2): Promise<void> {
-  const land = () => window.dispatchEvent(new Event(LANDED));
   const from = document.querySelector<HTMLElement>(`[data-bet-action="${slot}"]`);
+  return flyToBalance(label, from ? from.getBoundingClientRect() : null);
+}
+
+/** Fly `label` from a screen rectangle (e.g. where the Deposit button was) into the balance. */
+export function flyToBalance(label: string, fromRect: DOMRect | null): Promise<void> {
+  const land = () => window.dispatchEvent(new Event(LANDED));
   const to = visibleTarget();
-  if (!from || !to || typeof document.body.animate !== 'function' || document.visibilityState !== 'visible') { land(); return Promise.resolve(); }
+  if (!fromRect || !to || typeof document.body.animate !== 'function' || document.visibilityState !== 'visible') { land(); return Promise.resolve(); }
   if (reducedMotion()) { pulse(to); land(); return Promise.resolve(); }
 
-  const a = from.getBoundingClientRect();
+  const a = fromRect;
   const b = to.getBoundingClientRect();
   const x0 = a.left + a.width / 2, y0 = a.top + a.height / 2;
   const x1 = b.left + b.width / 2, y1 = b.top + b.height / 2;

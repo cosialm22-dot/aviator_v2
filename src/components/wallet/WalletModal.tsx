@@ -1,19 +1,23 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, CheckCircle, Loader, Smartphone, Eye, EyeOff, Gift, Clock, Lock } from 'lucide-react';
+import { CheckCircle2, Smartphone, Eye, EyeOff, Gift, Lock } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
 import { isValidKenyanPhone, localNine, normalizeKenyanPhone } from '../../lib/phone';
 import { quickDepositAmounts, validateDepositAmount } from '../../lib/megapayClient';
 import { usePaymentConfig } from '../../hooks/usePaymentConfig';
 import type { DepositStage } from '../../hooks/useWallet';
-import { useModalA11y } from '../../hooks/useModalA11y';
 import RedeemPromoCode from '../promo/RedeemPromoCode';
 import type { FirstDepositBonus } from '../../hooks/useBonus';
+import Sheet from '../ui/Sheet';
+import { Button, Field, Segmented, Spinner, kes } from '../ui/ios';
 
 /*
  * Wallet: M-Pesa deposit (Mega Pay prompt, PIN typed on the phone) and withdrawal request.
  * Server-authoritative: limits come from fn_public_payment_config and are re-checked there.
- * Phones get a bottom sheet; larger screens a centred card.
+ * A finished deposit does not stop on a "confirmed" page: the sheet closes, the player is back on
+ * the game and the amount flies into the balance (onDepositDone).
  */
+
+export interface DepositResult { amount: number; confirmed: boolean; from: DOMRect | null }
 
 interface Props {
   balance: number;
@@ -21,6 +25,8 @@ interface Props {
   onDeposit: (amount: number, method: 'mpesa', details: Record<string, string>, onStage?: (s: DepositStage) => void) => Promise<boolean>;
   onWithdraw: (amount: number, method: 'mpesa', details: Record<string, string>) => Promise<void>;
   onClose: () => void;
+  /** The deposit went through (or is still with M-Pesa): close and return to the game. */
+  onDepositDone: (r: DepositResult) => void;
   eligibleForFirstDeposit?: boolean;
   activeBonus?: FirstDepositBonus | null;
   /** The signed-in phone number, used to prefill the M-Pesa number. */
@@ -28,17 +34,17 @@ interface Props {
 }
 
 type Tab = 'deposit' | 'withdraw';
-type Step = 'form' | 'processing' | 'success';
+type Step = 'form' | 'processing' | 'withdrawn';
 
 const WITHDRAW_QUICK = [100, 500, 1000, 2000, 5000, 10000];
-const k = (n: number) => n.toLocaleString('en-KE', { maximumFractionDigits: 0 });
+const k0 = (n: number) => n.toLocaleString('en-KE', { maximumFractionDigits: 0 });
 
 function prefill(p?: string): string {
   const n = normalizeKenyanPhone(p || '');
   return isValidKenyanPhone(n) ? n.slice(3) : '';
 }
 
-export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, eligibleForFirstDeposit = false, activeBonus = null, defaultPhone }: Props) {
+export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, onDepositDone, eligibleForFirstDeposit = false, activeBonus = null, defaultPhone }: Props) {
   const cfg = usePaymentConfig();
   const [tab, setTab] = useState<Tab>('deposit');
   const [amount, setAmount] = useState('');
@@ -50,10 +56,9 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
   const [promoOpen, setPromoOpen] = useState(false);
   const [step, setStep] = useState<Step>('form');
   const [error, setError] = useState('');
-  const [depositConfirmed, setDepositConfirmed] = useState(false);
-
   const amountRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useModalA11y(onClose, amountRef);
+  const ctaRef = useRef<HTMLButtonElement>(null);
+  const ctaRect = useRef<DOMRect | null>(null);
 
   const parsedAmount = parseFloat(amount) || 0;
   const minAmount = tab === 'deposit' ? cfg.minDeposit : cfg.minWithdrawal;
@@ -66,10 +71,8 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
     return () => clearInterval(t);
   }, [step, stage]);
 
-  const reset = () => { setStep('form'); setAmount(''); setPhone(prefill(defaultPhone)); setPassword(''); setShowPassword(false); setError(''); setDepositConfirmed(false); setStage(null); };
+  const reset = () => { setStep('form'); setAmount(''); setPhone(prefill(defaultPhone)); setPassword(''); setShowPassword(false); setError(''); setStage(null); };
   const switchTab = (t: Tab) => { setTab(t); reset(); };
-
-  const field = 'h-12 w-full rounded-xl border border-[#2f3033] bg-[#141516] px-4 text-white placeholder:text-[#5c5d60] focus:border-win/60 focus:outline-none';
 
   const handleSubmit = async () => {
     setError('');
@@ -83,157 +86,123 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, e
     if (tab === 'withdraw' && parsedAmount > balance) { setError('Insufficient balance'); return; }
     if (tab === 'withdraw' && !password.trim()) { setError('Enter your password'); return; }
 
+    ctaRect.current = ctaRef.current?.getBoundingClientRect() ?? null;
     setStep('processing');
     try {
       if (tab === 'deposit') {
         const confirmed = await onDeposit(parsedAmount, 'mpesa', { phone }, setStage);
-        setDepositConfirmed(confirmed);
-      } else {
-        await onWithdraw(parsedAmount, 'mpesa', { phone, password });
+        onDepositDone({ amount: parsedAmount, confirmed, from: ctaRect.current });
+        return;
       }
-      setStep('success');
+      await onWithdraw(parsedAmount, 'mpesa', { phone, password });
+      setStep('withdrawn');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
       setStep('form');
     }
   };
 
-  const pending = tab === 'deposit' && !depositConfirmed;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-black/70" />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Wallet"
-        className="relative flex max-h-[92dvh] w-full flex-col overflow-y-auto overscroll-contain rounded-t-2xl border border-[#2a2b2e] bg-[#1b1c1d] pb-[env(safe-area-inset-bottom)] shadow-2xl animate-[sheetUp_0.2s_ease-out] sm:max-w-[400px] sm:rounded-2xl">
+    <Sheet title="Wallet" onClose={onClose} initialFocus={amountRef}>
+      {step === 'withdrawn' && (
+        <div className="px-4 pb-2 pt-6 text-center">
+          <CheckCircle2 size={56} strokeWidth={1.75} className="mx-auto text-ios-green" />
+          <h3 className="mt-4 text-title3 text-white">Withdrawal requested</h3>
+          <p className="mt-1 text-subhead text-ios-label2">{formatCurrency(parsedAmount)} to +254 {phone}</p>
+          <Button className="mt-8" onClick={onClose}>Done</Button>
+        </div>
+      )}
 
-        {step === 'success' && (
-          <div className="px-6 py-10 text-center">
-            <div className={`mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full ${pending ? 'bg-amber-400/10' : 'bg-win/10'}`}>
-              {pending ? <Clock size={26} className="text-amber-400" /> : <CheckCircle size={26} className="text-win" />}
+      {step === 'processing' && (
+        <div className="px-4 pb-2 pt-6 text-center">
+          {tab === 'deposit' && stage === 'awaiting_pin' ? (
+            <div data-testid="deposit-awaiting-pin">
+              <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[rgba(48,209,88,0.15)] text-ios-green"><Smartphone size={30} strokeWidth={1.75} /></span>
+              <h3 className="mt-4 text-title3 text-white">Enter your M-Pesa PIN</h3>
+              <p className="mt-1 text-subhead tabular-nums text-ios-label2">{formatCurrency(parsedAmount)} · +254{phone}</p>
+              <p className="mt-5 flex items-center justify-center gap-2 text-footnote tabular-nums text-ios-label3" aria-live="polite"><Spinner size={14} />{waited}s</p>
+              <Button variant="gray" className="mt-8" onClick={onClose}>Keep playing</Button>
             </div>
-            <h3 className="text-lg font-bold text-white">
-              {tab === 'withdraw' ? 'Withdrawal requested' : depositConfirmed ? 'Deposit Confirmed' : 'Not confirmed yet'}
-            </h3>
-            <p className="mt-1 text-sm text-[#9ea0a3]">
-              {tab === 'withdraw' ? `${formatCurrency(parsedAmount)} to +254${phone}`
-                : depositConfirmed ? `+${formatCurrency(parsedAmount)}`
-                : 'It will show up by itself once M-Pesa confirms.'}
-            </p>
-            <button onClick={reset} className="mt-6 h-12 w-full rounded-xl bg-win text-sm font-semibold text-white active:scale-[0.98]">Done</button>
-          </div>
-        )}
+          ) : (
+            <div className="py-8">
+              <Spinner size={28} />
+              <p className="mt-4 text-subhead text-ios-label2">{tab === 'deposit' ? 'Sending prompt…' : 'Sending…'}</p>
+            </div>
+          )}
+        </div>
+      )}
 
-        {step === 'processing' && (
-          <div className="px-6 py-10 text-center">
-            {tab === 'deposit' && stage === 'awaiting_pin' ? (
-              <div data-testid="deposit-awaiting-pin">
-                <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-win/10"><Smartphone size={26} className="text-win" /></div>
-                <p className="text-lg font-bold text-white">Enter your M-Pesa PIN</p>
-                <p className="mt-1 text-sm text-[#9ea0a3]">{formatCurrency(parsedAmount)} · +254{phone}</p>
-                <p className="mt-4 flex items-center justify-center gap-2 text-xs text-[#7b7b7b]" aria-live="polite"><Loader size={12} className="animate-spin" />{waited}s</p>
-                <button onClick={onClose} className="mt-6 h-12 w-full rounded-xl border border-[#2f3033] text-sm font-semibold text-[#d7d7d7]">Keep playing</button>
-              </div>
-            ) : (
-              <>
-                <Loader size={26} className="mx-auto mb-4 animate-spin text-win" />
-                <p className="font-medium text-white">{tab === 'deposit' ? 'Sending prompt…' : 'Sending…'}</p>
-              </>
+      {step === 'form' && (
+        <div className="px-4">
+          <div className="pb-5 pt-1 text-center">
+            <p className="text-footnote text-ios-label2">Balance</p>
+            <p className="text-large-title tabular-nums text-white"><span className="mr-1.5 align-[0.35em] text-subhead font-semibold text-ios-label2">KES</span>{kes(balance)}</p>
+          </div>
+
+          <Segmented label="Wallet action" value={tab} onChange={switchTab} items={[['deposit', 'Deposit'], ['withdraw', 'Withdraw']]} />
+
+          <div className="mt-5 space-y-3">
+            {tab === 'deposit' && eligibleForFirstDeposit && offer && (
+              <p className="flex items-center gap-2.5 rounded-xl bg-[rgba(48,209,88,0.12)] px-4 py-3 text-subhead font-medium text-ios-green">
+                <Gift size={18} className="shrink-0" />+{offer.matchPct}% first deposit, up to {k0(offer.matchCap)} KES
+              </p>
             )}
+            {activeBonus && activeBonus.status === 'active' && activeBonus.wageringRequired > 0 && (
+              <div className="rounded-xl bg-ios-elev2 px-4 py-3">
+                <div className="flex items-center justify-between text-subhead">
+                  <span className="flex items-center gap-1.5 font-medium text-white"><Lock size={13} className="text-ios-orange" />Bonus {k0(activeBonus.amount)}</span>
+                  <span className="tabular-nums text-ios-label2">{k0(Math.min(activeBonus.wageringProgress, activeBonus.wageringRequired))} / {k0(activeBonus.wageringRequired)}</span>
+                </div>
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-ios-fill">
+                  <div className="h-full rounded-full bg-ios-green" style={{ width: `${Math.min(100, Math.round((activeBonus.wageringProgress / activeBonus.wageringRequired) * 100))}%` }} />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Field ref={amountRef} type="number" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)}
+                placeholder="0" min={minAmount} max={tab === 'deposit' ? cfg.maxDeposit : undefined} step={1}
+                aria-label="Amount in Kenyan shillings" leading="KES" className="h-14 [&_input]:text-title2 [&_input]:tabular-nums" />
+              <p className="px-4 pt-1.5 text-footnote tabular-nums text-ios-label2" data-testid={tab === 'deposit' ? 'deposit-limits' : undefined}>
+                {tab === 'deposit' ? `Min ${k0(cfg.minDeposit)} · Max ${k0(cfg.maxDeposit)}` : `Min ${k0(cfg.minWithdrawal)} · Available ${kes(balance)}`}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-6 gap-2">
+              {quick.map((q) => {
+                const v = tab === 'withdraw' ? Math.min(q, Math.floor(balance)) : q;
+                const on = parseFloat(amount) === v && v > 0;
+                return (
+                  <button key={q} type="button" onClick={() => setAmount(String(v))}
+                    className={`h-9 rounded-[9px] text-subhead font-semibold tabular-nums transition-colors ${on ? 'bg-white text-black' : 'bg-ios-fill text-white active:bg-ios-elev3'}`}>
+                    {q >= 1000 ? `${q / 1000}K` : q}
+                  </button>
+                );
+              })}
+            </div>
+
+            <Field type="tel" value={phone} onChange={(e) => setPhone(localNine(e.target.value))} aria-label="M-Pesa phone number"
+              inputMode="numeric" autoComplete="tel-national" placeholder="7XX XXX XXX" leading="+254" />
+
+            {tab === 'withdraw' && (
+              <Field type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password" placeholder="Password" aria-label="Password"
+                trailing={<button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="-mr-2 grid h-11 w-11 place-items-center text-ios-label2">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>} />
+            )}
+
+            {error && <p role="alert" className="px-2 text-center text-footnote text-ios-red">{error}</p>}
           </div>
-        )}
 
-        {step === 'form' && (
-          <>
-            <div className="flex items-center justify-between py-2 pl-4 pr-1">
-              <p className="text-xl font-bold tabular-nums text-white">{formatCurrency(balance)}</p>
-              <button onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full text-[#9ea0a3] hover:text-white"><X size={20} /></button>
-            </div>
+          <Button ref={ctaRef} className="mt-5" onClick={handleSubmit}>
+            {tab === 'deposit' ? 'Deposit' : 'Withdraw'}{parsedAmount > 0 ? ` ${k0(parsedAmount)} KES` : ''}
+          </Button>
 
-            <div className="px-4">
-              <div className="flex rounded-full bg-[#141516] p-1" role="tablist" aria-label="Wallet action">
-                {(['deposit', 'withdraw'] as Tab[]).map((t) => (
-                  <button key={t} role="tab" aria-selected={tab === t} onClick={() => switchTab(t)}
-                    className={`h-10 flex-1 rounded-full text-sm font-semibold capitalize transition ${tab === t ? 'bg-win text-white' : 'text-[#9ea0a3] hover:text-white'}`}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4 px-4 pb-4 pt-4">
-              {tab === 'deposit' && eligibleForFirstDeposit && offer && (
-                <p className="flex items-center gap-2 rounded-xl bg-win/10 px-3 py-2.5 text-[13px] font-semibold text-[#5cd334]">
-                  <Gift size={16} className="shrink-0" />+{offer.matchPct}% on your first deposit, up to {k(offer.matchCap)} KES
-                </p>
-              )}
-              {activeBonus && activeBonus.status === 'active' && activeBonus.wageringRequired > 0 && (
-                <div className="rounded-xl bg-[#141516] px-3 py-2.5">
-                  <div className="flex items-center justify-between gap-2 text-[13px]">
-                    <span className="flex items-center gap-1.5 font-semibold text-white"><Lock size={12} className="text-amber-400" />Bonus {k(activeBonus.amount)}</span>
-                    <span className="tabular-nums text-[#9ea0a3]">{k(Math.min(activeBonus.wageringProgress, activeBonus.wageringRequired))} / {k(activeBonus.wageringRequired)} bet</span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#2c2d30]">
-                    <div className="h-full rounded-full bg-win" style={{ width: `${Math.min(100, Math.round((activeBonus.wageringProgress / activeBonus.wageringRequired) * 100))}%` }} />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#7b7b7b]">KES</span>
-                  <input ref={amountRef} type="number" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0" min={minAmount} max={tab === 'deposit' ? cfg.maxDeposit : undefined} step={1}
-                    aria-label="Amount in Kenyan shillings"
-                    className={`${field} h-14 pl-14 text-xl font-bold tabular-nums`} />
-                </div>
-                <p className="mt-1.5 text-[12px] text-[#7b7b7b]" data-testid={tab === 'deposit' ? 'deposit-limits' : undefined}>
-                  {tab === 'deposit' ? `Min ${k(cfg.minDeposit)} · Max ${k(cfg.maxDeposit)}` : `Min ${k(cfg.minWithdrawal)}`}
-                </p>
-                <div className="mt-2 grid grid-cols-6 gap-1.5">
-                  {quick.map((q) => {
-                    const v = tab === 'withdraw' ? Math.min(q, Math.floor(balance)) : q;
-                    const on = parseFloat(amount) === v && v > 0;
-                    return (
-                      <button key={q} onClick={() => setAmount(String(v))}
-                        className={`h-10 rounded-lg text-[13px] font-semibold tabular-nums transition ${on ? 'bg-win/15 text-[#5cd334]' : 'bg-[#141516] text-[#9ea0a3] hover:text-white'}`}>
-                        {q >= 1000 ? `${q / 1000}K` : q}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex overflow-hidden rounded-xl border border-[#2f3033] bg-[#141516] focus-within:border-win/60">
-                <span className="grid place-items-center pl-4 pr-2 text-[#9ea0a3]">+254</span>
-                <input type="tel" value={phone} onChange={(e) => setPhone(localNine(e.target.value))} aria-label="M-Pesa phone number"
-                  inputMode="numeric" autoComplete="tel-national" placeholder="7XX XXX XXX"
-                  className="h-12 min-w-0 flex-1 bg-transparent pr-4 text-white placeholder:text-[#5c5d60] focus:outline-none" />
-              </div>
-
-              {tab === 'withdraw' && (
-                <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password" placeholder="Password" aria-label="Password" className={`${field} pr-12`} />
-                  <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-1 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center text-[#7b7b7b] hover:text-white">
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              )}
-
-              {error && <p role="alert" className="text-center text-[13px] text-red-400">{error}</p>}
-
-              <button onClick={handleSubmit} className="h-12 w-full rounded-xl bg-win text-[15px] font-bold text-white transition active:scale-[0.98]">
-                {tab === 'deposit' ? 'Deposit' : 'Withdraw'}{parsedAmount > 0 ? ` ${k(parsedAmount)} KES` : ''}
-              </button>
-
-              {tab === 'deposit' && (promoOpen ? <RedeemPromoCode /> : (
-                <button onClick={() => setPromoOpen(true)} className="h-9 w-full text-[13px] text-[#9ea0a3] hover:text-white">Promo code</button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          {tab === 'deposit' && (promoOpen ? <div className="mt-4"><RedeemPromoCode /></div> : (
+            <Button variant="plain" size="md" className="mt-2 w-full" onClick={() => setPromoOpen(true)}>Add promo code</Button>
+          ))}
+        </div>
+      )}
+    </Sheet>
   );
 }
