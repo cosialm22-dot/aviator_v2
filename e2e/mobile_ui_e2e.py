@@ -76,6 +76,9 @@ try:
         def open_page(w, h, signed):
             ctx = b.new_context(viewport={"width": w, "height": h}, service_workers="block", is_mobile=w < 800, has_touch=w < 800)
             if signed: ctx.add_init_script(f"try {{ localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(session))}); }} catch (e) {{}}")
+            # record every audio play (source, muted) so the fly-away sound can be checked
+            ctx.add_init_script("""(() => { window.__played = []; const p = HTMLMediaElement.prototype.play;
+              HTMLMediaElement.prototype.play = function () { window.__played.push({ src: this.src, muted: this.muted, t: Date.now() }); return p.call(this); }; })();""")
             ws_bridge.install(ctx)
             pg = ctx.new_page(); errs = []
             pg.on("pageerror", lambda e: errs.append(str(e)))
@@ -197,6 +200,26 @@ try:
         check("signed-out demo keeps Register in the header", pg.get_by_role("button", name="Register").is_visible() and pg.get_by_label("Demo balance", exact=True).is_visible())
         pg.wait_for_timeout(15000)
         check("demo: no 'Play for Real' toasts", pg.get_by_text(re.compile("Play for Real|Deposit Now", re.I)).count() == 0)
+        # fly-away sound: the first tap unlocks audio (silently); each crash then plays the jet roar
+        played = lambda: pg.evaluate("window.__played")
+        first = next((p_ for p_ in played() if "flyaway" in p_["src"]), None)
+        check("first tap unlocks the sounds silently", first is not None and first["muted"], played()[:4])
+        status = pg.locator('div.sr-only[role="status"]').first
+        until(pg, lambda: "Multiplier" in status.inner_text(), 30000)
+        n0 = len([p_ for p_ in played() if "flyaway" in p_["src"] and not p_["muted"]])
+        crashed = until(pg, lambda: "Flew away" in status.inner_text(), 60000)
+        pg.wait_for_timeout(300)
+        loud = [p_ for p_ in played() if "flyaway" in p_["src"] and not p_["muted"]]
+        check("the jet roar plays when the plane flies away", crashed and len(loud) == n0 + 1, (crashed, n0, loud[-2:]))
+        r_ = pg.evaluate("fetch('/sounds/flyaway.mp3').then(async r => ({ s: r.status, t: r.headers.get('content-type'), n: (await r.arrayBuffer()).byteLength }))")
+        check("flyaway.mp3 is served (audio, small)", r_["s"] == 200 and "audio" in (r_["t"] or "") and r_["n"] < 40000, r_)
+        pg.get_by_role("button", name=re.compile(r"^Game menu")).click()
+        pg.get_by_role("switch", name="Sound").click()   # off
+        pg.keyboard.press("Escape")
+        until(pg, lambda: "Multiplier" in status.inner_text(), 30000)
+        n1 = len([p_ for p_ in played() if "flyaway" in p_["src"] and not p_["muted"]])
+        until(pg, lambda: "Flew away" in status.inner_text(), 60000); pg.wait_for_timeout(300)
+        check("sound off: no roar", len([p_ for p_ in played() if "flyaway" in p_["src"] and not p_["muted"]]) == n1)
         check("no page errors (signed out)", not errs, errs[:2])
         ctx.close()
         b.close()
