@@ -3,7 +3,7 @@
 // BEFORE Mega Pay is called; the wallet is credited only after Mega Pay reports it paid
 // (megapay-status / megapay-reconcile → fn_megapay_settle).
 import { configured, cors, friendly, initiateStk, json, toMsisdn } from "../_shared/megapay.ts";
-import { caller, cfgFromEnv, serviceClient } from "../_shared/megapayRuntime.ts";
+import { accountFor, caller, serviceClient } from "../_shared/megapayRuntime.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -19,16 +19,22 @@ Deno.serve(async (req) => {
     const msisdn = toMsisdn(String(body.phone ?? ""));
     if (!msisdn) return json({ success: false, error: "INVALID_PHONE", message: friendly("INVALID_PHONE") }, 400);
 
-    const cfg = cfgFromEnv();
-    if (!configured(cfg)) return json({ success: false, error: "MEGAPAY_NOT_CONFIGURED", message: "Deposits are temporarily unavailable." }, 503);
-
+    // fn_megapay_begin checks the brand's switches and limits, picks the brand's payment owner
+    // (brand → platform → System) and records the account on the deposit row.
     const { data: begun, error: bErr } = await db.rpc("fn_megapay_begin", { p_user: me.id, p_phone: msisdn, p_amount: amount });
     if (bErr) {
       const code = String(bErr.message ?? "").trim();
-      const status = code.startsWith("RATE_LIMITED") ? 429 : code.startsWith("DEPOSITS_DISABLED") || code.startsWith("MEGAPAY_DISABLED") ? 403 : 400;
+      const status = code.startsWith("RATE_LIMITED") ? 429 : code.startsWith("DEPOSITS_DISABLED") || code.startsWith("MEGAPAY_DISABLED") ? 403
+        : code.startsWith("GATEWAY_NOT_CONFIGURED") ? 503 : 400;
       return json({ success: false, error: code.split(":")[0], message: friendly(code) }, status);
     }
-    const dep = begun as { id: string; reference: string };
+    const dep = begun as { id: string; reference: string; payment_scope: string; integration_id: string | null };
+    const cfg = await accountFor(db, dep);
+    if (!cfg || !configured(cfg)) {
+      await db.rpc("fn_megapay_initiation_failed", { p_id: dep.id, p_reason: "gateway not configured" });
+      console.error(`[megapay] no account for scope ${dep.payment_scope}`);
+      return json({ success: false, error: "MEGAPAY_NOT_CONFIGURED", message: "Deposits are temporarily unavailable." }, 503);
+    }
 
     let init;
     try {

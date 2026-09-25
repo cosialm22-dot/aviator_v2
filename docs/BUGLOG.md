@@ -4,6 +4,32 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #38 — Per-brand payment accounts (payment scopes) — DONE (branch `brand/p6-payments`)
+- **Ask:** "for now, all brands share the same gateway, but add config where each brand can have its own gateway." This ports invest254 docs/43 (PAY-1).
+- **Model** (migration `20260930096000`): a brand's deposits go to its **payment owner**. That is the brand's own Mega Pay account if it is live; otherwise its platform's account if that is live; otherwise the System's account. The System's account is the one saved on Payment accounts, or, when none is saved, the server settings (today's setup, unchanged).
+  - A brand or platform account stays a draft until **Go live**. Go live needs a complete account, a passed connection test since the last change, and the production environment. Going live and stopping are audited.
+- **Money-safety invariants** (all tested):
+  1. **No mixing.** A live brand or platform whose account is missing closes deposits (`GATEWAY_NOT_CONFIGURED`, and the wallet shows deposits off). It never falls back to the System's account.
+  2. **Verification uses the initiating account.** Every deposit records `payment_scope` and `integration_id`. The status check, the webhook and the reconcile sweep verify each deposit with the account it was paid into, even after that account is switched off.
+  3. **A platform admin cannot redirect verification.** The environment (sandbox) and the API address are System-owner-only fields.
+  4. **A live account can't be switched off or deleted.** Stop using it first.
+  5. **Secrets are write-only** (Vault).
+- **Edge functions:**
+  - `megapay-stk-push` begins first (the database picks the account), then prompts with that account.
+  - `megapay-status`, `megapay-callback` and `megapay-reconcile` resolve the account per deposit.
+  - `megapay-admin` shows and tests the account a brand uses, or the account saved at a scope.
+  - Platform admins are now recognised by these functions (they were refused before) and see only their platform's brands.
+- **Console:**
+  - The brand **Payments** tab shows where this brand's deposits go (with the order spelled out), the brand's own Mega Pay account, a go-live checklist and the switch, plus the prompt account name. Brand owners and finance staff see it read-only.
+  - **Payment accounts** (`/admin/payment-accounts`): the owner sees the System's account and each platform's; a platform admin sees its own platform's, with every brand and where its money goes.
+  - The **Deposits** page says which account the chosen brand uses.
+  - **Integrations** now holds infrastructure only (Cloudflare).
+- **Not in the catalog on purpose:** Daraja (STK or B2C). No live code path reads it, and a setting that is shown must be enforced. Payouts are approved in the back office and paid by the brand's finance staff. The legacy `mpesa-b2c` function is unconfigured in production and unsafe to enable as written (non-atomic debit of a stale column). See "Needs the owner's decision".
+- **Tests:**
+  - `supabase/tests/payment_scopes_e2e.py`: 41 checks.
+  - `e2e/payments_scope_live_e2e.py`: 21 checks. It runs live in the browser; the only calls to Mega Pay are read-only credential checks with a wrong key, and no prompt is ever sent.
+  - `megapay_functions_live_e2e.py` (21), `megapay_gateway_e2e.py` (35), `megapay_admin_e2e.py` (35) and `domains_integrations_e2e.py` (71) still pass.
+
 ## #37 — Brand domains, automated (Cloudflare), and a Vault-backed integrations store — DONE (branch `brand/p5-domains`)
 - **Ask:** every marketer's brand on its own domain, with the domain set up from the admin (owner's choice: "Automate in admin"; Namecheap stays a guided step).
 - **Integrations** (`integrations` table, migration `20260930095000`): one provider account per scope (System, a platform, or a brand).
@@ -597,6 +623,7 @@ Found while auditing every role guard for the new tier:
 - **Make one real KES 100 deposit** from a player account to confirm the whole path with real money.
 
 ## Needs the owner's decision (not changed)
+- **Automatic M-Pesa payouts (B2C):** `mpesa-b2c` is not configured (no Daraja secrets) and, as written, debits a stale wallet column non-atomically. Payouts are approved and paid by hand today. Enabling B2C needs a rewrite on the atomic withdrawal path first; per-brand B2C accounts would then join the payment-scope catalog.
 - **Demo is rigged:** `useDemoGame` / `riggedCrashPoint` set the demo win rate to about 80% (`DEMO_WIN_RATE`), with near-misses on losses, "to drive conversion to real play". Real rounds use an 18% house edge (`game.house_edge_percent`).
 - **Results can be set by operators:** when `game.queue_enabled` is on, operators can queue crash points (`crash_queue`). Those rounds still get a committed seed hash, so a player cannot tell them apart. The menu and footer therefore carry no "Provably Fair" claim.
 - **Bot chat:** the chat panel still mixes scripted bot messages in with real ones (owner chose to keep them, 2026-09-25). They no longer appear on the game screen.

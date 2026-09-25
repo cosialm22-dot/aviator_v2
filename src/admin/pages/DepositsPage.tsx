@@ -48,7 +48,7 @@ interface Overview {
     can_edit_gateway: boolean; can_manual_credit: boolean;
   };
 }
-interface Gateway { configured: boolean; env: string; base_url: string; email: string | null; cron: boolean; test?: { ok: boolean; message?: string } }
+interface Gateway { configured: boolean; env: string | null; base_url: string | null; email: string | null; cron: boolean; source?: 'saved' | 'env' | 'missing'; scope?: string; owner?: string; test?: { ok: boolean; message?: string } }
 
 export default function DepositsPage() {
   const scope = useScope();
@@ -76,10 +76,11 @@ export default function DepositsPage() {
   }, [site]);
 
   const loadGateway = useCallback(async (action: 'status' | 'test' = 'status') => {
-    const { data, error } = await supabase.functions.invoke('megapay-admin', { body: { action } });
+    // with a brand picked: that brand's payment owner (brand → platform → System) and its account
+    const { data, error } = await supabase.functions.invoke('megapay-admin', { body: { action, site_id: site || undefined } });
     if (!error) setGw(data as Gateway);
     return data as Gateway | null;
-  }, []);
+  }, [site]);
 
   const loadRows = useCallback(async () => {
     let query = supabase.from('mpesa_stk_requests')
@@ -191,6 +192,12 @@ export default function DepositsPage() {
             <Badge>{gw?.env ?? '…'}</Badge>
           </div>
           <p className="mt-1.5 text-[13px] text-muted">Account {gw?.email ?? '—'} · {h?.provider === 'megapay' ? 'taking player deposits' : `deposits routed to ${h?.provider ?? '…'}`}</p>
+          {gw?.owner && (
+            <p className="mt-1 text-[12px] text-faint" data-testid="gateway-owner">
+              {gw.scope === 'global' ? 'The System\'s account' : gw.scope === 'platform' ? `${gw.owner}'s platform account` : `${gw.owner}'s own account`}
+              {gw.source === 'env' ? ' (server settings)' : gw.source === 'missing' ? ': not set up, so deposits are off' : ''}
+            </p>
+          )}
           <div className="mt-4 flex items-center gap-3 flex-wrap">
             <Button onClick={testConnection} disabled={testing} data-testid="gateway-test">{testing ? <Spin /> : <ShieldCheck size={14} />} Test connection</Button>
             {gw?.test && (

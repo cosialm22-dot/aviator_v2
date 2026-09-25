@@ -136,6 +136,7 @@ export function friendly(code: string): string {
     case "RATE_LIMITED": return "Too many deposit prompts. Wait a minute and try again.";
     case "DEPOSITS_DISABLED": return "Deposits are temporarily unavailable.";
     case "MEGAPAY_DISABLED": return "This payment method is not available right now.";
+    case "GATEWAY_NOT_CONFIGURED": return "Deposits are temporarily unavailable.";
     case "ACCOUNT_BANNED": return "Your account can't make deposits. Contact support.";
     case "OPERATOR_CANNOT_DEPOSIT": return "Operator accounts can't deposit.";
     case "USER_NOT_FOUND": return "Sign in again and retry.";
