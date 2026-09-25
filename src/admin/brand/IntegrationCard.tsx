@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
 import { Badge, Button, Card, ConfirmButton, Field, Notice, Select, Switch, inputCls } from '../ui/kit';
 import { relTime } from '../ui/format';
+import { useAdmin } from '../roleContext';
 import { brandError } from './api';
 import { deleteIntegration, saveIntegration, type CatalogEntry, type Integration } from './domainsApi';
 
@@ -21,6 +22,7 @@ export default function IntegrationCard({ provider, entry, item, scope, scopeId,
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'error' | 'warn'; text: string } | null>(null);
   const tid = testIdPrefix ?? `int-${provider}`;
+  const owner = useAdmin().isPlatform;   // the System owner: may set owner-only fields (environment, API address)
   const dirty = JSON.stringify(cfg) !== JSON.stringify(initial()) || Object.values(sec).some((v) => v.trim()) || Object.values(clear).some(Boolean) || enabled !== (item?.enabled ?? true);
 
   const save = async () => {
@@ -52,7 +54,9 @@ export default function IntegrationCard({ provider, entry, item, scope, scopeId,
       <div className="grid gap-3 sm:grid-cols-2">
         {entry.config.map((f) => (
           <Field key={f.name} label={`${f.label}${f.required ? '' : ' (optional)'}`} hint={f.help}>
-            {f.kind === 'enum'
+            {f.owner_only && !owner
+              ? <input value={cfg[f.name] || f.default || '—'} disabled className={`${inputCls} font-mono opacity-60`} aria-label={f.label} data-testid={`${tid}-cfg-${f.name}`} />
+              : f.kind === 'enum'
               ? <Select value={cfg[f.name] ?? ''} onChange={(v) => setCfg((c) => ({ ...c, [f.name]: v }))} label={f.label} className="w-full" options={(f.options ?? []).map((o) => ({ value: o, label: o }))} />
               : f.kind === 'bool'
                 ? <Switch checked={cfg[f.name] === 'true'} onChange={(v) => setCfg((c) => ({ ...c, [f.name]: String(v) }))} label={f.label} />

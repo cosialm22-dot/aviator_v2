@@ -10,7 +10,7 @@ import { can, OPERATOR_ROLES as OPS, type Capability, type Role as R } from './c
 export type Role = R;
 
 export type Section =
-  | 'platform' | 'brands' | 'platforms' | 'integrations'
+  | 'platform' | 'brands' | 'platforms' | 'integrations' | 'payment_accounts'
   | 'dashboard' | 'users' | 'game' | 'withdrawals' | 'deposits' | 'finance' | 'settings' | 'staff' | 'audit'
   | 'marketing' | 'commissions' | 'risk' | 'notifications';
 
@@ -21,6 +21,7 @@ const SECTION_CAP: Record<Section, Capability> = {
   brands: 'console.brand.copy',
   platforms: 'console.platforms',
   integrations: 'console.integrations',
+  payment_accounts: 'console.payment_accounts',
   dashboard: 'backoffice.dashboard',
   users: 'backoffice.players',
   game: 'engine.control',

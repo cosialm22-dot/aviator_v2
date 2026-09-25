@@ -13,7 +13,7 @@ export interface Domain {
 }
 export interface DomainsDoc { can_manage: boolean; automation: boolean; domains: Domain[] }
 
-export interface CatalogField { name: string; label: string; kind: 'text' | 'enum' | 'bool' | 'url' | 'email'; required?: boolean; default?: string; options?: string[]; pattern?: string; help?: string }
+export interface CatalogField { name: string; label: string; kind: 'text' | 'enum' | 'bool' | 'url' | 'email'; required?: boolean; default?: string; options?: string[]; pattern?: string; help?: string; owner_only?: boolean }
 export interface CatalogEntry { label: string; help?: string; scopes: string[]; config: CatalogField[]; secrets: { name: string; label: string; required?: boolean; help?: string }[] }
 export interface Integration {
   id: string; provider: string; scope_kind: 'global' | 'platform' | 'site'; scope_id: string | null; label: string | null; enabled: boolean;

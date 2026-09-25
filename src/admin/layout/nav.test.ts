@@ -9,6 +9,7 @@ describe('admin navigation', () => {
     expect(labels('platform_superadmin')).toEqual(expect.arrayContaining(['Brands', 'Platforms', 'Integrations', 'Controls', 'Game control']));
     // a platform admin runs its brands, never the shared engine or the platform list
     expect(labels('platform_admin')).toContain('Brands');
+    expect(labels('platform_admin')).toContain('Payment accounts');
     expect(labels('platform_admin')).not.toContain('Controls');
     expect(labels('platform_admin')).not.toContain('Platforms');
     expect(labels('platform_admin')).not.toContain('Integrations');
@@ -16,6 +17,7 @@ describe('admin navigation', () => {
     // a brand owner edits its own brand's words, contacts and legal pages
     expect(labels('super_admin')).toContain('Brands');
     expect(labels('super_admin')).not.toContain('Controls');
+    expect(labels('super_admin')).not.toContain('Payment accounts');
     expect(labels('super_admin')).not.toContain('Game control');
     expect(labels('admin')).not.toContain('Brands');
     expect(labels('support')).toEqual(['Overview', 'Deposits', 'Players', 'Risk & fraud']);
