@@ -6,13 +6,14 @@ import { relTime, staffError } from '../ui/format';
 // Platform kill switches (platform owner only). Each is enforced server-side:
 //   deposits_enabled      → fn_megapay_begin          play_enabled       → place_bet
 //   withdrawals_enabled   → request_withdrawal        registrations_enabled → handle_new_user
-//   marketers_enabled     → admin_promote_to_marketer
+//   marketers_enabled     → admin_promote_to_marketer  payouts_enabled → svc_payout_claim (automatic M-Pesa payouts)
 // Every change asks for confirmation, is versioned and audited (fn_platform_set_global_config).
 
-type Key = 'deposits_enabled' | 'withdrawals_enabled' | 'play_enabled' | 'registrations_enabled' | 'marketers_enabled';
+type Key = 'deposits_enabled' | 'withdrawals_enabled' | 'payouts_enabled' | 'play_enabled' | 'registrations_enabled' | 'marketers_enabled';
 const SWITCHES: { key: Key; label: string; off: string }[] = [
   { key: 'deposits_enabled', label: 'Deposits', off: 'No player on any brand can start a deposit.' },
   { key: 'withdrawals_enabled', label: 'Withdrawals', off: 'No player on any brand can request a withdrawal.' },
+  { key: 'payouts_enabled', label: 'Automatic payouts', off: 'No M-Pesa payout is sent automatically. Requests still arrive and wait; staff can pay by hand.' },
   { key: 'play_enabled', label: 'Real-money betting', off: 'No real-money bet can be placed on any brand. Demo keeps working.' },
   { key: 'registrations_enabled', label: 'New sign-ups', off: 'Nobody can create a new account on any brand.' },
   { key: 'marketers_enabled', label: 'New marketers', off: 'Staff cannot promote players to marketers.' },
@@ -54,8 +55,8 @@ export default function GlobalControls() {
       {err && <div className="mb-3"><ErrorState message={err} onRetry={() => void load()} /></div>}
       {done && <div className="mb-3"><Notice tone="ok" onClose={() => setDone(null)}>{done}</Notice></div>}
       {offCount > 0 && <div className="mb-3"><Notice tone="warn">{offCount} platform switch{offCount > 1 ? 'es are' : ' is'} off.</Notice></div>}
-      {!cfg ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">{SWITCHES.map((s) => <Skeleton key={s.key} className="h-14 w-full" />)}</div> : (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      {!cfg ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{SWITCHES.map((s) => <Skeleton key={s.key} className="h-14 w-full" />)}</div> : (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {SWITCHES.map((s) => {
             const on = cfg[s.key];
             return (

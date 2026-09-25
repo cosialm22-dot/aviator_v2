@@ -33,7 +33,7 @@ export default function AdminSidebar({ open, onClose, collapsed, onToggleCollaps
     if (!showBadge) return;
     let live = true;
     const load = async () => {
-      let q = supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending');
+      let q = supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).in('status', ['pending', 'needs_attention']);
       if (scope.siteId) q = q.eq('site_id', scope.siteId);
       const { count } = await q;
       if (live) setPending(count ?? 0);

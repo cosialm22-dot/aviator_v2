@@ -15,6 +15,7 @@ The single source of truth for the UI is `src/admin/capabilities.ts` (`can(role,
 | Domains (add, options, remove) | ✓ | own platform | sees them | — |
 | Payment accounts and go-live | ✓ | own platform and its brands | sees them | finance staff see them |
 | Platforms and platform admins; Integrations (Cloudflare) | ✓ | — | — | — |
+| Approve, pay, retry, return withdrawals of a brand | ✓ | own platform | own brand | admin and finance |
 | Game control (live round, crash queue, rain) | ✓ | — | — | — |
 
 ## 2. Launching a marketer's brand, step by step
@@ -80,7 +81,41 @@ These rules are enforced in the database (migration `20260930096000_payment_scop
 
 Where to manage accounts: a brand's own account is on its Payments tab, and a platform's account and the System's are on Payment accounts. Brand owners and finance staff can see whose account their brand uses but cannot change it. The M-Pesa prompt reads "pay Kshs X to `<BUSINESS>` Account no. `<REFERENCE>`". The reference is the brand's "M-Pesa account name" setting (the brand name by default). The business name is set in the Mega Pay merchant account and cannot be changed through the API.
 
-Payouts are approved in the back office and paid by the brand's finance staff. Automatic M-Pesa (B2C) payouts are not enabled; see BUGLOG "Needs the owner's decision".
+**Withdrawals** follow the same payment owner (§5a).
+
+## 5a. Withdrawals and automatic payouts
+
+The money path is built so a payout can never go out twice.
+
+1. When a player asks to withdraw, the amount is **held** from their real balance straight away.
+2. Small requests from low-risk players are approved on the spot. "Small" means at or below the brand's **auto-approve** limit, within the brand's **daily automatic budget**; low-risk means a risk score of 30 or less. Everything else waits in **Withdrawals → Needs review**.
+3. An approved withdrawal is paid by **M-Pesa B2C** when the brand's payment owner has a tested B2C account.
+4. With no such account, staff send the money themselves and press **Mark paid** with the M-Pesa receipt.
+
+**How a payout is sent and settled:**
+
+- The `payouts-worker` function writes one attempt record before each request to Safaricom.
+- Safaricom's answer arrives at `payout-result` on a signed URL.
+  - **Success** pays the withdrawal and tells the player.
+  - **"This number cannot receive"** returns the money to the player.
+  - **Any other failure** goes to **Needs attention** with the money still held. Staff can **Retry**, **Mark paid** or **Return money**.
+- An attempt with no answer is never resent. The worker asks Safaricom for its status and, after an hour, hands it to staff.
+- Retrying or returning money for an unconfirmed attempt needs staff to confirm they checked the M-Pesa statement.
+- A late "paid" answer on something already closed raises a red alert on the page.
+- Players see each withdrawal's progress in Profile → Payments and can cancel one that has not been sent.
+
+**Setting up the B2C account:**
+
+- Where: Payment accounts (System or platform), or a brand's Payments tab.
+- Fields: B2C shortcode, initiator name, payment type, consumer key and secret, and the security credential. The security credential is the initiator password encrypted with Safaricom's certificate, generated in the Daraja portal.
+- **Test connection** signs in and asks Safaricom for the balance; the account is used only after that answer arrives.
+- The environment (sandbox) and the API address are System-owner-only.
+
+**Switches:**
+
+- **Controls → Automatic payouts** pauses every automatic send.
+- The brand setting **Pay out automatically** can require staff to press **Pay** for each withdrawal.
+
 
 ## 6. Secrets
 
@@ -102,12 +137,16 @@ Provider credentials (Cloudflare API token, Mega Pay API keys) are stored only i
 | `integrations` | Provider accounts (secrets live in Vault) |
 | `payment_scopes` | Go-live switches |
 | `mpesa_stk_requests` | Deposits, with `payment_scope` and `integration_id` |
+| `withdrawal_requests` | Withdrawals, with the hold, rail, scope and attention reason |
+| `payout_attempts` | One row per B2C request (write-ahead), with Safaricom's answers |
 
 **Edge functions:**
 
 - `brand-domains`: add, check, replace, remove, unassigned, adopt, test, and the cron sweep.
 - `megapay-stk-push`, `megapay-status`, `megapay-callback` and `megapay-reconcile`: scoped accounts.
 - `megapay-admin`: status and test of the account a brand or scope uses.
+- `payouts-worker`: sends approved withdrawals and chases unanswered ones; also runs the B2C account test.
+- `payout-result`: Safaricom's B2C, Transaction Status and Account Balance answers.
 
 The functions that authenticate themselves have `verify_jwt = false` in `supabase/config.toml`. Every caller action runs its RPCs as the caller's JWT, so the database decides.
 
@@ -115,6 +154,6 @@ The functions that authenticate themselves have `verify_jwt = false` in `supabas
 
 | Area | Suites |
 |---|---|
-| SQL | `brand_config_e2e.py` (124), `domains_integrations_e2e.py` (71), `payment_scopes_e2e.py` (41), `admin_tenancy_e2e.py`, `megapay_gateway_e2e.py`, `megapay_admin_e2e.py` |
-| Live | `e2e/brand_ui_e2e.py`, `e2e/brand_console_e2e.py`, `e2e/domains_live_e2e.py` (a real subdomain goes live and is removed), `e2e/payments_scope_live_e2e.py`, `e2e/admin_ui_e2e.py`, `megapay_functions_live_e2e.py` |
+| SQL | `brand_config_e2e.py` (124), `domains_integrations_e2e.py` (71), `payment_scopes_e2e.py` (41), `payouts_e2e.py` (70), `admin_tenancy_e2e.py`, `megapay_gateway_e2e.py`, `megapay_admin_e2e.py` |
+| Live | `e2e/brand_ui_e2e.py`, `e2e/brand_console_e2e.py`, `e2e/domains_live_e2e.py` (a real subdomain goes live and is removed), `e2e/payments_scope_live_e2e.py`, `e2e/payouts_live_e2e.py` (a Daraja stand-in on a throwaway Worker), `e2e/admin_ui_e2e.py`, `megapay_functions_live_e2e.py` |
 | Unit | vitest: capabilities, nav, brand tokens/looks/fonts/planes, the Worker's routing, the domain state machine against a fake Cloudflare, domain rules |

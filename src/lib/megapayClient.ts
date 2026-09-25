@@ -32,13 +32,15 @@ export interface PaymentConfig {
   /** The brand's deposit / withdrawal switches (maintenance included). */
   depositsOpen: boolean;
   withdrawalsOpen: boolean;
+  /** Approved withdrawals are paid by M-Pesa automatically (the brand's payment owner has a B2C account). */
+  payoutsAutomatic: boolean;
   offer: BonusOffer | null;
 }
 
 export const DEFAULT_PAYMENT_CONFIG: PaymentConfig = {
   depositProvider: 'megapay', minDeposit: 100, maxDeposit: 150_000, minWithdrawal: 100,
   minBet: 50, maxBet: 100_000, maxPayout: 500_000, defaultBet: 100, betChips: [50, 100, 200, 500], depositChips: null,
-  maxWithdrawal: null, dailyWithdrawal: null, depositsOpen: true, withdrawalsOpen: true, offer: null,
+  maxWithdrawal: null, dailyWithdrawal: null, depositsOpen: true, withdrawalsOpen: true, payoutsAutomatic: false, offer: null,
 };
 
 /** Coerce the fn_public_payment_config() payload; anything missing or odd falls back to the defaults. */
@@ -76,6 +78,7 @@ export function parsePaymentConfig(raw: unknown): PaymentConfig {
     dailyWithdrawal: opt(r.daily_withdrawal),
     depositsOpen: r.deposits !== false,
     withdrawalsOpen: r.withdrawals !== false,
+    payoutsAutomatic: r.payouts_automatic === true,
     offer: offer && (offer.welcome > 0 || (offer.matchPct > 0 && offer.matchCap > 0)) ? offer : null,
   };
 }

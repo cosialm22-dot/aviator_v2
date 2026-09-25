@@ -4,6 +4,55 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #41 — Automatic M-Pesa payouts (Daraja B2C) and a correct withdrawal money path — DONE (branch `payouts/b2c`)
+- **What was wrong:**
+  - A withdrawal request held nothing: the player could keep betting the money it asked for.
+  - "Approve" called the legacy `mpesa-b2c` function, which was never configured, debited a stale wallet column non-atomically, and could not complete a withdrawal.
+  - So no withdrawal could ever be paid through the system.
+- **Money path** (migration `20260930097000`; invest254 docs/08 §3, docs/33 and docs/43):
+  - **Request:** the amount is **held** at once (real balance only, ledger `withdrawal_hold`, with the wallet row locked).
+    - Requests at or below the brand's **auto-approve** limit from low-risk players (risk score ≤ 30) are approved on the spot.
+    - They are also capped by a new brand **daily automatic budget**; past it, requests wait for review.
+    - One open withdrawal per player. The player can **cancel** until it is sent; cancelling returns the money.
+  - **Approved:** paid by M-Pesa B2C when the brand's **payment owner** has a tested B2C account. The payout owner is the same brand → platform → System order as deposits, so one owner's deposits are never paid out from another owner's account.
+    - The new brand setting "Pay out automatically" can require staff to press **Pay** instead.
+    - With no B2C account, staff pay by hand and record the **receipt**, which is checked for format and reuse.
+  - **Sending:** the `payouts-worker` edge function is woken immediately through pg_net after commit, with a pg_cron tick every minute as backstop. It claims rows with `FOR UPDATE SKIP LOCKED` and writes one `payout_attempts` row **before** each B2C v3 request. Our OriginatorConversationID is that attempt's id.
+  - **Answers** arrive at `payout-result`. The URL carries an HMAC-SHA256 token keyed from Vault. The ids in the body must match the attempt.
+    - **Success** with the exact amount → paid; receipt and recipient name are stored; history row; lifetime total; the player is notified.
+    - **Recipient cannot receive** (2040) → not paid; the money goes back; the player is told.
+    - **Any other failure** (low float, bad initiator, refused request) → **needs attention**, with the money still held.
+    - **Queue timeout** → still processing.
+  - **No answer:** the attempt is **never resent automatically**. After 3 minutes the worker asks Safaricom (Transaction Status, by our id) every 5 minutes. After 60 minutes or 6 checks it is handed to staff, money still held. A later answer can still settle it.
+  - **Staff actions:** retry, mark paid or return money. Each re-checks role, brand and state and is audited.
+    - Retrying or refunding an attempt whose outcome is unknown requires ticking "I checked the M-Pesa statement: not paid".
+    - If Safaricom later reports such an attempt paid, it raises a red **ALERT** that stays on the withdrawal and is counted on the page.
+  - **Kill switch:** Controls → "Automatic payouts" pauses every automatic send; requests keep arriving and staff can still pay by hand.
+- **B2C accounts** are a new provider (`mpesa_b2c`) in the integrations catalog at System, platform or brand scope. Fields: shortcode, initiator, payment type, consumer key and secret, security credential; the environment and API address are System-owner-only.
+  - "Test connection" signs in to Daraja and asks for the **account balance**. Safaricom's answer (callback) marks the account tested and shows the float.
+  - An account is used only after a passed test, and any change needs a new test.
+- **Callback names:** they avoid words Safaricom filters (`payouts-worker`, `payout-result`).
+- **Legacy removed:** `mpesa-b2c` and `mpesa-b2c-callback` are deleted, from the repo and from Supabase.
+- **Console:**
+  - The Withdrawals page is rebuilt. It shows how this brand is paid (automatic / on Pay / by hand, with the reason) and the rules.
+  - KPIs: review, attention, to pay / sending, paid today, held. Tabs: Needs review, Needs attention, To pay, Sending, Paid, Declined & returned, All.
+  - Actions follow the state. A detail view shows every M-Pesa attempt and the history. The sidebar badge counts review + attention.
+  - The brand Payments tab shows how withdrawals are paid and holds the brand's B2C account.
+- **Player:** the wallet says "On its way" when the payout is automatic. Profile → Payments lists withdrawals with plain status ("Being checked", "Sending to M-Pesa", "Paid", "Declined · money returned") and a Cancel button.
+- **Tests:**
+  - `supabase/tests/payouts_e2e.py`: **70 checks**.
+  - `supabase/functions/_shared/daraja.spec.ts`: **15**. Covers request shapes, token caching, the sent-versus-unknown classification that forbids resending, and callback parsing on Daraja's sample bodies.
+  - `e2e/payouts_live_e2e.py`: **28 live checks** against a Daraja stand-in deployed as a throwaway Cloudflare Worker (`e2e/mocks/daraja-mock.js`). Covers every outcome, the Transaction Status backstop, the console and the player. The stand-in is removed afterwards.
+  - `bonus_wagering_e2e.sql` now expects the hold.
+- **To turn it on for real:** see "Needs the owner's action".
+
+## #40 — Test-fixture accounts removed from production — DONE
+- On the owner's instruction ("delete the test fixtures"), the 15 fixed-id accounts committed by #32 were deleted.
+- **Rows deleted:** 26 transactions, 36 ledger entries, 19 bonuses, 15 wallets, 3 referrals, 1 pending withdrawal of KES 800, 1 commission payout, 2 marketer expenses, 1 affiliate click, 1 risk score, 1 support conversation with 2 messages, and 4 audit rows.
+- **Scope:** everything went in one transaction, after a full JSON backup was taken in the session. No other account referenced them.
+- **Why it mattered:** the fake wallets had added about KES 8,100 of player liabilities to the finance totals.
+- **Result:** `run_sql_tests.py` is back to **13/13**.
+
 ## #39 — Multi-brand: full verification on production, operator guide — DONE (branch `brand/p7-verify`)
 - **Guide:** `docs/BRANDS.md` covers who can do what, launching a marketer's brand step by step, how a brand is resolved at the edge, domains (with the registrar step), payment accounts, secrets and rotation, and the reference.
 - **Production run after the last deploy:**
@@ -647,7 +696,8 @@ Found while auditing every role guard for the new tier:
 ## Needs the owner's action
 - **After rotating credentials:** paste the new Cloudflare API token into Admin → Integrations → Cloudflare and press Test connection. Domain automation uses the token saved there (in Vault), not the environment. Domains already live keep working without it. A least-privilege token is listed in `docs/BRANDS.md` §6.
 - **`printpesa.com`** is attached to the app but no brand claims it, so it shows the default brand. Assign it from any brand's Domains tab ("Domains on the app without a brand") if it belongs to a marketer.
-- **Delete the 15 committed test-fixture accounts (#32).**
+- **Delete the 15 committed test-fixture accounts (#32):** DONE (#40).
+- **Turn on automatic payouts (#41):** you need a Safaricom Daraja app with the B2C product on a bulk payment (B2C) shortcode. In Admin → Payment accounts → The System → M-Pesa payouts (Daraja B2C), enter the shortcode, the initiator name, the consumer key and secret, and the security credential (the initiator password encrypted in the Daraja portal). Then press Test connection. When the balance shows, approved withdrawals are paid automatically. Until then staff pay by hand and record the receipt. Keep the B2C float topped up: a low float sends payouts to Needs attention.
 - **Automatic deposit checks:** DONE on 2026-09-25. Both vault secrets were created at the owner's instruction, and a test call through pg_net to `megapay-reconcile` returned HTTP 200.
 - **Authorise the fix for #17:** DONE. Authorised on 2026-09-25 and fixed (#18).
 - **Upgrade the compute from Nano to Micro:** DONE on 2026-09-25 (#26).
@@ -655,7 +705,6 @@ Found while auditing every role guard for the new tier:
 - **Make one real KES 100 deposit** from a player account to confirm the whole path with real money.
 
 ## Needs the owner's decision (not changed)
-- **Automatic M-Pesa payouts (B2C):** `mpesa-b2c` is not configured (no Daraja secrets) and, as written, debits a stale wallet column non-atomically. Payouts are approved and paid by hand today. Enabling B2C needs a rewrite on the atomic withdrawal path first; per-brand B2C accounts would then join the payment-scope catalog.
 - **Demo is rigged:** `useDemoGame` / `riggedCrashPoint` set the demo win rate to about 80% (`DEMO_WIN_RATE`), with near-misses on losses, "to drive conversion to real play". Real rounds use an 18% house edge (`game.house_edge_percent`).
 - **Results can be set by operators:** when `game.queue_enabled` is on, operators can queue crash points (`crash_queue`). Those rounds still get a committed seed hash, so a player cannot tell them apart. The menu and footer therefore carry no "Provably Fair" claim.
 - **Bot chat:** the chat panel still mixes scripted bot messages in with real ones (owner chose to keep them, 2026-09-25). They no longer appear on the game screen.

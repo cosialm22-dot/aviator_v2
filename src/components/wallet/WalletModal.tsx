@@ -24,7 +24,8 @@ interface Props {
   balance: number;
   // returns true if the deposit was confirmed before timeout, false if still pending
   onDeposit: (amount: number, method: 'mpesa', details: Record<string, string>, onStage?: (s: DepositStage) => void) => Promise<boolean>;
-  onWithdraw: (amount: number, method: 'mpesa', details: Record<string, string>) => Promise<void>;
+  /** Resolves with how the withdrawal will be paid (automatic M-Pesa payout, or reviewed first). */
+  onWithdraw: (amount: number, method: 'mpesa', details: Record<string, string>) => Promise<{ status: 'approved' | 'pending'; automatic: boolean } | void>;
   onClose: () => void;
   /** The deposit went through (or is still with M-Pesa): close and return to the game. */
   onDepositDone: (r: DepositResult) => void;
@@ -47,6 +48,7 @@ function prefill(p?: string): string {
 
 export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, onDepositDone, eligibleForFirstDeposit = false, activeBonus = null, defaultPhone }: Props) {
   const cfg = usePaymentConfig();
+  const [payout, setPayout] = useState<{ status: 'approved' | 'pending'; automatic: boolean } | null>(null);
   const promoCodes = useBrand().config['features.promo_codes'];
   // The brand's switches decide which halves of the wallet exist (the server enforces them too).
   const tabs = ([['deposit', 'Deposit'], ['withdraw', 'Withdraw']] as [Tab, string][])
@@ -100,7 +102,8 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, o
         onDepositDone({ amount: parsedAmount, confirmed, from: ctaRect.current });
         return;
       }
-      await onWithdraw(parsedAmount, 'mpesa', { phone, password });
+      const r = await onWithdraw(parsedAmount, 'mpesa', { phone, password });
+      setPayout(r ?? null);
       setStep('withdrawn');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
@@ -113,8 +116,15 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, o
       {step === 'withdrawn' && (
         <div className="px-4 pb-2 pt-6 text-center">
           <CheckCircle2 size={56} strokeWidth={1.75} className="mx-auto text-ios-green" />
-          <h3 className="mt-4 text-title3 text-white">Withdrawal requested</h3>
+          <h3 className="mt-4 text-title3 text-white" data-testid="withdraw-done-title">{payout?.automatic ? 'On its way' : 'Withdrawal requested'}</h3>
           <p className="mt-1 text-subhead text-ios-label2">{formatCurrency(parsedAmount)} to +254 {phone}</p>
+          <p className="mt-3 text-footnote text-ios-label2" data-testid="withdraw-done-note">
+            {payout?.automatic
+              ? 'It is being sent to your M-Pesa now and usually arrives within a few minutes.'
+              : payout?.status === 'approved'
+                ? 'Approved. It will be sent to your M-Pesa shortly.'
+                : 'We check every withdrawal before paying it. The amount is set aside from your balance; you can follow it, or cancel it, in Profile → Payments.'}
+          </p>
           <Button className="mt-8" onClick={onClose}>Done</Button>
         </div>
       )}

@@ -22,6 +22,23 @@ interface MyStats {
   biggest_multiplier: number;
 }
 
+/** One of the player's withdrawals (my_withdrawals RPC). */
+interface MyWithdrawal {
+  id: string; amount: number; phone: string; status: string; receipt: string | null;
+  created_at: string; completed_at: string | null; reason: string | null; can_cancel: boolean;
+}
+/** What a withdrawal's status means to the player. */
+export const WITHDRAWAL_STATUS: Record<string, { label: string; tone: 'wait' | 'ok' | 'bad' }> = {
+  pending: { label: 'Being checked', tone: 'wait' },
+  approved: { label: 'Approved · sending soon', tone: 'wait' },
+  processing: { label: 'Sending to M-Pesa', tone: 'wait' },
+  needs_attention: { label: 'Delayed · we are on it', tone: 'wait' },
+  completed: { label: 'Paid', tone: 'ok' },
+  rejected: { label: 'Declined · money returned', tone: 'bad' },
+  failed: { label: 'Not paid · money returned', tone: 'bad' },
+  cancelled: { label: 'Cancelled · money returned', tone: 'bad' },
+};
+
 interface TxRow {
   id: string;
   type: string;
@@ -73,6 +90,8 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired, o
   const [stats, setStats] = useState<MyStats | null>(null);
   const [statsUnavailable, setStatsUnavailable] = useState(false);
   const [txns, setTxns] = useState<TxRow[]>([]);
+  const [wds, setWds] = useState<MyWithdrawal[]>([]);
+  const [cancelling, setCancelling] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +102,7 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired, o
     setLoading(true);
     setError(null);
     try {
-      const [statsRes, txRes] = await Promise.all([
+      const [statsRes, txRes, wdRes] = await Promise.all([
         supabase.rpc('get_my_stats'),
         supabase
           .from('transactions')
@@ -92,6 +111,7 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired, o
           .not('type', 'in', '(bet,win)')
           .order('created_at', { ascending: false })
           .limit(50),
+        supabase.rpc('my_withdrawals', { p_limit: 10 }),
       ]);
       // Core reads (always available under RLS): a failure here is a real page error.
       if (txRes.error) throw txRes.error;
@@ -106,6 +126,8 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired, o
         setStatsUnavailable(false);
       }
       setTxns((txRes.data ?? []) as TxRow[]);
+      // best-effort like stats: the list of withdrawals and their progress
+      setWds(wdRes.error ? [] : ((wdRes.data ?? []) as MyWithdrawal[]));
     } catch (e) {
       console.error('[ProfilePage] load failed', e);
       setError("Couldn't load.");
@@ -115,6 +137,14 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired, o
   }, [uid]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const cancel = async (id: string) => {
+    setCancelling(id);
+    const { error: e } = await supabase.rpc('cancel_my_withdrawal', { p_id: id });
+    setCancelling(null);
+    if (e) setError(e.message.startsWith('CANNOT_CANCEL') ? 'It is already being sent, so it can no longer be cancelled.' : "Couldn't cancel.");
+    await load();
+  };
 
   // Not signed in: profile data is auth-scoped, so prompt sign-in rather than an empty shell.
   if (!profile || !user) {
@@ -179,8 +209,24 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired, o
               </Group>
             </>
           )
-        ) : txns.length === 0 ? <Empty>No payments yet</Empty> : (
-          days.map(([day, list]) => (
+        ) : txns.length === 0 && wds.length === 0 ? <Empty>No payments yet</Empty> : (
+          <>
+          {wds.length > 0 && (
+            <Group header="Withdrawals" footer="Money you ask to withdraw is set aside from your balance straight away. If a withdrawal is declined or cannot be paid, it comes back.">
+              {wds.map((w) => {
+                const st = WITHDRAWAL_STATUS[w.status] ?? { label: w.status, tone: 'wait' as const };
+                return (
+                  <Row key={w.id} icon={<Glyph color="#ff9f0a"><ArrowUpRight size={17} strokeWidth={2.2} /></Glyph>}
+                    title={kes(w.amount)}
+                    subtitle={[new Date(w.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' }), st.label, w.receipt, w.reason].filter(Boolean).join(' · ')}
+                    trailing={w.can_cancel
+                      ? <Button size="sm" variant="gray" disabled={cancelling === w.id} onClick={() => void cancel(w.id)} data-testid={`cancel-withdrawal-${w.id}`}>Cancel</Button>
+                      : <span className={st.tone === 'ok' ? 'text-ios-green' : st.tone === 'bad' ? 'text-ios-label2' : 'text-ios-orange'} data-testid={`withdrawal-status-${w.id}`}>{st.tone === 'ok' ? 'Paid' : st.tone === 'bad' ? 'Returned' : 'In progress'}</span>} />
+                );
+              })}
+            </Group>
+          )}
+          {days.map(([day, list]) => (
             <Group key={day} header={day}>
               {list.map((t) => {
                 const P = PAY[t.type] ?? { label: t.type[0]?.toUpperCase() + t.type.slice(1), color: '#8e8e93', icon: ArrowDownLeft, out: t.amount < 0 };
@@ -193,7 +239,8 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired, o
                 );
               })}
             </Group>
-          ))
+          ))}
+          </>
         )}
       </div>
     </Page>

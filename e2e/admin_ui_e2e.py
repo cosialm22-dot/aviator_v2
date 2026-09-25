@@ -283,7 +283,7 @@ try:
         page.get_by_role("button", name="Show all brands").click()
         check("owner: 'Show all brands' clears the scope", until(lambda: page.get_by_test_id("scope-banner").count() == 0, 5000))
         page.goto(APP + "/admin/platform", wait_until="domcontentloaded")
-        check("owner: Controls shows five platform switches", until(lambda: page.get_by_role("switch").count() == 5, 15000))
+        check("owner: Controls shows six platform switches", until(lambda: page.get_by_role("switch").count() == 6, 15000))
         page.get_by_test_id("switch-deposits_enabled").click()
         dlg = page.get_by_role("dialog", name=re.compile("Turn off deposits"))
         check("owner: turning a switch off asks for confirmation first", until(lambda: dlg.is_visible(), 3000) and cfg["deposits_enabled"] is True)
