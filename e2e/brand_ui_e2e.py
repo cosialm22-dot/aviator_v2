@@ -32,7 +32,10 @@ def check(name, ok, info=""):
 
 def http(method, url, body=None, headers=None, raw=False):
     req = urllib.request.Request(url, data=None if body is None else json.dumps(body).encode(), method=method,
-                                 headers={"Content-Type": "application/json", **(headers or {})})
+                                 headers={"Content-Type": "application/json",
+                                          # the site sits behind Cloudflare's bot check (error 1010 for bare urllib);
+                                          # Supabase refuses secret keys from browser-like agents, so only the site gets one
+                                          **({"User-Agent": "Mozilla/5.0 (brand-e2e)"} if url.startswith(APP) else {}), **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             t = r.read().decode(); return r.status, (t if raw else (json.loads(t) if t else {}))

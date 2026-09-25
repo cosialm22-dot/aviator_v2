@@ -6,7 +6,7 @@ import { type SettingsTabId } from './settings/registry';
 import PaymentsTab from './settings/PaymentsTab';
 import StaffTab from './settings/StaffTab';
 import { useAdmin } from '../roleContext';
-import SiteThemePanel from './settings/SiteThemePanel';
+import { useScope } from '../scopeContext';
 import { friendly } from './settings/shared';
 import { ErrorState, PageHeader, Tabs } from '../ui/kit';
 
@@ -104,9 +104,22 @@ export default function SettingsPage() {
           : <SystemSettingsTab tab={tab as SettingsTabId} rows={rows} onSave={saveSetting} />
       )}
 
-      {tab === 'theme' && <SiteThemePanel />}
+      {tab === 'theme' && <BrandThemePointer />}
       {tab === 'payments' && <PaymentsTab />}
       {tab === 'staff' && <StaffTab />}
+    </div>
+  );
+}
+
+/** The brand's look, plane, bird, words and limits all live in the brand console now. */
+function BrandThemePointer() {
+  const { siteId: own } = useAdmin();
+  const scope = useScope();
+  const site = scope.siteId ?? own;
+  return (
+    <div className="rounded-2xl bg-surface p-6 text-[14px] text-muted" data-testid="theme-moved">
+      Look, plane, streamer bird, words, limits and domains are edited in the brand console.
+      <div className="mt-4"><Link to={site ? `/admin/brands/${site}` : '/admin/brands'} className="inline-flex h-8 items-center rounded-lg bg-brand px-3.5 text-[13px] font-medium text-white">Open the brand console</Link></div>
     </div>
   );
 }
