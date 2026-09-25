@@ -28,12 +28,19 @@ export function useNotifications(enabled: boolean) {
   useEffect(() => {
     if (!enabled) { setItems([]); setLoading(false); return; }
     void load();
-    // RLS scopes realtime to the caller's own rows, so this only fires for me.
-    const ch = supabase
-      .channel('my-notifications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_notifications' }, () => { void load(); })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    // Filter on the server by my user id: without it Realtime RLS-checked every notification
+    // row (a broadcast inserts one per player) against every open page.
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    let alive = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user.id;
+      if (!alive || !uid) return;
+      ch = supabase
+        .channel(`my-notifications-${uid}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${uid}` }, () => { void load(); })
+        .subscribe();
+    });
+    return () => { alive = false; if (ch) void supabase.removeChannel(ch); };
   }, [enabled, load]);
 
   const dismiss = useCallback(async (id: number) => {
