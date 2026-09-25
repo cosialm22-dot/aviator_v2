@@ -229,7 +229,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
 
       {/* Desktop: All Bets / Previous / Top on the left */}
       {!streamer.enabled && wide && cfg['features.live_bets'] && (
-        <BetsPanel bets={liveBets} status={gameStatus} previousRound={previousRound} me={me} className="w-[380px] shrink-0" />
+        <BetsPanel bets={liveBets} status={gameStatus} previousRound={previousRound} me={me} simulated={isDemo} className="w-[380px] shrink-0" />
       )}
 
       {/* Main column. Phones: the first screen is history + plane + both bet panels (the plane takes
@@ -292,7 +292,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
 
         {/* Phones and tablets: the bets list under the panels */}
         {!streamer.enabled && !wide && cfg['features.live_bets'] && (
-          <BetsPanel bets={liveBets} status={gameStatus} previousRound={previousRound} me={me}
+          <BetsPanel bets={liveBets} status={gameStatus} previousRound={previousRound} me={me} simulated={isDemo}
             className="mx-1.5 mb-[calc(6px+env(safe-area-inset-bottom))] min-h-[420px] shrink-0" />
         )}
       </div>

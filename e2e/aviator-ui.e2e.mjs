@@ -6,7 +6,7 @@
  *
  * Needs `playwright-core` resolvable. Covers both layouts: bet → placed → cash out, betting during a
  * flight (Cancel / "Waiting for next round"), adding/removing the second panel, the bets board
- * (All Bets lists only real players — the demo engine's bots are never shown), Previous/Top tabs,
+ * (demo: a simulated crowd of 150–300 with the player's own bet in view; real money: real players only), Previous/Top tabs,
  * the round-history "…" panel, the ☰ menu (Sound, Game Limits, How To Play, Chat) and the footer.
  */
 import { chromium } from 'playwright-core';
@@ -95,10 +95,14 @@ try {
     }
     check(`${tag}: no pop-ups or toasts pushing deposits`, !(await page.getByText(/Play for Real|Deposit Now|comeback/i).count()));
 
-    // bets board: only the player's own bet ("You"), never the demo bots
+    // bets board (DEMO): the simulated crowd of 150–300; at most 60 rows drawn, the rest counted as "+N",
+    // and the player's own bet always in view. (The real-money board shows real players only: board_honesty.)
     const board = page.getByRole('region', { name: 'Bets' }).filter({ visible: true }).first();
     const rows = await board.locator('li').allInnerTexts();
-    check(`${tag}: All Bets lists only real players (demo bots hidden)`, rows.length >= 1 && rows.every((r) => /\bYou\b/.test(r)), rows.join(' | '));
+    const boardText = await board.innerText();
+    const more = Number((/\+(\d+)\s*$/m.exec(boardText) ?? [])[1] ?? 0);
+    check(`${tag}: demo board shows a 150–300 crowd (≤60 rows drawn + the rest counted)`, rows.length <= 61 && rows.length + more >= 150 && rows.length + more <= 301, `${rows.length} rows + ${more}`);
+    check(`${tag}: the player's own bet is on the demo board`, rows.some((r) => /\bYou\b/.test(r)), rows.slice(0, 3).join(' | '));
     check(`${tag}: footer says Powered by TRIOCODES`, /Powered by\s*TRIOCODES/.test(await board.innerText()) && !/SPRIBE/i.test(await page.locator('body').innerText()));
     await board.getByRole('tab', { name: 'Previous' }).click();
     check(`${tag}: Previous shows the round result`, await board.getByText('Round Result').isVisible());

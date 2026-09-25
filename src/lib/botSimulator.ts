@@ -70,43 +70,37 @@ function randomCashoutMultiplier(): number | null {
   return 12.0 + Math.random() * 28.0;
 }
 
-function pickName(used: Set<string>): string {
-  // Shuffle and try unique name; append random suffix for infinite variety
-  const shuffled = [...NAMES].sort(() => Math.random() - 0.5);
-  for (const base of shuffled) {
-    if (!used.has(base)) { used.add(base); return base; }
-  }
-  // All 100+ taken - append number
-  const base = NAMES[Math.floor(Math.random() * NAMES.length)];
-  const n = `${base}_${Math.floor(Math.random() * 999)}`;
-  used.add(n);
-  return n;
-}
+/** Crowd size per round (owner: 150–300). */
+export const CROWD_MIN = 150;
+export const CROWD_MAX = 300;
 
-export function generateBots(crashPoint: number): BotPlayer[] {
-  // 60-100 bots per round for a busy, realistic lobby
-  const count = 60 + Math.floor(Math.random() * 41);
-  const used = new Set<string>();
-  const bots: BotPlayer[] = [];
-
+/**
+ * One round's simulated crowd (DEMO only — the real-money board never shows it). Built for speed:
+ * one Fisher–Yates pass over the name pool per round (the old code re-sorted the whole pool for
+ * EVERY bot), ids are round-scoped, and the result is sorted by cash-out point so the frame loop
+ * settles them with a moving pointer instead of scanning every bot every frame.
+ */
+export function generateBots(crashPoint: number, count = CROWD_MIN + Math.floor(Math.random() * (CROWD_MAX - CROWD_MIN + 1)), roundTag: string | number = Date.now()): BotPlayer[] {
+  const idx = Array.from({ length: NAMES.length }, (_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = idx[i]; idx[i] = idx[j]; idx[j] = t; }
+  const bots: BotPlayer[] = new Array(count);
   for (let i = 0; i < count; i++) {
     const desired = randomCashoutMultiplier();
-    const cashoutAt = desired === null
-      ? null
-      : desired >= crashPoint
-        ? null
-        : Math.floor(desired * 100) / 100;
-
-    bots.push({
-      id: `bot-${i}-${Date.now()}`,
-      username: pickName(used),
-      avatar_color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
+    const cashoutAt = desired === null || desired >= crashPoint ? null : Math.floor(desired * 100) / 100;
+    // unique names: the shuffled pool first, then pool names with a numeric suffix
+    const base = NAMES[idx[i % idx.length]];
+    const username = i < idx.length ? base : `${base}${((i / idx.length) | 0) + 1}`;   // deterministic: never collides
+    bots[i] = {
+      id: `bot-${roundTag}-${i}`,
+      username,
+      avatar_color: AVATAR_COLORS[(Math.random() * AVATAR_COLORS.length) | 0],
       betAmount: randomBetAmount(),
       cashoutAt,
       hasBet: false,
       hasCashedOut: false,
-    });
+    };
   }
-
+  // earliest cash-out first; bots that ride to the crash last
+  bots.sort((a, b) => (a.cashoutAt ?? Infinity) - (b.cashoutAt ?? Infinity));
   return bots;
 }
