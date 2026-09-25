@@ -4,6 +4,31 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #42 — Demo crowd of 150–300 players, built for speed; the real-money board stays real-only — DONE (branch `feat/demo-crowd`, client only)
+- **Owner:** "add bots to the game between 150-300 … optimization, efficiency, and resource utilization".
+- **Scope decision:**
+  - The crowd is shown on the DEMO (play-money) board.
+  - The real-money board keeps the honesty rule (#4): real players only, with the server-seeded `is_bot` bets
+    never shown or counted. Showing simulated bettors to people staking real money would misrepresent other
+    players' activity and wins.
+- **Built:**
+  - `generateBots(crash, count = 150..300, roundTag)` makes one Fisher–Yates pass over the name pool per round.
+    The old code re-sorted the whole pool for every bot, which is O(n² log n) per round.
+  - Names are unique by construction (deterministic suffixes after the pool). Ids are round-scoped.
+  - Bots come sorted by cash-out point.
+  - The demo frame loop settles bots with a moving pointer: only the bots the multiplier has just passed are
+    touched. Before, it scanned every bot on every frame.
+  - Each bot's board row is cached and replaced only when that bot changes, so an update copies references
+    instead of rebuilding 300 objects every 80 ms.
+  - The board draws at most 60 rows (won first), shows "+N" for the rest, and keeps the player's own bet in view.
+    Header totals count everyone.
+- **Tests:**
+  - botSimulator.test.ts (4): 150–300; unique names and ids; sorted; never at or above the crash point;
+    300 players in under 2 ms.
+  - aviator-ui.e2e: the demo board crowd (≤60 rows + "+N" = 150–300) and the player's own bet, on desktop, 390
+    and 360. 91/91.
+  - vitest 173/173.
+
 ## #41 — Automatic M-Pesa payouts (Daraja B2C) and a correct withdrawal money path — DONE (branch `payouts/b2c`)
 - **What was wrong:**
   - A withdrawal request held nothing: the player could keep betting the money it asked for.

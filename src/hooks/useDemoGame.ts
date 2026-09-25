@@ -44,6 +44,15 @@ export interface DemoWinEvent { id: string; amount: number; mult: number; at: nu
 
 interface DemoBot extends BotPlayer { status: 'active' | 'won' | 'lost'; cashedMult: number | null; }
 
+function botRow(bot: DemoBot): LiveBetEntry {
+  return {
+    id: bot.id, username: bot.username, avatar_color: bot.avatar_color,
+    amount: bot.betAmount, cashout_multiplier: bot.cashedMult,
+    winnings: bot.cashedMult != null ? cashoutCredit(bot.betAmount, bot.cashedMult) : null,
+    status: bot.status, is_bot: true,
+  };
+}
+
 export interface DemoGame {
   active: boolean;
   gameStatus: GameStatus;
@@ -104,6 +113,10 @@ export function useDemoGame({ active, playerName, playerColor }: Params): DemoGa
   const roundRef = useRef<GameRound | null>(null);
   const roundNumRef = useRef(0);
   const botsRef = useRef<DemoBot[]>([]);
+  // Board rows for the crowd, rebuilt only for bots whose state changed (150–300 per round).
+  const botRowsRef = useRef<LiveBetEntry[]>([]);
+  // Bots are sorted by cash-out point: everything before this index has been settled.
+  const botPtrRef = useRef(0);
   const betsRef = useRef<ActiveBets>(EMPTY_BETS);
   const balanceRef = useRef(balance);
   balanceRef.current = balance;
@@ -131,15 +144,7 @@ export function useDemoGame({ active, playerName, playerColor }: Params): DemoGa
         winnings: b.winnings, status: b.status, is_bot: false,
       });
     }
-    for (const bot of botsRef.current) {
-      out.push({
-        id: bot.id, username: bot.username, avatar_color: bot.avatar_color,
-        amount: bot.betAmount, cashout_multiplier: bot.cashedMult,
-        winnings: bot.cashedMult != null ? cashoutCredit(bot.betAmount, bot.cashedMult) : null,
-        status: bot.status, is_bot: true,
-      });
-    }
-    return out;
+    return out.concat(botRowsRef.current);
   }, []);
 
   // Open a fresh waiting round (also called on activation).
@@ -150,8 +155,10 @@ export function useDemoGame({ active, playerName, playerColor }: Params): DemoGa
       status: 'waiting', started_at: null, crashed_at: null, created_at: new Date().toISOString(),
     };
     roundRef.current = round;
-    botsRef.current = (generateBots(Number.POSITIVE_INFINITY) as BotPlayer[])
+    botsRef.current = (generateBots(Number.POSITIVE_INFINITY, undefined, roundNumRef.current) as BotPlayer[])
       .map((b) => ({ ...b, status: 'active' as const, cashedMult: null }));
+    botRowsRef.current = botsRef.current.map(botRow);
+    botPtrRef.current = 0;
     betsRef.current = EMPTY_BETS;
     phaseRef.current = 'waiting';
     phaseStartRef.current = now;
@@ -202,7 +209,8 @@ export function useDemoGame({ active, playerName, playerColor }: Params): DemoGa
 
   const crashRound = useCallback((now: number) => {
     const crash = crashRef.current;
-    for (const bot of botsRef.current) if (bot.status === 'active') bot.status = 'lost';
+    const bots = botsRef.current;
+    for (let i = 0; i < bots.length; i++) if (bots[i].status === 'active') { bots[i].status = 'lost'; botRowsRef.current[i] = botRow(bots[i]); }
     const nextBets: ActiveBets = { ...betsRef.current };
     for (const slot of SLOTS) {
       const b = nextBets[slot];
@@ -251,12 +259,20 @@ export function useDemoGame({ active, playerName, playerColor }: Params): DemoGa
             changed = true;
           }
         }
-        for (const bot of botsRef.current) {
-          if (bot.status === 'active' && bot.cashoutAt != null
-              && m >= bot.cashoutAt && bot.cashoutAt < crashRef.current) {
-            bot.status = 'won'; bot.cashedMult = bot.cashoutAt; changed = true;
+        // sorted by cash-out point: only the bots the multiplier just passed are touched
+        const bots = botsRef.current;
+        let ptr = botPtrRef.current;
+        while (ptr < bots.length) {
+          const bot = bots[ptr];
+          if (bot.cashoutAt == null || m < bot.cashoutAt) break;
+          if (bot.cashoutAt < crashRef.current) {
+            bot.status = 'won'; bot.cashedMult = bot.cashoutAt;
+            botRowsRef.current[ptr] = botRow(bot);
+            changed = true;
           }
+          ptr++;
         }
+        botPtrRef.current = ptr;
         if (changed) boardDirtyRef.current = true;
         if (elapsed >= crashAtMsRef.current || m >= crashRef.current) {
           crashRound(now);

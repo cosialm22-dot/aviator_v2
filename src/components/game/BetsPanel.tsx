@@ -6,10 +6,13 @@ import { multColor, fmtX, maskName, realOnly, money } from '../../lib/betBoard';
 // ============================================================================
 // BetsPanel — All Bets / Previous / Top, laid out like the owner's mock.
 //
-// HONESTY RULE: only real players' bets are listed. Rows flagged `is_bot` (the
-// server-seeded bot bets and the demo engine's simulated players) are never shown
-// and never counted in the header totals. Other players' names are masked
-// ("d***8") as in the mock.
+// HONESTY RULE: on the REAL-money board only real players' bets are listed. Rows
+// flagged `is_bot` (server-seeded bot bets) are never shown and never counted.
+// DEMO (play money, `simulated`) shows its simulated crowd of 150–300 players.
+// Other players' names are masked ("d***8") as in the mock.
+//
+// Perf: at most ROW_CAP rows are rendered (a busy demo round has up to 300); the
+// header totals still count everyone.
 // ============================================================================
 
 export interface BoardBet {
@@ -24,6 +27,7 @@ export interface BoardBet {
 }
 
 type Tab = 'all' | 'previous' | 'top';
+const ROW_CAP = 60;
 
 function Avatar({ name, color, size = 24 }: { name: string; color: string; size?: number }) {
   return (
@@ -36,8 +40,14 @@ function Avatar({ name, color, size = 24 }: { name: string; color: string; size?
 function BetRows({ bets, status, empty, me }: { bets: BoardBet[]; status: GameStatus; empty: string; me?: string | null }) {
   const rows = useMemo(() => {
     const order = { won: 0, active: 1, lost: 2 } as const;
-    return [...bets].sort((a, b) => order[a.status] - order[b.status] || (b.winnings ?? 0) - (a.winnings ?? 0) || b.amount - a.amount);
-  }, [bets]);
+    const sorted = [...bets].sort((a, b) => order[a.status] - order[b.status] || (b.winnings ?? 0) - (a.winnings ?? 0) || b.amount - a.amount);
+    if (sorted.length <= ROW_CAP) return sorted;
+    // keep the player's own bets in view even when the crowd is large
+    const top = sorted.slice(0, ROW_CAP);
+    if (me) for (const b of sorted.slice(ROW_CAP)) if (b.username === me) top.push(b);
+    return top;
+  }, [bets, me]);
+  const hidden = bets.length - rows.length;
   return (
     <>
       <div className="grid grid-cols-[1fr_72px_52px_76px] px-3 pb-1 pt-2 text-[11px] text-g-dim">
@@ -63,6 +73,7 @@ function BetRows({ bets, status, empty, me }: { bets: BoardBet[]; status: GameSt
           );
         })}
       </ul>
+      {hidden > 0 ? <p className="pb-2 text-center text-[11px] tabular-nums text-g-dim">+{hidden}</p> : null}
     </>
   );
 }
@@ -207,11 +218,13 @@ function Top() {
 
 // memo: the board re-renders only when its own data changes (bets, phase, previous round), never on
 // the flight clock. On phones it is part of the page scroll (no nested scroller to trap touches).
-export default memo(function BetsPanel({ bets, status, previousRound, me = null, className = '' }: {
-  bets: BoardBet[]; status: GameStatus; previousRound: GameRound | null; me?: string | null; className?: string;
+export default memo(function BetsPanel({ bets, status, previousRound, me = null, simulated = false, className = '' }: {
+  bets: BoardBet[]; status: GameStatus; previousRound: GameRound | null; me?: string | null;
+  /** DEMO (play money): show the simulated crowd. Never set for real money. */
+  simulated?: boolean; className?: string;
 }) {
   const [tab, setTab] = useState<Tab>('all');
-  const real = useMemo(() => realOnly(bets), [bets]);
+  const real = useMemo(() => (simulated ? bets : realOnly(bets)), [bets, simulated]);
   return (
     <section aria-label="Bets" className={`flex min-h-0 flex-col rounded-2xl bg-g-panel ${className}`}>
       <div className="m-1.5 grid grid-cols-3 rounded-full bg-g-bar p-0.5" role="tablist" aria-label="Bets view">
