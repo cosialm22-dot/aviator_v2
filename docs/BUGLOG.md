@@ -4,7 +4,81 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
-## #17 — CRITICAL: the crash time of the live round is public — OPEN, needs the owner's authorisation (engine)
+## #26 — Database after the Micro upgrade — MEASURED
+- Compute moved from Nano to Micro on 2026-09-25 at the owner's instruction (1 GB RAM, `shared_buffers` 256 MB). The resize restarted Postgres once. The only errors in that window were the expected "shutting down" and "server restarted" messages, and one driver run cut short. Rounds resumed by themselves.
+- **Same 5-minute method as #16:**
+
+  | Measure | Original (Nano) | After indexes (Nano) | Micro + all of #18–#25 |
+  |---|---|---|---|
+  | Swap-in (pages a second) | 158 | 56 | 0 |
+  | Major page faults a second | 335 | 127 | 29 |
+  | Disk reads | 4.3 MiB/s | 2.3 MiB/s | 0.8 MiB/s |
+  | CPU busy | 7.5% | 4.1% | 3.3% |
+  | Free memory | 123 MB | — | 500 MB |
+  | Buffer cache hit rate | — | — | 99.91% |
+
+- **Database errors, last 2 hours, read clinically:** nothing is left unexplained.
+  - Restart messages from the resize.
+  - Expected rejections from the test suites: BETTING_CLOSED, BELOW_MIN, OPERATOR_CANNOT_DEPOSIT, the permission-denied checks.
+  - 200 "permission denied for table game_rounds" in one 78-second burst at 00:13, from a browser tab still running the old bundle when the crash-time column was hidden. That bundle asked for the column. Pages load network-first through the service worker, so a reload fixes it, and none have occurred since.
+  - About 90 seconds of timeouts at 00:23, while an early version of the RLS test held table locks. The test was rewritten so it no longer does that.
+
+## #25 — Client delivery: bundle split, caching, pushes instead of polling — DONE (branch `perf/client-delivery`)
+- **First load:**
+  - The profile page, marketer hub, sign-in and wallet modals are loaded on demand. The two modals are prefetched when the browser is idle, so they still open instantly.
+  - Vendor code is split into `vendor-react` (53 KB gzip), `vendor-supabase` (34 KB) and icons.
+  - The app's own entry chunk is 42 KB gzip.
+- **Repeat visits:** hashed files under `/assets/` were served `max-age=0, must-revalidate`, so every visit re-checked every file. `public/_headers` now makes them `immutable` for a year. Sounds and images are cached for a week. `index.html` and `sw.js` are never cached, so a deploy is picked up on the next load. Verified live with `curl -I`.
+- **Maintenance flag:** it was polled from every open page. It is now fetched once and pushed on the broadcast topic `config` by a trigger on `system_settings` (migration `20260928120000`). A 5-minute safety poll remains.
+- **Chat:** chat went through postgres_changes, so every message was WAL-decoded and RLS-checked once per open page. It now goes out on the broadcast topic `chat` (migration `20260928130000`), and `chat_messages` was dropped from the publication (migration `20260928140000`).
+- **Notifications:** still postgres_changes, but now filtered to the player's own `user_id`, so the server doesn't evaluate other players' rows for every page.
+- **Test:** `supabase/tests/push_channels_e2e.py` (7/7) checks both triggers on production inside a transaction that is rolled back, so no player sees a maintenance flash or a test chat line.
+- **Note for multi-brand:** the `game` and `chat` topics are global. That is correct today: there is one brand, and `bets`, `game_rounds` and `chat_messages` are readable by everyone under RLS. A second brand with its own rounds would need per-brand topics (e.g. `game:<site_id>`).
+
+## #24 — RLS and indexes (Supabase performance advisor) — FIXED (migration `20260928110000`)
+- **Per-row policy calls:** 15 policies called `auth.uid()` or `_is_admin()` once per row. They are now wrapped in `(SELECT …)`, so Postgres evaluates them once per query.
+- **Staff checks:** brand-staff checks compare `site_id` to a single `_staff_site()` value instead of calling `_can_admin_site(site_id)` for every row. Overlapping SELECT policies on withdrawals and STK requests were merged into one each.
+- **Indexes added:** `crash_queue(round_id)` and `free_bets(used_round_id)`. Without them, the retention job scanned all of `crash_queue` for each round it deleted. A tiny partial index covers the live round.
+- **Indexes dropped:** 7 duplicate or unused indexes on hot tables, including a DESC copy of the unique round-number index and the full status index. This means less write work on every round.
+- **Proof:** `supabase/tests/rls_tuning_e2e.py` (12/12) seeds two brands and 8 callers, records every row each caller can see under the old policies, applies the new ones and compares. The results are identical.
+
+## #23 — Server clock sync — DONE
+- The multiplier is drawn from `now − started_at`. A phone whose clock ran 1.5 s fast showed 1.14x while the server was still at 1.00x.
+- The client now estimates its offset from the server as NTP does, using `server_time()`: 4 samples, keeping the one with the fastest round trip, repeated every 5 minutes (`src/lib/serverClock.ts`, with unit tests).
+
+## #22 — Engine timing — FIXED (full engine authorisation given 2026-09-25)
+- **Before:** `game_drive` woke on a fixed interval, so a crash or take-off could be processed up to one interval late (250 ms or more).
+- **Now:** `game_tick` returns when the next thing happens: close of betting, the crash instant, or the next auto cash-out. The driver sleeps exactly until then, clamped to 3 ms–1 s. It commits after waking, so `now()` is fresh.
+- **Measured on production:** crashes are processed 3–4 ms after their secret instant, and take-off is stamped 3–4 ms after betting closes. `engine_live_e2e.py` checks both stay under 60 ms.
+
+## #21 — Bot bets — REMOVED from the database ("keep, but make them free")
+- About 80% of all row changes, and of the WAL behind them, were bot rows: 15–30 inserted, updated and deleted every round. They are no longer written, and the old rows were deleted.
+- **Visible change: none.** Since #4, the bet list shows real players only, so nobody ever saw the bot rows.
+
+## #20 — Realtime moved to Broadcast — DONE (migrations `20260928090000`, `20260928100000`)
+- **Before:** rounds and bets went through postgres_changes, which decodes the WAL and runs RLS for every subscriber. Measured delivery was p50 about 500 ms and p90 750–870 ms.
+- **Now:** triggers send exactly the public fields on the topic `game` (events `round` and `bet`), and the tables left the publication. Measured delivery is 27–43 ms, the same for 1 or 1,000 viewers.
+- The client uses one channel and re-syncs over REST when it (re)connects. It no longer polls REST for every round; the UI test asserts this.
+
+## #19 — P0: internal functions callable by anyone — FIXED (migration `20260928080000`)
+- **What:** Supabase grants EXECUTE on every new public function to `anon` and `authenticated`. 241 SECURITY DEFINER functions were callable by anyone, including `crash_round`, `start_round`, `_wallet_move` and `_settle_flight`. With just the public key, anyone could end a round or move money.
+- **Fix:** EXECUTE revoked from PUBLIC, anon and authenticated on every internal function; they are granted to `service_role` only. `ALTER DEFAULT PRIVILEGES` stops new functions from being exposed. Client RPCs now need an explicit GRANT.
+- **Verified:**
+  - anon calling `crash_round` gets 401.
+  - anon calling `_wallet_move` gets 404.
+  - The public config RPC still works.
+  - Every UI suite passes.
+
+## #18 — (was #17) crash time readable by players — FIXED
+- `start_round` no longer writes `game_rounds.crashes_at`. The time lives only in `round_secrets`.
+- Players and the public get column-level SELECT without `crashes_at` or the override fields.
+- Broadcast events carry the crash point and seed only once the round has crashed.
+- **Tests:**
+  - `engine_live_e2e.py` asserts that reading the column is refused.
+  - Every round event before the crash is checked for leaks.
+  - The UI test confirms the stored row never carries the time.
+
+## #17 — CRITICAL: the crash time of the live round is public — FIXED, see #18
 - **What:** `start_round` writes `game_rounds.crashes_at` (when the plane will crash) at take-off.
   - `game_rounds` is readable by anyone (RLS `true` for anon and authenticated).
   - It is in the realtime publication, so every client also receives it at take-off.
@@ -109,7 +183,7 @@ Running log of bugs found while working through issues, with what was wrong, the
   - Withdrawals, Finance, Risk, Marketing, Promo codes, Notifications and Game control do not follow the brand picker yet. The page says so.
   - Role lists in Staff and player detail are stale: finance_admin and support can't be assigned, because `admin_set_role` rejects them.
 
-## Observation — game driver "fails" every 2 minutes (not changed: engine)
+## Observation — game driver "fails" every 2 minutes — RESOLVED (#16: runs now end cleanly at 110 s; #22: event-driven)
 - `cron.job_run_details` shows `game_driver` ending with "canceling statement due to statement timeout" about 720 times a day. `game_drive()` sleeps in a loop until the 2-minute statement timeout stops it, and the next run picks up. Rounds keep flowing.
 - This looks like the intended design, but it fills the cron history with failures and holds locks for long stretches. It is in the engine, so I left it alone.
 
@@ -241,8 +315,9 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ## Needs the owner's action
 - **Automatic deposit checks:** DONE on 2026-09-25. Both vault secrets were created at the owner's instruction, and a test call through pg_net to `megapay-reconcile` returned HTTP 200.
-- **Authorise the fix for #17** (crash time readable by players). This is urgent before real players arrive.
-- **Upgrade the compute from Nano to Micro:** see #16. It costs the same on the Pro plan.
+- **Authorise the fix for #17:** DONE. Authorised on 2026-09-25 and fixed (#18).
+- **Upgrade the compute from Nano to Micro:** DONE on 2026-09-25 (#26).
+- **Rotate the credentials used in this session**, as planned.
 - **Make one real KES 100 deposit** from a player account to confirm the whole path with real money.
 
 ## Needs the owner's decision (not changed)
