@@ -110,6 +110,7 @@ export function useDemoGame({ active, playerName, playerColor }: Params): DemoGa
   const playerBetThisRound = useRef(false);
   const rafRef = useRef(0);
   const lastUiRef = useRef(0);
+  const boardDirtyRef = useRef(false);
   const nameRef = useRef(playerName);
   nameRef.current = playerName;
   const colorRef = useRef(playerColor);
@@ -256,12 +257,15 @@ export function useDemoGame({ active, playerName, playerColor }: Params): DemoGa
             bot.status = 'won'; bot.cashedMult = bot.cashoutAt; changed = true;
           }
         }
+        if (changed) boardDirtyRef.current = true;
         if (elapsed >= crashAtMsRef.current || m >= crashRef.current) {
           crashRound(now);
-        } else if (now - lastUiRef.current >= UI_THROTTLE_MS) {
+        } else if (boardDirtyRef.current && now - lastUiRef.current >= UI_THROTTLE_MS) {
+          // Only the bets board re-renders (and only when a bot cashed out); the multiplier is
+          // read from the ref by whoever shows it, never pushed through React state per frame.
           lastUiRef.current = now;
-          setCurrentMultiplier(m);
-          if (changed) setLiveBets(buildLiveBets());
+          boardDirtyRef.current = false;
+          setLiveBets(buildLiveBets());
         }
       } else { // crashed
         if (now - phaseStartRef.current >= POST_CRASH_MS) openRound(now);

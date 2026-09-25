@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { GameStatus, GameRound } from '../../types';
 import { multColor, fmtX, maskName, realOnly, money } from '../../lib/betBoard';
@@ -205,7 +205,9 @@ function Top() {
   );
 }
 
-export default function BetsPanel({ bets, status, previousRound, me = null, className = '' }: {
+// memo: the board re-renders only when its own data changes (bets, phase, previous round), never on
+// the flight clock. On phones it is part of the page scroll (no nested scroller to trap touches).
+export default memo(function BetsPanel({ bets, status, previousRound, me = null, className = '' }: {
   bets: BoardBet[]; status: GameStatus; previousRound: GameRound | null; me?: string | null; className?: string;
 }) {
   const [tab, setTab] = useState<Tab>('all');
@@ -218,7 +220,7 @@ export default function BetsPanel({ bets, status, previousRound, me = null, clas
             className={`h-8 rounded-full text-[13px] transition ${tab === k ? 'bg-[#2c2d30] text-white' : 'text-[#9ea0a3] hover:text-white'}`}>{l}</button>
         ))}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-0 flex-1 lg:overflow-y-auto lg:overscroll-contain">
         {tab === 'all' ? <AllBets bets={real} status={status} me={me} /> : tab === 'previous' ? <Previous round={previousRound} me={me} /> : <Top />}
       </div>
       <div className="flex items-center justify-end border-t border-[#2a2b2e] px-3 py-1.5 text-[11px] text-[#7b7b7b]">
@@ -226,4 +228,4 @@ export default function BetsPanel({ bets, status, previousRound, me = null, clas
       </div>
     </section>
   );
-}
+});

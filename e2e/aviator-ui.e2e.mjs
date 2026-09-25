@@ -27,7 +27,9 @@ async function session(width, height) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(APP_URL, { waitUntil: 'domcontentloaded' });
-  await page.getByRole('tab', { name: 'Demo' }).click();
+  // Real / Demo lives in the ☰ menu
+  await page.getByRole('button', { name: /^Game menu/ }).click();
+  await page.getByRole('menuitemradio', { name: 'Demo' }).click();
   await page.waitForTimeout(800);
   return { ctx, page, errors };
 }
@@ -69,9 +71,27 @@ try {
     const flying = await until(() => cash.isVisible(), 30000);
     check(`${tag}: in flight the button becomes Cash Out with the live value`, flying);
     if (flying) {
+      const v1 = await cash.innerText(); await page.waitForTimeout(700); const v2 = await cash.innerText();
+      check(`${tag}: the Cash Out value climbs during the flight`, v1 !== v2, `${v1} / ${v2}`);
+      const demoBal = page.getByLabel('Demo balance', { exact: true });
+      const num = (t) => Number(String(t).replace(/[^\d.]/g, ''));
+      const before = num(await demoBal.innerText());
+      const btn = await cash.boundingBox();
       await cash.click();
-      const pill = page.getByRole('status').filter({ hasText: /^\+[\d,.]+ KES · \d+\.\d{2}x$/ });
-      check(`${tag}: cashing out shows the win over the plane`, await until(() => pill.isVisible(), 8000));
+      // the won amount leaves the bet button as a chip and flies into the header balance
+      const chip = page.locator('#win-fx-layer span');
+      check(`${tag}: cashing out launches the win chip from the bet button`, await until(() => chip.first().isVisible(), 4000));
+      const label = await chip.first().innerText().catch(() => '');
+      const start = await chip.first().boundingBox().catch(() => null);
+      check(`${tag}: the chip shows only the amount (+KES), starting at the button`, /^\+[\d,]+\.\d{2}$/.test(label) && start && Math.abs(start.y + start.height / 2 - (btn.y + btn.height / 2)) < 120, `${label} ${JSON.stringify(start)}`);
+      await page.waitForTimeout(450);
+      const mid = await chip.first().boundingBox().catch(() => null);
+      const target = await demoBal.boundingBox();
+      check(`${tag}: the chip travels towards the balance`, mid && start && Math.hypot(mid.x - target.x, mid.y - target.y) < Math.hypot(start.x - target.x, start.y - target.y), JSON.stringify({ start, mid, target }));
+      check(`${tag}: nothing about the win is drawn over the plane`, !(await page.getByText(/KES · \d/).count()));
+      check(`${tag}: the chip lands and is cleaned up`, await until(async () => (await chip.count()) === 0, 4000));
+      const after = await until(async () => num(await demoBal.innerText()) === Math.floor(before + num(label)), 3000);
+      check(`${tag}: the balance counts up to the new amount`, after, `${before} + ${label} → ${await demoBal.innerText()}`);
     }
     check(`${tag}: no pop-ups or toasts pushing deposits`, !(await page.getByText(/Play for Real|Deposit Now|comeback/i).count()));
 
@@ -95,7 +115,8 @@ try {
     await page.getByRole('button', { name: 'Game menu' }).click();
     const menu = page.getByRole('menu', { name: 'Game menu' });
     const menuText = await menu.innerText();
-    check(`${tag}: menu has Sound, Rules, Chat, Log in (signed out)`, /Sound[\s\S]*Rules[\s\S]*Chat[\s\S]*Log in/.test(menuText) && !/Home|Game Limits|How To Play/.test(menuText), menuText);
+    check(`${tag}: menu has Real / Demo, Sound, Rules, Chat, Log in (signed out)`, /Real[\s\S]*Demo[\s\S]*Sound[\s\S]*Rules[\s\S]*Chat[\s\S]*Log in/.test(menuText) && !/Home|Game Limits|How To Play/.test(menuText), menuText);
+    check(`${tag}: Real / Demo is not drawn on the plane`, (await page.locator('main [aria-label="Play mode"]').count()) === 0 || (await menu.getByRole('menuitemradio', { name: 'Demo' }).getAttribute('aria-checked')) === 'true');
     const sw = menu.getByRole('switch', { name: 'Sound' });
     const before = await sw.getAttribute('aria-checked');
     await sw.click();

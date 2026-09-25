@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { MoreHorizontal, X, History } from 'lucide-react';
 import type { GameRound } from '../../types';
 import { multColor } from '../../lib/betBoard';
@@ -13,7 +13,7 @@ const label = (m: number) => (m >= 100 ? `${Math.floor(m).toLocaleString('en-KE'
  * Round-history strip (owner's mock): the latest results, coloured blue < 2x, purple 2–10x,
  * pink ≥ 10x, and a "…" button on the right that opens the full round history.
  */
-export default function GameHistory({ history }: Props) {
+export default memo(function GameHistory({ history }: Props) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative flex items-center gap-2">
@@ -45,4 +45,4 @@ export default function GameHistory({ history }: Props) {
       ) : null}
     </div>
   );
-}
+});

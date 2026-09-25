@@ -76,6 +76,9 @@ try:
         def open_page(w, h, signed):
             ctx = b.new_context(viewport={"width": w, "height": h}, service_workers="block", is_mobile=w < 800, has_touch=w < 800)
             if signed: ctx.add_init_script(f"try {{ localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(session))}); }} catch (e) {{}}")
+            # count React commits (a stand-in DevTools hook) to prove the flight doesn't re-render the page
+            ctx.add_init_script("""window.__commits = 0; window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = { supportsFiber: true, renderers: new Map(),
+              inject() { return 1; }, onCommitFiberRoot() { window.__commits++; }, onCommitFiberUnmount() {}, onPostCommitFiberRoot() {}, checkDCE() {} };""")
             # record every audio play (source, muted) so the fly-away sound can be checked
             ctx.add_init_script("""(() => { window.__played = []; const p = HTMLMediaElement.prototype.play;
               HTMLMediaElement.prototype.play = function () { window.__played.push({ src: this.src, muted: this.muted, t: Date.now() }); return p.call(this); }; })();""")
@@ -196,7 +199,28 @@ try:
         check("register: bonus line matches the server's offer", until(pg, lambda: want in reg.inner_text(), 5000), (want, reg.inner_text()[:160]))
         check("register: three fields and one button, no filler copy", reg.locator("input").count() == 3 and "30 seconds" not in reg.inner_text())
         pg.keyboard.press("Escape")
-        pg.get_by_role("tab", name="Demo").click()
+        # the freeze: with the Top list open, a flight must not re-render the page (it used to, 15x a second)
+        board = pg.get_by_role("region", name="Bets")
+        st_ = pg.locator('div.sr-only[role="status"]').first
+        until(pg, lambda: "Waiting" in st_.inner_text(), 40000)
+        board.get_by_role("tab", name="Top").click()
+        until(pg, lambda: "Multiplier" in st_.inner_text(), 30000)
+        pg.wait_for_timeout(300)
+        c0 = pg.evaluate("window.__commits"); pg.wait_for_timeout(2000); c1 = pg.evaluate("window.__commits")
+        still = "Multiplier" in st_.inner_text()
+        # only the screen-reader status ticks (4/s, a leaf); before the fix the whole game tree
+        # re-rendered 15x a second (30+ commits in 2 s)
+        check("flight with Top open: only the tiny status leaf updates (≤ 5 commits/s)", (c1 - c0) <= 10 or not still, (c1 - c0, still))
+        tabs_ok = True
+        for t_ in ["Previous", "All Bets", "Top", "All Bets"]:
+            board.get_by_role("tab", name=t_).click(); pg.wait_for_timeout(150)
+            tabs_ok = tabs_ok and board.get_by_role("tab", name=t_).get_attribute("aria-selected") == "true"
+        check("switching All / Previous / Top responds at once", tabs_ok)
+        pg.get_by_role("button", name=re.compile(r"^Game menu")).click()
+        mt_ = pg.get_by_role("menu", name="Game menu").inner_text()
+        check("Real / Demo is in the menu (not on the plane)", mt_.strip().startswith("Real") and pg.locator('main [aria-label="Play mode"]').count() == 0, mt_[:40])
+        pg.get_by_role("menuitemradio", name="Demo").click()
+        check("choosing Demo closes the menu and switches", pg.get_by_role("menu", name="Game menu").count() == 0 and pg.get_by_label("Demo balance", exact=True).is_visible())
         check("signed-out demo keeps Register in the header", pg.get_by_role("button", name="Register").is_visible() and pg.get_by_label("Demo balance", exact=True).is_visible())
         pg.wait_for_timeout(15000)
         check("demo: no 'Play for Real' toasts", pg.get_by_text(re.compile("Play for Real|Deposit Now", re.I)).count() == 0)

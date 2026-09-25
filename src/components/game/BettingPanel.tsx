@@ -5,6 +5,7 @@ import type { GameStatus } from '../../types';
 import type { ActiveBet } from '../../hooks/useGame';
 import { useAutoBet, type AutoBetConfig } from '../../hooks/useAutoBet';
 import { usePaymentConfig } from '../../hooks/usePaymentConfig';
+import { useLiveMultiplier } from '../../hooks/useLiveMultiplier';
 
 // A bet queued for the next round. Carries the auto-cashout target (if any) so a
 // bet queued in Auto mode is placed next round with the same target the player
@@ -20,7 +21,8 @@ interface Props {
   // slot via onPlaceBet / onCashOut, so dual-bet is real on both sides.
   panelIndex: number;
   status: GameStatus;
-  multiplier: number;
+  /** Live multiplier (read from the engine's ref; sampled here only while cashing out is possible). */
+  getMultiplier: () => number;
   balance: number;
   activeBet: ActiveBet | null;
   queuedBet: QueuedBet | null;
@@ -62,7 +64,7 @@ const whole = (n: number) => n.toLocaleString('en-KE', { maximumFractionDigits: 
  * Bet → Cancel ("Waiting for next round") → Cash Out → Bet. Auto adds Auto Play and Auto Cash Out.
  */
 export default function BettingPanel({
-  panelIndex, status, multiplier, balance, activeBet, queuedBet,
+  panelIndex, status, getMultiplier, balance, activeBet, queuedBet,
   onPlaceBet, onQueueBet, onCancelQueue, onCashOut, onAuthRequired, onDeposit, isAuthenticated,
   isOperator = false, streamer = false, corner = null,
 }: Props) {
@@ -108,6 +110,7 @@ export default function BettingPanel({
 
   const inFlight = activeBet?.status === 'active';
   const cashable = !isOperator && status === 'flying' && inFlight;
+  const multiplier = useLiveMultiplier(getMultiplier, cashable);
 
   const bet = async () => {
     if (isOperator) return;
@@ -203,7 +206,7 @@ export default function BettingPanel({
         </div>
 
         {/* The action button */}
-        <button type="button" onClick={shown.onClick} disabled={shown.disabled}
+        <button type="button" data-bet-action={panelIndex + 1} onClick={shown.onClick} disabled={shown.disabled}
           className={`flex min-h-[92px] flex-1 flex-col items-center justify-center rounded-[20px] border px-2 text-white transition active:scale-[0.98] ${toneCls[shown.tone]}`}>
           <span className="text-[22px] font-medium leading-tight">{shown.title}</span>
           {shown.sub ? <span role={err ? 'alert' : undefined}

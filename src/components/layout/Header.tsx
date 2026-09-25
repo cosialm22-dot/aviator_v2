@@ -8,10 +8,13 @@ import BirdMark from '../game/BirdMark';
 import { useStreamerMode } from '../../hooks/useStreamerMode';
 import { useNotifications } from '../../hooks/useNotifications';
 import NotificationsSheet from '../notifications/NotificationsSheet';
+import { useWinBalance } from '../../hooks/useWinBalance';
 
 interface Props {
   profile: Profile | null;
   balance: number;
+  mode: 'real' | 'demo';
+  onSetMode: (m: 'real' | 'demo') => void;
   /** Demo play-money balance while the game is in Demo; null in Real. */
   demoBalance: number | null;
   onDemoReset: () => void;
@@ -27,7 +30,7 @@ const kes = (n: number) => n.toLocaleString('en-KE', { minimumFractionDigits: 2,
 
 // One bar, one job per state. Signed out: Log in + Register. Signed in: the balance (tap = wallet,
 // the + makes deposit obvious) and the menu. Unread notifications show as a dot on the menu.
-export default function Header({ profile, balance, demoBalance, onDemoReset, busy, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
+export default function Header({ profile, balance, mode, onSetMode, demoBalance, onDemoReset, busy, onSignInOpen, onRegisterOpen, onWalletOpen, onSignOut }: Props) {
   const { planeSkin } = useSiteTheme();
   const streamer = useStreamerMode();
   const domain = typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : '';
@@ -42,6 +45,9 @@ export default function Header({ profile, balance, demoBalance, onDemoReset, bus
   const notes = useNotifications(!!profile);
   const navigate = useNavigate();
   const dot = notes.unread > 0 || freeBets > 0;
+  // Shown values count up (and wait for a win to fly in) instead of jumping.
+  const shownBalance = useWinBalance(balance);
+  const shownDemo = useWinBalance(demoBalance ?? 0);
 
   return (
     <header className="relative z-30 flex h-[calc(44px+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-2 border-b border-[#232426] bg-[#141516] px-2 pt-[env(safe-area-inset-top)] sm:px-3">
@@ -56,14 +62,14 @@ export default function Header({ profile, balance, demoBalance, onDemoReset, bus
 
       <div className="flex shrink-0 items-center gap-1.5">
         {demoBalance != null ? (
-          <div className="flex h-9 items-center gap-0.5 rounded-full bg-funmode/15 pl-3 pr-0.5 text-funmode" aria-label="Demo balance">
-            <span className="text-sm font-bold tabular-nums">{Math.floor(demoBalance).toLocaleString('en-KE')}</span>
+          <div data-balance-target className="flex h-9 items-center gap-0.5 rounded-full bg-funmode/15 pl-3 pr-0.5 text-funmode" aria-label="Demo balance">
+            <span className="text-sm font-bold tabular-nums">{Math.floor(shownDemo).toLocaleString('en-KE')}</span>
             <button onClick={onDemoReset} aria-label="Reset demo balance" className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/10"><RotateCcw size={14} /></button>
           </div>
         ) : profile ? (
-          <button onClick={onWalletOpen} aria-label={`Balance KES ${kes(balance)}. Open wallet`}
-            className="flex h-9 items-center gap-1.5 rounded-full bg-[#1f2a1c] pl-3 pr-1 transition active:scale-95">
-            <span className="text-sm font-bold tabular-nums text-[#5cd334]">{kes(balance)}</span>
+          <button data-balance-target onClick={onWalletOpen} aria-label={`Balance KES ${kes(balance)}. Open wallet`}
+            className="flex h-9 items-center gap-1.5 rounded-full bg-[#1f2a1c] pl-3 pr-1 active:scale-95">
+            <span className="text-sm font-bold tabular-nums text-[#5cd334]">{kes(shownBalance)}</span>
             {busy ? (
               <span role="status" aria-label={busy === 'deposit' ? 'Waiting for M-Pesa' : 'Processing withdrawal'} title={busy === 'deposit' ? 'Waiting for M-Pesa' : 'Processing withdrawal'}
                 className="grid h-7 w-7 place-items-center"><span className="h-4 w-4 animate-spin rounded-full border-2 border-[#5cd334] border-t-transparent" /></span>
@@ -96,6 +102,7 @@ export default function Header({ profile, balance, demoBalance, onDemoReset, bus
       {menuOpen && (
         <GameMenu profile={profile} freeBetCount={freeBets} unread={notes.unread}
           onClose={() => setMenuOpen(false)} onWalletOpen={onWalletOpen} onSignOut={onSignOut} onSignIn={onSignInOpen}
+          mode={mode} onSetMode={onSetMode}
           onNotifications={() => setNotesOpen(true)} />
       )}
       {notesOpen && <NotificationsSheet {...notes} onClose={() => setNotesOpen(false)} />}

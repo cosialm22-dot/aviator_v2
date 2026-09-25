@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { Wrench } from 'lucide-react';
 import GameCanvas from './GameCanvas';
 import BettingPanel, { type QueuedBet } from './BettingPanel';
@@ -14,6 +14,10 @@ import type { DemoGame } from '../../hooks/useDemoGame';
 import { usePromos } from '../../hooks/usePromos';
 import PromoBar from './PromoBar';
 import { formatMultiplier } from '../../lib/gameEngine';
+import { flyWin } from '../../lib/winFx';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useLiveMultiplier } from '../../hooks/useLiveMultiplier';
+import type { GameStatus } from '../../types';
 import type { Profile, Wallet } from '../../types';
 import { useSiteTheme } from '../../hooks/useSiteTheme';
 import { useStreamerMode } from '../../hooks/useStreamerMode';
@@ -22,14 +26,13 @@ interface Props {
   profile: Profile | null;
   wallet: Wallet | null;
   mode: 'real' | 'demo';
-  onSetMode: (mode: 'real' | 'demo') => void;
   demo: DemoGame;
   onAuthRequired: () => void;
   onRefreshWallet: () => Promise<void>;
   onDepositOpen: () => void;
 }
 
-export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
+export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
   const { planeSkin } = useSiteTheme();
   const streamer = useStreamerMode();
   // Chat opens as a sheet from the game menu.
@@ -78,7 +81,6 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
   const view = isDemo ? demo : real;
   const {
     gameStatus,
-    currentMultiplier,
     getMultiplier,
     currentRound,
     history,
@@ -145,7 +147,12 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
       const now = panelActiveBets[slot];
       if (!now) continue;
       if (!before || before.id !== now.id) { if (now.status === 'active') playSound('place'); continue; }
-      if (before.status === 'active' && now.status === 'won') playSound('win');
+      if (before.status === 'active' && now.status === 'won') {
+        playSound('win');
+        // The win leaves the bet button and flies into the balance (nothing drawn on the plane).
+        const amt = Number(now.winnings ?? 0);
+        void flyWin(`+${amt.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, slot);
+      }
     }
     prevBets.current = panelActiveBets;
   }, [panelActiveBets]);
@@ -160,7 +167,6 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
 
   // Aggregate signals across both slots for the shared canvas overlays.
   const anyBetThisRound = !!panelActiveBets[1] || !!panelActiveBets[2];
-  const lastWon = (panelActiveBets[1]?.status === 'won' && panelActiveBets[1]) || (panelActiveBets[2]?.status === 'won' && panelActiveBets[2]) || null;
 
   // Free bets stake on slot 1. Place now if waiting & slot 1 is free, else queue
   // for the next waiting round. Real-money mode only (demo has its own balance).
@@ -187,7 +193,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
   const panelProps = (slot: BetSlot) => ({
     panelIndex: slot - 1,
     status: gameStatus,
-    multiplier: currentMultiplier,
+    getMultiplier,
     balance: panelBalance,
     activeBet: panelActiveBets[slot],
     queuedBet: queuedBets[slot],
@@ -202,15 +208,18 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
     streamer: streamer.enabled,
   });
 
-  const kes = (n: number) => n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // One bets board, mounted where it is shown (left column on desktop, under the panels on
+  // phones) instead of two copies with one hidden by CSS.
+  const wide = useMediaQuery('(min-width: 1024px)');
+  const me = profile?.username ?? (isDemo ? 'You' : null);
+  const previousRound = history[0] ?? null;
 
   return (
     <div className="flex h-full min-h-0 bg-[#0e0e0e] lg:gap-2 lg:p-2">
 
       {/* Desktop: All Bets / Previous / Top on the left */}
-      {!streamer.enabled && (
-        <BetsPanel bets={liveBets} status={gameStatus} previousRound={history[0] ?? null} me={profile?.username ?? (isDemo ? 'You' : null)}
-          className="hidden w-[380px] shrink-0 lg:flex" />
+      {!streamer.enabled && wide && (
+        <BetsPanel bets={liveBets} status={gameStatus} previousRound={previousRound} me={me} className="w-[380px] shrink-0" />
       )}
 
       {/* Main column. Phones: the first screen is history + plane + both bet panels (the plane takes
@@ -228,34 +237,12 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
               planeSkin={planeSkin}
               streamer={streamer.enabled}
               status={gameStatus}
-              multiplier={currentMultiplier}
               getMultiplier={getMultiplier}
               crashPoint={crashPoint}
               countdown={countdown}
             />
 
-            {/* Real / Demo */}
-            <div className="absolute left-2 top-2 z-10 flex rounded-full bg-black/55 p-0.5 backdrop-blur" role="tablist" aria-label="Play mode">
-              {(['real', 'demo'] as const).map((m) => (
-                <button key={m} role="tab" aria-selected={mode === m} onClick={() => onSetMode(m)}
-                  className={`h-8 rounded-full px-3.5 text-[13px] font-bold transition ${mode === m ? (m === 'demo' ? 'bg-funmode text-white' : 'bg-win text-white') : 'text-slate-300 hover:text-white'}`}>
-                  {m === 'real' ? 'Real' : 'Demo'}
-                </button>
-              ))}
-            </div>
-
-            <div className="sr-only" aria-live="polite" role="status">
-              {gameStatus === 'flying'  && `Multiplier ${formatMultiplier(currentMultiplier)}`}
-              {gameStatus === 'crashed' && `Flew away at ${formatMultiplier(crashPoint)}`}
-              {gameStatus === 'waiting' && 'Waiting for next round'}
-            </div>
-
-            {/* Result of the player's own cash-out: the only message drawn over the plane */}
-            {lastWon && (
-              <div role="status" className="absolute left-1/2 top-12 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#28a909] px-4 py-1.5 text-[15px] font-bold tabular-nums text-white shadow-lg shadow-black/40">
-                +{kes(lastWon.winnings ?? 0)}{streamer.enabled ? '' : ' KES'} · {(lastWon.cashout_multiplier ?? currentMultiplier).toFixed(2)}{streamer.enabled ? '' : 'x'}
-              </div>
-            )}
+            <LiveStatus status={gameStatus} getMultiplier={getMultiplier} crashPoint={crashPoint} />
           </div>
 
           {maintenance && !isDemo && isOperator && (
@@ -290,9 +277,9 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
         </div>
 
         {/* Phones and tablets: the bets list under the panels */}
-        {!streamer.enabled && (
-          <BetsPanel bets={liveBets} status={gameStatus} previousRound={history[0] ?? null} me={profile?.username ?? (isDemo ? 'You' : null)}
-            className="mx-1.5 mb-[calc(6px+env(safe-area-inset-bottom))] min-h-[420px] shrink-0 lg:hidden" />
+        {!streamer.enabled && !wide && (
+          <BetsPanel bets={liveBets} status={gameStatus} previousRound={previousRound} me={me}
+            className="mx-1.5 mb-[calc(6px+env(safe-area-inset-bottom))] min-h-[420px] shrink-0" />
         )}
       </div>
 
@@ -304,3 +291,18 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
     </div>
   );
 }
+
+/**
+ * Screen-reader status: announces the phase (waiting, flew away at X). During the flight it keeps
+ * the current multiplier as text, sampled 4x a second, without announcing every change.
+ */
+const LiveStatus = memo(function LiveStatus({ status, getMultiplier, crashPoint }: { status: GameStatus; getMultiplier: () => number; crashPoint: number }) {
+  const m = useLiveMultiplier(getMultiplier, status === 'flying', 4);
+  return (
+    <div className="sr-only" role="status" aria-live={status === 'flying' ? 'off' : 'polite'}>
+      {status === 'flying' && `Multiplier ${formatMultiplier(m)}`}
+      {status === 'crashed' && `Flew away at ${formatMultiplier(crashPoint)}`}
+      {status === 'waiting' && 'Waiting for next round'}
+    </div>
+  );
+});

@@ -6,7 +6,8 @@ import { useSoundEnabled, setSoundEnabled } from '../../lib/sound';
 import { openGamePanel, type GamePanel } from '../../lib/gamePanels';
 
 /** The ☰ menu: only things the game really has, one word each where possible. */
-export default function GameMenu({ profile, freeBetCount = 0, unread = 0, onClose, onWalletOpen, onSignOut, onSignIn, onNotifications }: {
+export default function GameMenu({ profile, freeBetCount = 0, unread = 0, onClose, onWalletOpen, onSignOut, onSignIn, onNotifications, mode, onSetMode }: {
+  mode: 'real' | 'demo'; onSetMode: (m: 'real' | 'demo') => void;
   profile: Profile | null; freeBetCount?: number; unread?: number; onClose: () => void;
   onWalletOpen: () => void; onSignOut: () => void; onSignIn: () => void; onNotifications: () => void;
 }) {
@@ -52,6 +53,19 @@ export default function GameMenu({ profile, freeBetCount = 0, unread = 0, onClos
           <ChevronRight size={16} className="text-[#7b7b7b]" />
         </button>
       ) : null}
+
+      {/* Real / Demo: picking one closes the menu so the game is in view */}
+      <div className="px-3 pb-1 pt-2">
+        <div className="grid grid-cols-2 rounded-full bg-[#141516] p-1" role="group" aria-label="Play mode">
+          {(['real', 'demo'] as const).map((m) => (
+            <button key={m} type="button" role="menuitemradio" aria-checked={mode === m}
+              onClick={go(() => onSetMode(m))}
+              className={`h-10 rounded-full text-sm font-bold transition ${mode === m ? (m === 'demo' ? 'bg-funmode text-white' : 'bg-win text-white') : 'text-[#9ea0a3] hover:text-white'}`}>
+              {m === 'real' ? 'Real' : 'Demo'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="flex h-12 items-center gap-3 px-4 text-[15px] text-[#d7d7d7]">
         <Volume2 size={18} className="text-[#9ea0a3]" />
