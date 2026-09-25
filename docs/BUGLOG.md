@@ -4,6 +4,18 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #28 — Jet roar when the plane flies away — DONE (branch `feat/flyaway-sound`)
+- **Source:** "Jet Plane Flyby" by qubodup on Freesound (https://freesound.org/people/qubodup/sounds/189446/). It is CC0 public domain, taken from a U.S. Government video, so no licence fee and no attribution are required. The link is kept in `public/sounds/LICENSE.txt`.
+- **Edit:** 3.0–9.0 s of the recording, sped up 2.2x so the pitch rises and it sounds like a fast climb. The roar hits within 0.3 s, then a 0.85 s fade. 2.7 s long, mono MP3, 22 KB.
+- **Behaviour:**
+  - Plays every round on the live flying → crashed change, in Real and Demo.
+  - Does not play when a page opens on an already-crashed round.
+  - Does not play in a background tab, or when Sound is off.
+  - Replaces the old "loss" chime, which played only when a bet was riding.
+  - Its volume is set to 0.3 so the sustained roar sits at the same loudness as the interface chimes.
+- **Mobile audio unlock:** phones (iOS especially) block audio that no tap has started, so the fly-away sound would have stayed silent for anyone who hadn't bet yet. The first tap anywhere now loads every sound and plays each one muted for an instant, which unlocks them.
+- **Tests:** `mobile_ui_e2e.py` checks four things: the first tap unlocks the sounds silently, the roar plays exactly once per crash, the file is served as audio (under 40 KB), and nothing plays with Sound off.
+
 ## #27 — Mobile-first player UI, fewer words, no pressure pop-ups — DONE (branch `ux/mobile-first`)
 - **Target:** Kenya's phones. StatCounter, Aug 2026: 360x800 17.6%, 360x806 10.7%, 385x854 9.4%, 412x915 9.1%.
 - **Before:**

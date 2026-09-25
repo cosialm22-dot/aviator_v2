@@ -137,7 +137,7 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
   // Menu badge: how many free bets the player holds (real money only).
   useEffect(() => { publishFreeBetCount(isDemo ? 0 : freeBets.length); }, [freeBets.length, isDemo]);
 
-  // Sounds: bet accepted, cashed out, and flew away with a bet still riding (per slot).
+  // Sounds: bet accepted and cashed out (per slot).
   const prevBets = useRef(panelActiveBets);
   useEffect(() => {
     for (const slot of BET_SLOTS) {
@@ -146,10 +146,17 @@ export default function AviatorGame({ profile, wallet, mode, onSetMode, demo, on
       if (!now) continue;
       if (!before || before.id !== now.id) { if (now.status === 'active') playSound('place'); continue; }
       if (before.status === 'active' && now.status === 'won') playSound('win');
-      if (before.status === 'active' && now.status === 'lost') playSound('loss');
     }
     prevBets.current = panelActiveBets;
   }, [panelActiveBets]);
+
+  // The jet roar when the plane flies away: every round, only on the live flying → crashed
+  // change (not when a page opens on an already-crashed round) and only in a visible tab.
+  const prevStatus = useRef(gameStatus);
+  useEffect(() => {
+    if (prevStatus.current === 'flying' && gameStatus === 'crashed' && document.visibilityState === 'visible') playSound('flyaway');
+    prevStatus.current = gameStatus;
+  }, [gameStatus]);
 
   // Aggregate signals across both slots for the shared canvas overlays.
   const anyBetThisRound = !!panelActiveBets[1] || !!panelActiveBets[2];

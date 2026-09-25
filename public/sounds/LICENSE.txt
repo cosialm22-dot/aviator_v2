@@ -1,9 +1,15 @@
-Sound effects in this folder come from "Interface Sounds (1.0)" by Kenney (www.kenney.nl).
+place.mp3, win.mp3, toggle.mp3 come from "Interface Sounds (1.0)" by Kenney (www.kenney.nl).
 License: Creative Commons Zero (CC0) — http://creativecommons.org/publicdomain/zero/1.0/
 Free for personal, educational and commercial use; credit is appreciated but not required.
 
 place.mp3    <- select_004.ogg
 win.mp3      <- confirmation_002.ogg
-loss.mp3     <- error_006.ogg
 toggle.mp3   <- toggle_002.ogg
 (converted to mono MP3 at 64 kbps, loudness-normalised to -20 LUFS)
+
+flyaway.mp3 <- "Jet Plane Flyby.flac" by qubodup, https://freesound.org/people/qubodup/sounds/189446/
+License: Creative Commons Zero (CC0) — public domain. Extracted by the uploader from a U.S.
+Government video (public domain). No attribution required; the link above is kept to avoid
+misunderstandings, as the uploader asks.
+Edit: 3.0–9.0 s of the recording, sped up 2.2x (pitch rises, so the jet sounds faster), 40 ms
+fade-in, 0.85 s fade-out, peak-normalised to -1.5 dBFS, mono MP3 64 kbps, 2.7 s.
