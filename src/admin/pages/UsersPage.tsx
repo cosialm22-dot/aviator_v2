@@ -89,10 +89,10 @@ export default function UsersPage() {
       <PageHeader title="Players" subtitle={`${scope.label} · search, filter and open any account`}
         actions={<Button onClick={exportCsv} disabled={!rows?.length}><Download size={14} /> Export this page</Button>} />
 
-      <Card pad={false}>
-        <div className="p-4 flex flex-wrap items-center gap-2 border-b border-line">
+      <Card pad={false} className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-line p-4">
           <Pills items={STATUS} value={status} onChange={(v) => setParam('status', v === 'all' ? null : v)} label="Player status" />
-          <div className="flex flex-wrap items-center gap-2 ml-auto w-full lg:w-auto">
+          <div className="ml-auto flex w-full flex-wrap items-center gap-2 lg:w-auto">
             <SearchInput value={q} onChange={setQ} placeholder="Username, phone or id" label="Search players" className="flex-1 lg:w-64" />
             <Select<RoleF> value={role} onChange={(v) => setParam('role', v === 'player' ? null : v)} label="Account type"
               options={[{ value: 'player', label: 'Players' }, { value: 'marketer', label: 'Marketers' }, { value: 'staff', label: 'Staff' }, { value: 'any', label: 'Everyone' }]} />
@@ -105,9 +105,9 @@ export default function UsersPage() {
         {err && <div className="p-4"><ErrorState message={err} onRetry={() => void load()} /></div>}
 
         {rows === null ? (
-          <div className="p-4 space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}</div>
+          <div className="space-y-2 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}</div>
         ) : rows.length === 0 ? (
-          <div className="p-4"><Empty title="No accounts match" body="Try another search or filter." /></div>
+          <Empty title="No accounts match" body="Try another search or filter." />
         ) : (
           <div className={loading ? 'opacity-60 transition-opacity' : ''}>
             <TableWrap testId="players-table" minWidth={scope.multiBrand ? 1040 : 940}>
@@ -117,14 +117,14 @@ export default function UsersPage() {
               </tr></thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} data-testid="player-row" onClick={() => navigate(`/admin/users/${r.id}`)} className="border-b border-line/60 hover:bg-raised/40 cursor-pointer">
+                  <tr key={r.id} data-testid="player-row" onClick={() => navigate(`/admin/users/${r.id}`)} className="cursor-pointer border-b border-line transition-colors last:border-0 hover:bg-white/[0.03]">
                     <Td>
-                      <Link to={`/admin/users/${r.id}`} onClick={(e) => e.stopPropagation()} className="text-ink font-medium hover:text-brand">{r.username}</Link>
+                      <Link to={`/admin/users/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-ink hover:text-brand">{r.username}</Link>
                       {r.role !== 'player' && <span className="ml-2"><Badge tone="brand">{ROLE_LABEL[r.role] ?? r.role}</Badge></span>}
                     </Td>
-                    {scope.multiBrand && <Td className="text-muted text-xs">{r.site_name ?? '—'}</Td>}
-                    <Td className="text-muted text-xs font-mono">{maskPhone(r.phone_number)}</Td>
-                    <Td numeric className="text-ink">{kes(r.balance)}{r.bonus > 0 && <span className="block text-[11px] text-faint">+{kes(r.bonus)} bonus</span>}</Td>
+                    {scope.multiBrand && <Td className="text-muted">{r.site_name ?? '—'}</Td>}
+                    <Td className="whitespace-nowrap font-mono text-[12px] text-muted">{maskPhone(r.phone_number)}</Td>
+                    <Td numeric className="text-ink">{kes(r.balance)}{r.bonus > 0 && <span className="block text-[12px] text-faint">+{kes(r.bonus)} bonus</span>}</Td>
                     <Td numeric className="text-muted">{kes(r.total_deposited)}</Td>
                     <Td numeric className="text-muted">{kes(r.total_withdrawn)}</Td>
                     <Td numeric className="text-muted">{kes(r.total_wagered)}</Td>
@@ -134,8 +134,8 @@ export default function UsersPage() {
                         : r.last_active_at && Date.now() - Date.parse(r.last_active_at) < 7 * 864e5 ? <Badge tone="up">Active</Badge>
                         : <Badge>Quiet</Badge>}
                     </Td>
-                    <Td className="text-muted text-xs whitespace-nowrap" title={new Date(r.created_at).toLocaleString()}>{relTime(r.created_at)}</Td>
-                    <Td className="text-muted text-xs whitespace-nowrap">{relTime(r.last_active_at)}</Td>
+                    <Td className="whitespace-nowrap text-muted" title={new Date(r.created_at).toLocaleString()}>{relTime(r.created_at)}</Td>
+                    <Td className="whitespace-nowrap text-muted">{relTime(r.last_active_at)}</Td>
                   </tr>
                 ))}
               </tbody>

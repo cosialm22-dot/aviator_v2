@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine, ShieldCheck, Save, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { staffError } from '../../ui/format';
+import { Button, Card, ErrorState, Switch, inputCls } from '../../ui/kit';
 
 // ============================================================================
 // PaymentsTab — the M-Pesa (Daraja) paybill: B2C payouts for withdrawals (and STK only if
@@ -31,12 +32,8 @@ const EMPTY: MpesaConfig = {
   b2c_shortcode: '', initiator_name: '', callback_base_url: '', is_active: true,
 };
 
-const inputCls =
-  'w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint ' +
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition';
-const labelCls = 'block text-[12px] font-medium text-ink mb-1.5';
-const helpCls = 'text-[11px] text-faint mt-1';
-const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
+const labelCls = 'mb-1.5 block text-[13px] font-medium text-ink';
+const helpCls = 'mt-1 text-[12px] text-faint';
 
 export default function PaymentsTab() {
   const [cfg, setCfg] = useState<MpesaConfig>(EMPTY);
@@ -99,12 +96,12 @@ export default function PaymentsTab() {
   }
 
   if (loading) {
-    return <div className="space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="h-40 rounded-xl border border-line bg-surface animate-pulse" />)}</div>;
+    return <div className="space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="h-40 rounded-xl bg-surface animate-pulse" />)}</div>;
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      {err && <div role="alert" className="rounded-lg border border-down/30 bg-down/10 px-4 py-2.5 text-down text-[13px]">{err}</div>}
+    <div className="flex max-w-3xl flex-col gap-6">
+      {err && <ErrorState message={err} />}
 
       <p className="text-[13px] text-muted">
         The Safaricom Daraja paybill that pays out withdrawals (B2C). Player deposits go through Mega Pay — see Deposits.
@@ -112,9 +109,8 @@ export default function PaymentsTab() {
       </p>
 
       {/* Status */}
-      <section className="rounded-xl border border-line bg-surface p-6">
-        <h3 className={HEAD}>Environment &amp; status</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4">
+      <Card title="Environment & status">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelCls} htmlFor="env">Daraja environment</label>
             <select id="env" value={cfg.environment} onChange={e => set('environment', e.target.value)} className={inputCls}>
@@ -123,37 +119,26 @@ export default function PaymentsTab() {
             </select>
             <p className={helpCls}>Switch to Production only with live Safaricom credentials.</p>
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-line px-4 py-2.5 self-end">
+          <div className="flex items-center justify-between gap-3 self-center rounded-lg bg-raised px-4 py-2.5">
             <div>
               <div className="text-[13px] font-medium text-ink">Payments active</div>
-              <div className="text-[11px] text-faint">Disable to pause all M-Pesa deposits &amp; payouts.</div>
+              <div className="text-[12px] text-faint">Disable to pause all M-Pesa deposits &amp; payouts.</div>
             </div>
-            <button
-              role="switch"
-              aria-checked={cfg.is_active}
-              onClick={() => set('is_active', !cfg.is_active)}
-              className={'relative inline-flex h-6 w-11 items-center rounded-full transition-colors ' + (cfg.is_active ? 'bg-up' : 'bg-white/15')}
-            >
-              <span className={'inline-block h-4 w-4 transform rounded-full bg-white transition-transform ' + (cfg.is_active ? 'translate-x-6' : 'translate-x-1')} />
-            </button>
+            <Switch checked={cfg.is_active} onChange={v => set('is_active', v)} label="Payments active" />
           </div>
         </div>
-      </section>
+      </Card>
 
       {/* Receive money */}
-      <section className="rounded-xl border border-line bg-surface p-6">
-        <div className="flex items-center gap-2">
-          <ArrowDownToLine size={16} className="text-up" />
-          <h3 className={HEAD}>Receive money — STK push (only if deposits are switched back to Daraja)</h3>
-        </div>
-        <p className="text-[12px] text-muted mt-1 mb-4">The paybill/till that prompts players to pay into the platform.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <Card title={<span className="flex items-center gap-2"><ArrowDownToLine size={15} className="text-up" />Receive money — STK push (only if deposits are switched back to Daraja)</span>}>
+        <p className="mb-4 text-[13px] text-muted">The paybill/till that prompts players to pay into the platform.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelCls} htmlFor="shortcode">Paybill / Till (shortcode)</label>
-            <input id="shortcode" value={cfg.shortcode} onChange={e => set('shortcode', e.target.value.replace(/\D/g, ''))} placeholder="e.g. 174379" className={inputCls} inputMode="numeric" />
+            <input id="shortcode" value={cfg.shortcode} onChange={e => set('shortcode', e.target.value.replace(/\D/g, ''))} placeholder="e.g. 174379" className={inputCls + ' tabular-nums'} inputMode="numeric" />
           </div>
           <div>
-            <label className={labelCls} htmlFor="passkey">Passkey {cfg.passkey_set && <span className="text-faint font-normal">(saved)</span>}</label>
+            <label className={labelCls} htmlFor="passkey">Passkey {cfg.passkey_set && <span className="font-normal text-faint">(saved)</span>}</label>
             <input id="passkey" type="password" value={secrets.passkey} onChange={e => { setSecrets(s => ({ ...s, passkey: e.target.value })); setSaved(false); }} placeholder={cfg.passkey_set ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 leave blank to keep' : 'Lipa Na M-Pesa passkey'} autoComplete="off" className={inputCls} />
           </div>
           <div>
@@ -161,23 +146,19 @@ export default function PaymentsTab() {
             <input id="ckey" value={cfg.consumer_key} onChange={e => set('consumer_key', e.target.value)} placeholder="Daraja app consumer key" autoComplete="off" className={inputCls} />
           </div>
           <div>
-            <label className={labelCls} htmlFor="csecret">Consumer secret {cfg.consumer_secret_set && <span className="text-faint font-normal">(saved)</span>}</label>
+            <label className={labelCls} htmlFor="csecret">Consumer secret {cfg.consumer_secret_set && <span className="font-normal text-faint">(saved)</span>}</label>
             <input id="csecret" type="password" value={secrets.consumer_secret} onChange={e => { setSecrets(s => ({ ...s, consumer_secret: e.target.value })); setSaved(false); }} placeholder={cfg.consumer_secret_set ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 leave blank to keep' : 'Daraja app consumer secret'} autoComplete="off" className={inputCls} />
           </div>
         </div>
-      </section>
+      </Card>
 
       {/* Send money */}
-      <section className="rounded-xl border border-line bg-surface p-6">
-        <div className="flex items-center gap-2">
-          <ArrowUpFromLine size={16} className="text-down" />
-          <h3 className={HEAD}>Send money - B2C (payouts)</h3>
-        </div>
-        <p className="text-[12px] text-muted mt-1 mb-4">The shortcode and initiator used to pay withdrawals to players.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <Card title={<span className="flex items-center gap-2"><ArrowUpFromLine size={15} className="text-down" />Send money - B2C (payouts)</span>}>
+        <p className="mb-4 text-[13px] text-muted">The shortcode and initiator used to pay withdrawals to players.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelCls} htmlFor="b2c">B2C shortcode</label>
-            <input id="b2c" value={cfg.b2c_shortcode} onChange={e => set('b2c_shortcode', e.target.value.replace(/\D/g, ''))} placeholder="e.g. 600000" className={inputCls} inputMode="numeric" />
+            <input id="b2c" value={cfg.b2c_shortcode} onChange={e => set('b2c_shortcode', e.target.value.replace(/\D/g, ''))} placeholder="e.g. 600000" className={inputCls + ' tabular-nums'} inputMode="numeric" />
             <p className={helpCls}>Defaults to the paybill if your B2C uses the same shortcode.</p>
           </div>
           <div>
@@ -185,37 +166,27 @@ export default function PaymentsTab() {
             <input id="init" value={cfg.initiator_name} onChange={e => set('initiator_name', e.target.value)} placeholder="e.g. testapi" autoComplete="off" className={inputCls} />
           </div>
           <div className="sm:col-span-2">
-            <label className={labelCls} htmlFor="seccred">Security credential {cfg.security_credential_set && <span className="text-faint font-normal">(saved)</span>}</label>
+            <label className={labelCls} htmlFor="seccred">Security credential {cfg.security_credential_set && <span className="font-normal text-faint">(saved)</span>}</label>
             <input id="seccred" type="password" value={secrets.security_credential} onChange={e => { setSecrets(s => ({ ...s, security_credential: e.target.value })); setSaved(false); }} placeholder={cfg.security_credential_set ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 leave blank to keep' : 'Encrypted initiator password'} autoComplete="off" className={inputCls} />
             <p className={helpCls}>The Daraja-encrypted initiator password used to authorise B2C payouts.</p>
           </div>
         </div>
-      </section>
+      </Card>
 
       {/* Callbacks */}
-      <section className="rounded-xl border border-line bg-surface p-6">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={16} className="text-brand" />
-          <h3 className={HEAD}>Callbacks</h3>
-        </div>
-        <div className="mt-4">
-          <label className={labelCls} htmlFor="cb">Callback base URL</label>
-          <input id="cb" value={cfg.callback_base_url} onChange={e => set('callback_base_url', e.target.value.trim())} placeholder="https://<project-ref>.functions.supabase.co" className={inputCls} inputMode="url" />
-          <p className={helpCls}>Base URL Safaricom calls back for STK and B2C results (your deployed edge functions).</p>
-        </div>
-      </section>
+      <Card title={<span className="flex items-center gap-2"><ShieldCheck size={15} className="text-brand" />Callbacks</span>}>
+        <label className={labelCls} htmlFor="cb">Callback base URL</label>
+        <input id="cb" value={cfg.callback_base_url} onChange={e => set('callback_base_url', e.target.value.trim())} placeholder="https://<project-ref>.functions.supabase.co" className={inputCls} inputMode="url" />
+        <p className={helpCls}>Base URL Safaricom calls back for STK and B2C results (your deployed edge functions).</p>
+      </Card>
 
       {/* Save bar */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-brand text-white text-[13px] font-semibold hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-50"
-        >
-          {saving ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" /> : <Save size={15} />}
+        <Button variant="primary" onClick={save} loading={saving}>
+          {!saving && <Save size={14} />}
           {saving ? 'Saving' : 'Save configuration'}
-        </button>
-        {saved && <span className="inline-flex items-center gap-1.5 text-up text-[13px] font-medium"><Check size={15} /> Saved</span>}
+        </Button>
+        {saved && <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-up"><Check size={15} /> Saved</span>}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
+import { Button, Card, Empty, Select, Switch, inputCls } from '../../ui/kit';
 import { resolveField, serialize, type FieldDef, type SettingsTabId } from './registry';
 
 // Renders the system_settings for one tab (general / game / finance) with a
@@ -83,18 +84,15 @@ export default function SystemSettingsTab({
   }
 
   if (fields.length === 0) {
-    return <div className="rounded-xl border border-line bg-surface p-10 text-center text-faint text-[13px]">No settings in this section.</div>;
+    return <div className="rounded-xl bg-surface"><Empty title="No settings in this section." /></div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {groups.map(group => {
         const groupFields = fields.filter(x => x.field.group === group);
         return (
-          <section key={group} className="rounded-xl border border-line bg-surface overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-line flex items-center justify-between gap-3">
-              <h3 className="text-[11px] font-semibold text-muted uppercase tracking-[0.1em]">{group}</h3>
-            </div>
+          <Card key={group} title={group} pad={false}>
             <div className="divide-y divide-line">
               {groupFields.map(({ field, row }) => (
                 <SettingRow
@@ -111,7 +109,7 @@ export default function SystemSettingsTab({
                 />
               ))}
             </div>
-          </section>
+          </Card>
         );
       })}
     </div>
@@ -132,24 +130,20 @@ function SettingRow({
   onReset: () => void;
 }) {
   return (
-    <div className="px-5 py-4 flex items-start justify-between gap-4">
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-5 py-4 sm:flex-nowrap">
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] text-ink font-medium">{field.label}</div>
-        {field.help && <div className="text-[12px] text-muted mt-0.5 leading-snug">{field.help}</div>}
-        <div className="text-[10px] text-faint mt-1 font-mono">{field.key}</div>
-        {error && <div role="alert" className="text-[12px] text-down mt-1">{error}</div>}
+        <div className="text-[13px] font-medium text-ink">{field.label}</div>
+        {field.help && <div className="mt-0.5 text-[12px] leading-snug text-faint">{field.help}</div>}
+        <div className="mt-1 font-mono text-[12px] text-faint">{field.key}</div>
+        {error && <div role="alert" className="mt-1 text-[13px] text-down">{error}</div>}
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+      <div className="flex flex-shrink-0 items-center gap-2">
         <Control field={field} working={working} onChange={onChange} />
         {saved && !dirty && <Check size={16} className="text-up" aria-label="Saved" />}
         {dirty && (
           <>
-            <button onClick={onSave} disabled={saving}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50">
-              {saving && <span className="inline-block h-3 w-3 rounded-full border-2 border-current border-r-transparent animate-spin" />}Save
-            </button>
-            <button onClick={onReset} disabled={saving}
-              className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-line text-muted hover:text-ink transition-colors disabled:opacity-50">Reset</button>
+            <Button size="sm" variant="primary" onClick={onSave} loading={saving}>Save</Button>
+            <Button size="sm" onClick={onReset} disabled={saving}>Reset</Button>
           </>
         )}
       </div>
@@ -159,37 +153,17 @@ function SettingRow({
 
 function Control({ field, working, onChange }: { field: FieldDef; working: string | boolean; onChange: (v: string | boolean) => void }) {
   if (field.type === 'toggle') {
-    const on = Boolean(working);
-    return (
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={field.label}
-        onClick={() => onChange(!on)}
-        className={'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ' + (on ? 'bg-brand' : 'bg-white/15')}
-      >
-        <span className={'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ' + (on ? 'translate-x-[22px]' : 'translate-x-0.5')} />
-      </button>
-    );
+    return <Switch checked={Boolean(working)} onChange={onChange} label={field.label} />;
   }
   if (field.type === 'select') {
-    return (
-      <select
-        value={String(working)}
-        onChange={e => onChange(e.target.value)}
-        className="px-3 py-2 bg-surface border border-line rounded-lg text-sm text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition"
-      >
-        {field.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    );
+    return <Select value={String(working)} onChange={onChange} options={field.options ?? []} label={field.label} />;
   }
   // number / text
   const prefix = field.unitPos === 'prefix' ? field.unit : undefined;
   const suffix = field.unitPos === 'suffix' ? field.unit : undefined;
   return (
-    <div className="relative">
-      {prefix && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs pointer-events-none">{prefix}</span>}
+    <div className="relative w-32">
+      {prefix && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-faint">{prefix}</span>}
       <input
         type={field.type === 'number' ? 'number' : 'text'}
         inputMode={field.type === 'number' ? 'decimal' : undefined}
@@ -199,10 +173,9 @@ function Control({ field, working, onChange }: { field: FieldDef; working: strin
         step={field.step}
         onChange={e => onChange(e.target.value)}
         aria-label={field.label}
-        className={'w-32 py-2 bg-surface border border-line rounded-lg text-sm text-right text-ink tabular-nums font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition ' +
-          (prefix ? 'pl-10 pr-3 ' : 'pr-3 ') + (suffix ? 'pr-9 ' : '')}
+        className={inputCls + ' text-right tabular-nums' + (prefix ? ' pl-11' : '') + (suffix ? ' pr-9' : '')}
       />
-      {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-xs pointer-events-none">{suffix}</span>}
+      {suffix && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-faint">{suffix}</span>}
     </div>
   );
 }

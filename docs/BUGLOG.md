@@ -4,6 +4,35 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #31 — Admin back office and marketer hub on Apple's dark design language — DONE (branch `ui/apple-grade-admin`)
+- **Tokens:** the admin colours were remapped to Apple system colours, with the same names so every page follows.
+  - Black window and `#1c1c1e` cards; `#2c2c2e` controls; `#38383a` separators.
+  - systemBlue for selection and primary buttons.
+  - Green / red / orange / yellow for money in, money out, attention and platform-owner accents.
+  - Text is `#f5f5f7` / `#a1a1a6` / `#86868b`, all AA on cards.
+- **Kit (`admin/ui/kit.tsx`, same API):**
+  - Cards have no borders. Page titles are 28 pt bold, section titles 15 pt semibold in sentence case, and stat labels 13 pt with 28 pt figures. No micro uppercase labels and no text under 11 pt.
+  - Buttons are filled gray / blue / tinted red and orange; the ghost variant is blue text.
+  - Tabs and pills became segmented controls; switches are the macOS 38×22 style.
+  - Inputs are filled with a blue focus ring. Badges are pills. Tables have hairline rows and a quiet hover.
+  - Modals are rounded, open with a spring, and close on Escape. Focus now goes to the first field instead of the × button, and it no longer jumps back when the page re-renders (a bug found during the rework).
+- **Layout:**
+  - The sidebar is macOS style: tinted icons, a blue filled selection, sentence-case group headings, a "Search ⌘K" field and a red pending-withdrawals badge.
+  - The header is translucent and blurred. The scope banners are quieter.
+  - The ⌘K palette looks like Spotlight.
+- **Every page was converted to the kit**, with one `PageHeader` pattern. Hand-rolled headers, buttons, badges, modals and off-palette colours (amber / sky / slate / violet) were removed:
+  - Overview, Deposits, Withdrawals, Finance, Players, player detail, Risk, Game control, Marketing and its tabs, Commissions, Promo codes, Notifications, Audit, Settings and its tabs, Platform console.
+  - Game control now uses the full-width two-column layout: live round beside the queue.
+  - Marketing tab actions (Refresh, New promotion) sit at the right end of the tab bar, and the embedded Commissions tab no longer repeats a page title.
+  - Chart colours are Apple system colours.
+- **Marketer hub** is on the player iOS kit, on the same page frame as Profile:
+  - Nav bar "‹ Game" with Refresh.
+  - A large available-balance figure with one Withdraw button.
+  - Grouped rows for earnings, the referral link (Copy + share), referrals and payouts.
+  - Withdraw as a sheet.
+  - It never shows a `?ref=null` link: a missing code shows "Your link is being set up".
+- **Tests:** `admin_ui_e2e.py` 43/43 (brand admin, support, finance, owner flows), `megapay_ui_e2e.py` 59/59 (includes the operator Deposits screen), unit tests 99/99. Screenshots of every admin page on desktop and phone were checked.
+
 ## #30 — Player UI rebuilt to Apple's dark design system; deposits return straight to the game — DONE (branch `ui/apple-grade`)
 - **Deposit flow:** a confirmed deposit no longer stops on a "Deposit Confirmed" page, and the wallet doesn't stay open.
   - The sheet closes, the player lands on the game (from any page, e.g. Profile), and "+500.00" flies from the Deposit button into the header balance, which counts up as it lands.

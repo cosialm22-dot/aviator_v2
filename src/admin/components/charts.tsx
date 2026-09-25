@@ -7,6 +7,9 @@
 // These primitives are small, fully typed, accessible (role/aria + <title>),
 // responsive (viewBox-scaled), and theme-consistent. Colours are passed in as
 // explicit hex/token values so callers stay the single source of styling truth.
+// Chrome follows Apple's dark charts: #38383a tracks/gridlines, #86868b axis labels;
+// series colours should be Apple system colours (#30d158 #ff453a #0a84ff #ff9f0a
+// #ffd60a #bf5af2 #64d2ff).
 //
 // Components:
 //   <DonutChart>      - part-to-whole composition with a center total + legend.
@@ -21,6 +24,9 @@ export interface Segment {
 }
 
 // --- shared helpers ---------------------------------------------------------
+
+const TRACK = '#38383a';
+const AXIS = '#86868b';
 
 function fmtCompact(n: number): string {
   const abs = Math.abs(n);
@@ -64,7 +70,7 @@ export function DonutChart({
     });
 
   return (
-    <div className="flex items-center gap-5 flex-wrap">
+    <div className="flex flex-wrap items-center gap-6">
       <svg
         width={size}
         height={size}
@@ -73,7 +79,7 @@ export function DonutChart({
         aria-label={(centerLabel ?? 'Composition') + ': ' + data.map((s) => `${s.label} ${valueFormatter(s.value)}`).join(', ')}
         className="shrink-0"
       >
-        <circle cx={cx} cy={cx} r={r} fill="none" stroke="#26303c" strokeWidth={thickness} />
+        <circle cx={cx} cy={cx} r={r} fill="none" stroke={TRACK} strokeWidth={thickness} />
         {arcs.map((a, i) => (
           <circle
             key={i}
@@ -94,25 +100,25 @@ export function DonutChart({
         ))}
         {(centerValue || centerLabel) && (
           <>
-            <text x={cx} y={cx - 2} textAnchor="middle" className="fill-ink" style={{ fontSize: 19, fontWeight: 700 }}>
+            <text x={cx} y={cx - 2} textAnchor="middle" className="fill-ink" style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
               {centerValue}
             </text>
-            <text x={cx} y={cx + 16} textAnchor="middle" className="fill-muted" style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <text x={cx} y={cx + 16} textAnchor="middle" style={{ fontSize: 12, fontWeight: 500, fill: AXIS }}>
               {centerLabel}
             </text>
           </>
         )}
       </svg>
 
-      <ul className="space-y-2 min-w-[120px]">
+      <ul className="min-w-[140px] space-y-2">
         {data.map((s) => {
           const pct = total > 0 ? Math.round((s.value / total) * 100) : 0;
           return (
-            <li key={s.label} className="flex items-center gap-2.5 text-[12px]">
-              <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
+            <li key={s.label} className="flex items-center gap-2 text-[13px]">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
               <span className="text-muted">{s.label}</span>
-              <span className="ml-auto pl-3 text-ink font-medium tabular-nums">{valueFormatter(s.value)}</span>
-              <span className="w-9 text-right text-faint tabular-nums">{pct}%</span>
+              <span className="ml-auto pl-3 font-medium tabular-nums text-ink">{valueFormatter(s.value)}</span>
+              <span className="w-10 text-right text-[12px] tabular-nums text-faint">{pct}%</span>
             </li>
           );
         })}
@@ -126,7 +132,7 @@ export function DonutChart({
 // ============================================================================
 export function TrendAreaChart({
   points,
-  color = '#1f9bb8',
+  color = '#0a84ff',
   height = 160,
   valueFormatter = fmtCompact,
 }: {
@@ -143,7 +149,7 @@ export function TrendAreaChart({
   const n = points.length;
 
   if (n === 0) {
-    return <div className="h-40 flex items-center justify-center text-faint text-[13px]">No data for this range</div>;
+    return <div className="flex h-40 items-center justify-center text-[13px] text-faint">No data for this range</div>;
   }
 
   const maxY = Math.max(...points.map((p) => p.y), 1);
@@ -171,14 +177,14 @@ export function TrendAreaChart({
     >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
 
       {/* zero baseline (only when the range crosses zero) */}
       {minY < 0 && maxY > 0 && (
-        <line x1={padX} y1={zeroY} x2={W - padX} y2={zeroY} stroke="#26303c" strokeWidth={1} strokeDasharray="3 3" />
+        <line x1={padX} y1={zeroY} x2={W - padX} y2={zeroY} stroke={TRACK} strokeWidth={1} vectorEffect="non-scaling-stroke" />
       )}
 
       <path d={area} fill={`url(#${gradId})`} />
@@ -191,7 +197,7 @@ export function TrendAreaChart({
             <title>{`${p.x}: ${valueFormatter(p.y)}`}</title>
           </circle>
           {(i === 0 || i === n - 1 || n <= 8) && (
-            <text x={xAt(i)} y={H - 7} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} className="fill-faint" style={{ fontSize: 9 }}>
+            <text x={xAt(i)} y={H - 7} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} style={{ fontSize: 11, fill: AXIS }}>
               {p.x}
             </text>
           )}
@@ -213,17 +219,17 @@ export function CompareBars({
 }) {
   const max = Math.max(...data.map((d) => Math.abs(d.value)), 1);
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-3">
       {data.map((d) => (
         <div key={d.label} className="flex items-center gap-3">
-          <span className="w-28 shrink-0 text-[12px] text-ink">{d.label}</span>
-          <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="img" aria-label={`${d.label}: ${valueFormatter(d.value)}`}>
+          <span className="w-28 shrink-0 text-[13px] text-ink">{d.label}</span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-raised" role="img" aria-label={`${d.label}: ${valueFormatter(d.value)}`}>
             <div
               className="h-full rounded-full"
               style={{ width: Math.max((Math.abs(d.value) / max) * 100, 2) + '%', backgroundColor: d.color, transition: 'width .7s ease' }}
             />
           </div>
-          <span className="w-24 shrink-0 text-right text-[12px] text-muted tabular-nums">{valueFormatter(d.value)}</span>
+          <span className="w-24 shrink-0 text-right text-[13px] tabular-nums text-muted">{valueFormatter(d.value)}</span>
         </div>
       ))}
     </div>

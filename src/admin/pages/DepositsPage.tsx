@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock, PlugZap, RefreshCw, Search, ShieldCheck, X,
+  AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock, PlugZap, RefreshCw, ShieldCheck, X,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Spin } from '../components/Spin';
@@ -11,6 +11,9 @@ import {
   adminDepositError, attentionReason, canCheckNow, canConfirmByHand, maskPhone, normaliseReceipt,
   ORPHAN_REASON, relTime, STATUS_META, successRate, type DepositRow,
 } from '../lib/deposits';
+import {
+  Badge, Button, Card, Empty, ErrorState, Field, Notice, PageHeader, Pills, SearchInput, Select, StatCard, TableWrap, Td, Th, inputCls,
+} from '../ui/kit';
 
 // ============================================================================
 // DEPOSITS — Mega Pay M-Pesa deposits for operators.
@@ -21,10 +24,13 @@ import {
 // fn_admin_megapay_overview / fn_admin_megapay_manual_credit for the rest.
 // ============================================================================
 
-const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
-const BTN = 'inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-50';
-const INPUT = 'h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40';
 const PAGE = 50;
+const ICON_BTN = 'grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-white/[0.06] hover:text-ink';
+const TEXTAREA = 'w-full px-3 py-2 rounded-lg bg-raised text-[13px] text-ink placeholder:text-faint resize-none focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand/50';
+/** Deposit status → kit Badge tone (labels stay in STATUS_META). */
+const STATUS_TONE: Record<DepositRow['status'], string> = {
+  initiated: 'muted', pending: 'brand', completed: 'up', failed: 'down', cancelled: 'down', timeout: 'warn',
+};
 
 type Filter = 'all' | 'attention' | 'open' | 'completed' | 'failed' | 'timeout';
 const FILTERS: { v: Filter; label: string }[] = [
@@ -153,192 +159,184 @@ export default function DepositsPage() {
   const h = ov?.health;
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const tiles = useMemo(() => [
-    { label: 'Credited today', value: fmtKES(k.today_completed_kes), sub: `${k.today_completed_count ?? 0} deposits · ${k.today_started ?? 0} started`, tone: 'text-up' },
-    { label: 'Success rate (7 days)', value: successRate(k.week_completed ?? 0, k.week_started ?? 0), sub: `${k.week_completed ?? 0} of ${k.week_started ?? 0} · ${fmtKES(k.week_completed_kes)}`, tone: 'text-ink' },
-    { label: 'Waiting for PIN', value: String(k.pending_count ?? 0), sub: fmtKES(k.pending_kes), tone: 'text-brand' },
-    { label: 'Unconfirmed', value: String(k.timeout_count ?? 0), sub: `${fmtKES(k.timeout_kes)} · still checked for 3 days`, tone: 'text-amber-300' },
-    { label: 'Needs attention', value: String(k.attention_count ?? 0), sub: 'orphans, stale, mismatches', tone: (k.attention_count ?? 0) > 0 ? 'text-down' : 'text-ink' },
+    { label: 'Credited today', value: fmtKES(k.today_completed_kes), sub: `${k.today_completed_count ?? 0} deposits · ${k.today_started ?? 0} started`, tone: 'up' },
+    { label: 'Success rate (7 days)', value: successRate(k.week_completed ?? 0, k.week_started ?? 0), sub: `${k.week_completed ?? 0} of ${k.week_started ?? 0} · ${fmtKES(k.week_completed_kes)}`, tone: 'ink' },
+    { label: 'Waiting for PIN', value: String(k.pending_count ?? 0), sub: fmtKES(k.pending_kes), tone: 'brand' },
+    { label: 'Unconfirmed', value: String(k.timeout_count ?? 0), sub: `${fmtKES(k.timeout_kes)} · still checked for 3 days`, tone: 'warn' },
+    { label: 'Needs attention', value: String(k.attention_count ?? 0), sub: 'orphans, stale, mismatches', tone: (k.attention_count ?? 0) > 0 ? 'down' : 'ink' },
   ], [k]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-[22px] font-semibold text-ink tracking-tight">Deposits</h1>
-          <p className="text-[13px] text-muted mt-1">M-Pesa deposits through Mega Pay — live status, checks and hand confirmation</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={checkAllNow} disabled={busy === 'all'} className={BTN} data-testid="deposits-check-all">
+      <PageHeader
+        title="Deposits"
+        subtitle="M-Pesa deposits through Mega Pay — live status, checks and hand confirmation"
+        actions={<>
+          <Button variant="primary" onClick={checkAllNow} disabled={busy === 'all'} data-testid="deposits-check-all">
             {busy === 'all' ? <Spin /> : <RefreshCw size={14} />} Check waiting deposits now
-          </button>
-          <button onClick={() => void refresh()} disabled={loading} className={BTN}>{loading && <Spin />}Refresh</button>
-        </div>
-      </div>
+          </Button>
+          <Button onClick={() => void refresh()} loading={loading}>Refresh</Button>
+        </>}
+      />
 
-      {err && <div role="alert" className="px-4 py-2.5 bg-down/10 border border-down/30 rounded-lg text-down text-[13px]">{err}</div>}
-      {notice && <div role="status" className="px-4 py-2.5 bg-brand/10 border border-brand/30 rounded-lg text-ink text-[13px] flex items-center justify-between gap-3"><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="Dismiss"><X size={14} /></button></div>}
+      {err && <ErrorState message={err} />}
+      {notice && <Notice onClose={() => setNotice(null)}>{notice}</Notice>}
 
       {/* Gateway health */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4" data-testid="gateway-health">
-        <div className="rounded-xl border border-line bg-surface p-5">
-          <div className="flex items-center justify-between"><span className={HEAD}>Gateway</span><PlugZap size={15} className="text-faint" /></div>
-          <div className="mt-3 flex items-center gap-2">
+        <Card title="Gateway" action={<PlugZap size={15} className="text-faint" />}>
+          <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${gw?.configured ? 'bg-up' : 'bg-down'}`} />
-            <span className="text-ink font-semibold">Mega Pay</span>
-            <span className="text-[11px] px-1.5 py-0.5 rounded border border-line text-muted uppercase">{gw?.env ?? '…'}</span>
+            <span className="text-[15px] font-semibold text-ink">Mega Pay</span>
+            <Badge>{gw?.env ?? '…'}</Badge>
           </div>
-          <p className="text-[12px] text-muted mt-1.5">Account {gw?.email ?? '—'} · {h?.provider === 'megapay' ? 'taking player deposits' : `deposits routed to ${h?.provider ?? '…'}`}</p>
-          <div className="mt-3 flex items-center gap-3 flex-wrap">
-            <button onClick={testConnection} disabled={testing} className={BTN} data-testid="gateway-test">{testing ? <Spin /> : <ShieldCheck size={14} />} Test connection</button>
+          <p className="mt-1.5 text-[13px] text-muted">Account {gw?.email ?? '—'} · {h?.provider === 'megapay' ? 'taking player deposits' : `deposits routed to ${h?.provider ?? '…'}`}</p>
+          <div className="mt-4 flex items-center gap-3 flex-wrap">
+            <Button onClick={testConnection} disabled={testing} data-testid="gateway-test">{testing ? <Spin /> : <ShieldCheck size={14} />} Test connection</Button>
             {gw?.test && (
-              <span className={`text-[12px] ${gw.test.ok ? 'text-up' : 'text-down'}`} data-testid="gateway-test-result">
+              <span className={`text-[13px] ${gw.test.ok ? 'text-up' : 'text-down'}`} data-testid="gateway-test-result">
                 {gw.test.ok ? 'Connected — Mega Pay accepted the key and email.' : (gw.test.message ?? 'Mega Pay refused the credentials.')}
               </span>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-line bg-surface p-5">
-          <div className="flex items-center justify-between"><span className={HEAD}>Automatic checks</span><Clock size={15} className="text-faint" /></div>
+        <Card title="Automatic checks" action={<Clock size={15} className="text-faint" />}>
           {h && (h.auto_check_scheduled && h.auto_check_ready ? (
             <>
-              <p className="mt-3 text-ink font-semibold flex items-center gap-2"><CheckCircle2 size={15} className="text-up" /> Every minute</p>
-              <p className="text-[12px] text-muted mt-1.5">Last run {relTime(h.auto_check_last_run)}{h.auto_check_last_status && h.auto_check_last_status !== 'succeeded' ? ` · ${h.auto_check_last_status}` : ''}. Deposits are settled even if the player closes the app.</p>
+              <p className="flex items-center gap-2 text-[15px] font-semibold text-ink"><CheckCircle2 size={15} className="text-up" /> Every minute</p>
+              <p className="mt-1.5 text-[13px] text-muted">Last run {relTime(h.auto_check_last_run)}{h.auto_check_last_status && h.auto_check_last_status !== 'succeeded' ? ` · ${h.auto_check_last_status}` : ''}. Deposits are settled even if the player closes the app.</p>
             </>
           ) : (
             <>
-              <p className="mt-3 text-amber-300 font-semibold flex items-center gap-2" data-testid="auto-check-off"><AlertTriangle size={15} /> Not running yet</p>
-              <p className="text-[12px] text-muted mt-1.5">
+              <p className="flex items-center gap-2 text-[15px] font-semibold text-warn" data-testid="auto-check-off"><AlertTriangle size={15} /> Not running yet</p>
+              <p className="mt-1.5 text-[13px] text-muted">
                 {h.auto_check_scheduled ? 'The schedule exists but its two vault secrets are not set.' : 'The schedule is missing.'} Deposits still settle while the player waits in the app, and when you press “Check waiting deposits now”.
               </p>
             </>
           ))}
-        </div>
+        </Card>
 
         <GatewaySettings h={h} onSaved={refresh} />
       </div>
 
       {/* KPIs */}
-      <div className="rounded-xl border border-line bg-surface overflow-hidden">
-        <div className="px-5 pt-4 pb-1 flex items-center justify-between">
-          <span className={HEAD}>{ov?.scope === 'all' ? 'All brands' : 'This brand'}</span>
-          {loading && <Spin />}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-semibold text-ink">{ov?.scope === 'all' ? 'All brands' : 'This brand'}</h2>
+          {loading && <span className="text-faint"><Spin /></span>}
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-line">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {tiles.map((t) => (
-            <div key={t.label} className="p-5 min-w-0">
-              <div className={HEAD}>{t.label}</div>
-              <div className={`mt-2.5 text-[20px] leading-none font-semibold tabular-nums tracking-tight break-words ${t.tone}`}>{ov ? t.value : '…'}</div>
-              <div className="mt-2 text-[11px] text-faint">{t.sub}</div>
-            </div>
+            <StatCard key={t.label} label={t.label} value={ov ? t.value : '…'} sub={t.sub} tone={t.tone} />
           ))}
         </div>
-      </div>
+      </section>
 
       {/* List */}
-      <div className="rounded-xl border border-line bg-surface overflow-hidden">
+      <Card pad={false} className="overflow-hidden">
         <div className="p-4 flex items-center gap-3 flex-wrap border-b border-line">
-          <div className="inline-flex gap-1 bg-white/[0.06] border border-line rounded-lg p-1 flex-wrap" role="tablist">
-            {FILTERS.map((f) => (
-              <button key={f.v} role="tab" aria-selected={filter === f.v} onClick={() => setFilter(f.v)}
-                className={'px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (filter === f.v ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>
-                {f.label}{f.v === 'attention' && (k.attention_count ?? 0) > 0 && <span className="ml-1.5 px-1.5 rounded-full bg-down/20 text-down text-[11px]">{k.attention_count}</span>}
-              </button>
-            ))}
-          </div>
-          <label className="relative ml-auto">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Phone, receipt or deposit id" aria-label="Search deposits" className={INPUT + ' pl-8 w-[260px]'} />
-          </label>
+          <Pills
+            label="Deposit filter"
+            value={filter}
+            onChange={setFilter}
+            items={FILTERS.map((f) => ({
+              value: f.v,
+              label: <>{f.label}{f.v === 'attention' && (k.attention_count ?? 0) > 0 && <span className="ml-1.5"><Badge tone="down">{k.attention_count}</Badge></span>}</>,
+            }))}
+          />
+          <SearchInput value={q} onChange={setQ} placeholder="Phone, receipt or deposit id" label="Search deposits" className="ml-auto w-full sm:w-[260px]" />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" data-testid="deposits-table">
-            <thead>
-              <tr className="text-[11px] text-muted uppercase tracking-wider border-b border-line">
-                <th className="w-8" />
-                <th className="text-left px-3 py-3 font-medium">Time</th>
-                <th className="text-left px-3 py-3 font-medium">Player</th>
-                {isPlatform && <th className="text-left px-3 py-3 font-medium hidden lg:table-cell">Brand</th>}
-                <th className="text-left px-3 py-3 font-medium hidden md:table-cell">Phone</th>
-                <th className="text-right px-3 py-3 font-medium">Amount</th>
-                <th className="text-left px-3 py-3 font-medium">Status</th>
-                <th className="text-left px-3 py-3 font-medium hidden lg:table-cell">Receipt</th>
-                <th className="text-left px-3 py-3 font-medium hidden xl:table-cell">Checked</th>
-                <th className="text-right px-3 py-3 font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!loading && rows.length === 0 && (
-                <tr><td colSpan={10} className="px-5 py-12 text-center text-faint text-[13px]">No deposits match.</td></tr>
-              )}
-              {rows.map((r) => {
-                const why = attentionReason(r);
-                const meta = STATUS_META[r.status] ?? STATUS_META.pending;
-                const expanded = open === r.id;
-                return (
-                  <Fragment key={r.id}>
-                    <tr className={`border-b border-line/60 hover:bg-white/[0.02] ${why ? 'bg-down/[0.03]' : ''}`} data-testid="deposit-row">
-                      <td className="pl-3">
-                        <button onClick={() => setOpen(expanded ? null : r.id)} aria-label={expanded ? 'Hide details' : 'Show details'} className="text-faint hover:text-ink">
-                          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </button>
-                      </td>
-                      <td className="px-3 py-3 text-muted text-xs whitespace-nowrap" title={new Date(r.created_at).toLocaleString()}>{new Date(r.created_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                      <td className="px-3 py-3"><Link to={`/admin/users/${r.user_id}`} className="text-ink hover:text-brand">{r.profiles?.username ?? r.user_id.slice(0, 8)}</Link></td>
-                      {isPlatform && <td className="px-3 py-3 text-muted text-xs hidden lg:table-cell">{r.sites?.name ?? '—'}</td>}
-                      <td className="px-3 py-3 text-muted text-xs font-mono hidden md:table-cell">{maskPhone(r.phone_number)}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-ink font-medium whitespace-nowrap">{fmtKES(r.amount)}</td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium whitespace-nowrap ${meta.cls}`}>{meta.label}</span>
-                        {why && <AlertTriangle size={13} className="inline ml-1.5 text-down" aria-label="Needs attention" />}
-                      </td>
-                      <td className="px-3 py-3 text-xs font-mono text-muted hidden lg:table-cell">{r.mpesa_receipt_number ?? '—'}</td>
-                      <td className="px-3 py-3 text-xs text-faint hidden xl:table-cell whitespace-nowrap">{r.check_count ?? 0}× · {relTime(r.last_checked_at)}</td>
-                      <td className="px-3 py-3 text-right whitespace-nowrap">
+        <TableWrap testId="deposits-table" minWidth={0}>
+          <thead>
+            <tr>
+              <Th className="w-8" />
+              <Th>Time</Th>
+              <Th>Player</Th>
+              {isPlatform && <Th className="hidden lg:table-cell">Brand</Th>}
+              <Th className="hidden md:table-cell">Phone</Th>
+              <Th numeric>Amount</Th>
+              <Th>Status</Th>
+              <Th className="hidden lg:table-cell">Receipt</Th>
+              <Th className="hidden xl:table-cell">Checked</Th>
+              <Th numeric>Action</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan={10}><Empty title="No deposits match." /></td></tr>
+            )}
+            {rows.map((r) => {
+              const why = attentionReason(r);
+              const meta = STATUS_META[r.status] ?? STATUS_META.pending;
+              const expanded = open === r.id;
+              return (
+                <Fragment key={r.id}>
+                  <tr className={`transition-colors hover:bg-white/[0.03] ${why ? 'bg-down/5' : ''}`} data-testid="deposit-row">
+                    <td className="pl-2">
+                      <button onClick={() => setOpen(expanded ? null : r.id)} aria-label={expanded ? 'Hide details' : 'Show details'} className={ICON_BTN}>
+                        {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                    </td>
+                    <Td className="text-muted whitespace-nowrap tabular-nums" title={new Date(r.created_at).toLocaleString()}>{new Date(r.created_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' })}</Td>
+                    <Td><Link to={`/admin/users/${r.user_id}`} className="font-medium text-ink hover:text-brand">{r.profiles?.username ?? r.user_id.slice(0, 8)}</Link></Td>
+                    {isPlatform && <Td className="text-muted hidden lg:table-cell">{r.sites?.name ?? '—'}</Td>}
+                    <Td className="font-mono !text-[12px] text-muted hidden md:table-cell">{maskPhone(r.phone_number)}</Td>
+                    <Td numeric className="font-medium text-ink">{fmtKES(r.amount)}</Td>
+                    <Td>
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <Badge tone={STATUS_TONE[r.status] ?? 'brand'}>{meta.label}</Badge>
+                        {why && <AlertTriangle size={13} className="text-down" aria-label="Needs attention" />}
+                      </span>
+                    </Td>
+                    <Td className="font-mono !text-[12px] text-muted hidden lg:table-cell">{r.mpesa_receipt_number ?? '—'}</Td>
+                    <Td className="!text-[12px] text-faint tabular-nums hidden xl:table-cell whitespace-nowrap">{r.check_count ?? 0}× · {relTime(r.last_checked_at)}</Td>
+                    <Td className="text-right whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-2">
                         {canCheckNow(r) && (
-                          <button onClick={() => void checkOne(r)} disabled={busy === r.id} className="text-[12px] text-brand hover:underline disabled:opacity-50 mr-3">
+                          <Button size="sm" variant="ghost" onClick={() => void checkOne(r)} disabled={busy === r.id}>
                             {busy === r.id ? 'Checking…' : 'Check now'}
-                          </button>
+                          </Button>
                         )}
                         {canConfirmByHand(r) && h?.can_manual_credit && (
-                          <button onClick={() => setConfirming(r)} className="text-[12px] text-amber-300 hover:underline" data-testid="confirm-by-hand">Confirm payment</button>
+                          <Button size="sm" variant="warn" onClick={() => setConfirming(r)} data-testid="confirm-by-hand">Confirm payment</Button>
                         )}
+                      </span>
+                    </Td>
+                  </tr>
+                  {expanded && (
+                    <tr className="bg-raised/40">
+                      <td />
+                      <td colSpan={9} className="px-3 py-4">
+                        {why && <p className="mb-3 flex items-center gap-2 text-[13px] text-down"><AlertTriangle size={13} /> {why}</p>}
+                        <dl className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+                          <Detail k="Deposit id" v={r.id} mono />
+                          <Detail k="Mega Pay id" v={r.checkout_request_id.startsWith('mp-pending:') ? 'none (no answer)' : r.checkout_request_id} mono />
+                          <Detail k="Merchant request" v={r.merchant_request_id} mono />
+                          <Detail k="Account reference" v={r.reference} />
+                          <Detail k="Mega Pay status" v={r.provider_status} />
+                          <Detail k="Result" v={r.result_description} />
+                          <Detail k="Completed" v={r.completed_at ? new Date(r.completed_at).toLocaleString() : null} />
+                          <Detail k="Phone" v={r.phone_number} mono />
+                        </dl>
                       </td>
                     </tr>
-                    {expanded && (
-                      <tr className="border-b border-line/60 bg-white/[0.02]">
-                        <td />
-                        <td colSpan={9} className="px-3 py-4">
-                          {why && <p className="text-[12px] text-down mb-3 flex items-center gap-2"><AlertTriangle size={13} /> {why}</p>}
-                          <dl className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3 text-[12px]">
-                            <Detail k="Deposit id" v={r.id} mono />
-                            <Detail k="Mega Pay id" v={r.checkout_request_id.startsWith('mp-pending:') ? 'none (no answer)' : r.checkout_request_id} mono />
-                            <Detail k="Merchant request" v={r.merchant_request_id} mono />
-                            <Detail k="Account reference" v={r.reference} />
-                            <Detail k="Mega Pay status" v={r.provider_status} />
-                            <Detail k="Result" v={r.result_description} />
-                            <Detail k="Completed" v={r.completed_at ? new Date(r.completed_at).toLocaleString() : null} />
-                            <Detail k="Phone" v={r.phone_number} mono />
-                          </dl>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-5 py-3 border-t border-line flex items-center justify-between text-[12px] text-muted">
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </TableWrap>
+        <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-2.5 text-[12px] text-muted">
           <span className="tabular-nums">{total.toLocaleString()} deposits</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className={BTN}>Previous</button>
+            <Button size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Previous</Button>
             <span className="tabular-nums">{page + 1} / {pages}</span>
-            <button onClick={() => setPage((p) => Math.min(pages - 1, p + 1))} disabled={page + 1 >= pages} className={BTN}>Next</button>
+            <Button size="sm" onClick={() => setPage((p) => Math.min(pages - 1, p + 1))} disabled={page + 1 >= pages}>Next</Button>
           </div>
         </div>
-      </div>
+      </Card>
 
       {confirming && <ConfirmDialog row={confirming} onClose={() => setConfirming(null)} onDone={async (msg) => { setConfirming(null); setNotice(msg); await refresh(); }} />}
     </div>
@@ -348,8 +346,8 @@ export default function DepositsPage() {
 function Detail({ k, v, mono }: { k: string; v: string | null | undefined; mono?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-faint">{k}</dt>
-      <dd className={`text-ink break-all ${mono ? 'font-mono text-[11px]' : ''}`}>{v || '—'}</dd>
+      <dt className="text-[12px] text-faint">{k}</dt>
+      <dd className={`break-all text-ink ${mono ? 'font-mono text-[12px]' : 'text-[13px]'}`}>{v || '—'}</dd>
     </div>
   );
 }
@@ -375,37 +373,34 @@ function GatewaySettings({ h, onSaved }: { h: Overview['health'] | undefined; on
   }
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-5">
-      <span className={HEAD}>Deposit limits</span>
-      {!h ? <p className="mt-3 text-faint text-[12px]">…</p> : h.can_edit_gateway ? (
-        <div className="mt-3 space-y-3" data-testid="gateway-settings">
+    <Card title="Deposit limits">
+      {!h ? <p className="text-[12px] text-faint">…</p> : h.can_edit_gateway ? (
+        <div className="space-y-3" data-testid="gateway-settings">
           <div className="grid grid-cols-3 gap-2">
-            <label className="text-[11px] text-muted">Gateway
-              <select value={provider} onChange={(e) => setProvider(e.target.value)} className={INPUT + ' w-full mt-1'}>
-                <option value="megapay">Mega Pay</option>
-                <option value="daraja">Daraja (off)</option>
-              </select>
-            </label>
-            <label className="text-[11px] text-muted">Min (KES)
-              <input value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ''))} inputMode="numeric" className={INPUT + ' w-full mt-1'} />
-            </label>
-            <label className="text-[11px] text-muted">Max (KES)
-              <input value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ''))} inputMode="numeric" className={INPUT + ' w-full mt-1'} />
-            </label>
+            <Field label="Gateway">
+              <Select<string> value={provider} onChange={setProvider} label="Gateway" className="h-9 w-full"
+                options={[{ value: 'megapay', label: 'Mega Pay' }, { value: 'daraja', label: 'Daraja (off)' }]} />
+            </Field>
+            <Field label="Min (KES)">
+              <input value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ''))} inputMode="numeric" className={inputCls + ' tabular-nums'} />
+            </Field>
+            <Field label="Max (KES)">
+              <input value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ''))} inputMode="numeric" className={inputCls + ' tabular-nums'} />
+            </Field>
           </div>
-          {provider === 'daraja' && <p className="text-[11px] text-amber-300">Daraja has no credentials configured — choosing it stops all deposits.</p>}
+          {provider === 'daraja' && <p className="text-[12px] text-warn">Daraja has no credentials configured — choosing it stops all deposits.</p>}
           <div className="flex items-center gap-3">
-            <button onClick={save} disabled={saving} className={BTN}>{saving && <Spin />}Save for all brands</button>
-            {msg && <span className={`text-[12px] ${msg.ok ? 'text-up' : 'text-down'}`}>{msg.text}</span>}
+            <Button onClick={save} loading={saving}>Save for all brands</Button>
+            {msg && <span className={`text-[13px] ${msg.ok ? 'text-up' : 'text-down'}`}>{msg.text}</span>}
           </div>
         </div>
       ) : (
         <>
-          <p className="mt-3 text-ink font-semibold tabular-nums">{fmtKES(h.min_deposit)} – {fmtKES(h.max_deposit)}</p>
-          <p className="text-[12px] text-muted mt-1.5">Per deposit. Set by the platform owner for every brand.</p>
+          <p className="text-[22px] font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{fmtKES(h.min_deposit)} – {fmtKES(h.max_deposit)}</p>
+          <p className="mt-1.5 text-[12px] text-faint">Per deposit. Set by the platform owner for every brand.</p>
         </>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -428,39 +423,39 @@ function ConfirmDialog({ row, onClose, onDone }: { row: DepositRow; onClose: () 
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Confirm payment">
-      <div className="w-full max-w-[460px] rounded-xl border border-line bg-surface p-6 space-y-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 animate-[fadeIn_0.15s_ease]" role="dialog" aria-modal="true" aria-label="Confirm payment">
+      <div className="w-full max-w-[460px] space-y-4 rounded-2xl bg-surface p-5 shadow-[0_24px_80px_rgba(0,0,0,0.6)] ring-1 ring-white/10 animate-[menuIn_0.2s_cubic-bezier(0.32,0.72,0,1)]">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-ink font-semibold">Confirm a Mega Pay payment</h2>
-            <p className="text-[12px] text-muted mt-1">Only after you have found this payment in the Mega Pay portal or the player's M-Pesa SMS.</p>
+            <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">Confirm a Mega Pay payment</h2>
+            <p className="mt-1 text-[13px] text-muted">Only after you have found this payment in the Mega Pay portal or the player's M-Pesa SMS.</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-faint hover:text-ink"><X size={16} /></button>
+          <button onClick={onClose} aria-label="Close" className="-mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-raised text-muted hover:text-ink"><X size={13} strokeWidth={2.75} /></button>
         </div>
-        <dl className="grid grid-cols-2 gap-3 text-[12px] rounded-lg border border-line p-3">
+        <dl className="grid grid-cols-2 gap-3 rounded-xl bg-raised/60 p-3">
           <Detail k="Player" v={row.profiles?.username ?? row.user_id} />
           <Detail k="Amount" v={fmtKES(row.amount)} />
           <Detail k="Phone" v={row.phone_number} mono />
           <Detail k="Started" v={new Date(row.created_at).toLocaleString()} />
         </dl>
-        <label className="block text-[12px] text-ink">M-Pesa receipt
+        <Field label="M-Pesa receipt">
           <input value={receipt} onChange={(e) => setReceipt(e.target.value.toUpperCase())} placeholder="e.g. TIR4K2LMN8" maxLength={12}
-            className={INPUT + ' w-full mt-1 font-mono uppercase'} aria-label="M-Pesa receipt" />
-        </label>
-        <label className="block text-[12px] text-ink">Reason
+            className={inputCls + ' font-mono uppercase'} aria-label="M-Pesa receipt" />
+        </Field>
+        <Field label="Reason">
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} placeholder="Where you confirmed it"
-            className="w-full mt-1 px-3 py-2 rounded-lg border border-line bg-surface text-[13px] text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40" aria-label="Reason" />
-        </label>
-        <label className="flex items-start gap-2 text-[12px] text-muted">
-          <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-0.5" />
+            className={TEXTAREA} aria-label="Reason" />
+        </Field>
+        <label className="flex items-start gap-2.5 text-[13px] text-muted">
+          <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-brand" />
           I confirmed {fmtKES(row.amount)} from {maskPhone(row.phone_number)} was received. This credits the player once and is logged under my name.
         </label>
-        {err && <p role="alert" className="text-[12px] text-down">{err}</p>}
+        {err && <p role="alert" className="text-[13px] text-down">{err}</p>}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className={BTN}>Cancel</button>
-          <button onClick={submit} disabled={!valid || saving} className={BTN + ' !text-ink !border-amber-400/50'} data-testid="confirm-credit">
-            {saving && <Spin />}Credit {fmtKES(row.amount)}
-          </button>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button variant="warn" onClick={submit} disabled={!valid} loading={saving} data-testid="confirm-credit">
+            Credit {fmtKES(row.amount)}
+          </Button>
         </div>
       </div>
     </div>

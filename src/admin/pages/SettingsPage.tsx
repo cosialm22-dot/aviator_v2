@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, Gamepad2, Wallet, Users, Smartphone, Palette } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import SystemSettingsTab, { type SettingRecord } from './settings/SystemSettingsTab';
 import { type SettingsTabId } from './settings/registry';
@@ -9,6 +8,7 @@ import StaffTab from './settings/StaffTab';
 import { useAdmin } from '../roleContext';
 import SiteThemePanel from './settings/SiteThemePanel';
 import { friendly } from './settings/shared';
+import { ErrorState, PageHeader, Tabs } from '../ui/kit';
 
 // ============================================================================
 // SettingsPage - the comprehensive, super_admin-only configuration hub. Six
@@ -32,12 +32,12 @@ import { friendly } from './settings/shared';
 
 // `platform`: settings shared by every brand — only the platform owner sees and edits them.
 const TABS = [
-  { k: 'general', label: 'General', icon: SlidersHorizontal, platform: true },
-  { k: 'game', label: 'Game', icon: Gamepad2, platform: true },
-  { k: 'finance', label: 'Finance', icon: Wallet, platform: true },
-  { k: 'payments', label: 'M-Pesa paybill', icon: Smartphone, platform: true },
-  { k: 'theme', label: 'Brand theme', icon: Palette, platform: false },
-  { k: 'staff', label: 'Staff & roles', icon: Users, platform: false },
+  { k: 'general', label: 'General', platform: true },
+  { k: 'game', label: 'Game', platform: true },
+  { k: 'finance', label: 'Finance', platform: true },
+  { k: 'payments', label: 'M-Pesa paybill', platform: true },
+  { k: 'theme', label: 'Brand theme', platform: false },
+  { k: 'staff', label: 'Staff & roles', platform: false },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['k'];
@@ -88,45 +88,25 @@ export default function SettingsPage() {
   const isSystemTab = isPlatform && SYSTEM_TABS.includes(tab);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-[22px] font-semibold text-ink tracking-tight">Settings</h1>
-          <p className="text-[13px] text-muted mt-1">
-            {isPlatform ? 'Platform-wide game, finance and paybill settings, plus each brand\'s theme and staff.' : 'Your brand\'s theme and staff. Game and payment settings are managed by the platform owner.'}
-            {' '}Every change is recorded in the <Link to="/admin/audit" className="text-brand hover:underline">audit log</Link>.
-          </p>
-        </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader title="Settings" subtitle={<>
+        {isPlatform ? 'Platform-wide game, finance and paybill settings, plus each brand\'s theme and staff.' : 'Your brand\'s theme and staff. Game and payment settings are managed by the platform owner.'}
+        {' '}Every change is recorded in the <Link to="/admin/audit" className="text-brand hover:underline">audit log</Link>.
+      </>} />
 
-        <div className="border-b border-line">
-          <nav className="flex gap-1 -mb-px overflow-x-auto" role="tablist" aria-label="Settings sections">
-            {visible.map(({ k, label, icon: Icon }) => {
-              const active = tab === k;
-              return (
-                <button key={k} role="tab" aria-selected={active} onClick={() => setTab(k)}
-                  className={'inline-flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium border-b-2 whitespace-nowrap transition-colors ' +
-                    (active ? 'border-brand text-ink' : 'border-transparent text-muted hover:text-ink')}>
-                  <Icon size={15} strokeWidth={1.75} />{label}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+      <Tabs<TabKey> tabs={visible.map(({ k, label }) => ({ value: k, label }))} value={tab} onChange={setTab} label="Settings sections" />
 
-        {isSystemTab && loadErr && (
-          <div role="alert" className="rounded-xl border border-down/30 bg-down/10 p-6 text-down text-sm">{loadErr}</div>
-        )}
+      {isSystemTab && loadErr && <ErrorState message={loadErr} />}
 
-        {isSystemTab && !loadErr && (
-          loading
-            ? <div className="space-y-4">{[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl border border-line bg-surface animate-pulse" />)}</div>
-            : <SystemSettingsTab tab={tab as SettingsTabId} rows={rows} onSave={saveSetting} />
-        )}
+      {isSystemTab && !loadErr && (
+        loading
+          ? <div className="space-y-4">{[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-surface animate-pulse" />)}</div>
+          : <SystemSettingsTab tab={tab as SettingsTabId} rows={rows} onSave={saveSetting} />
+      )}
 
-        {tab === 'theme' && <SiteThemePanel />}
-        {tab === 'payments' && <PaymentsTab />}
-        {tab === 'staff' && <StaffTab />}
-      </div>
+      {tab === 'theme' && <SiteThemePanel />}
+      {tab === 'payments' && <PaymentsTab />}
+      {tab === 'staff' && <StaffTab />}
     </div>
   );
 }

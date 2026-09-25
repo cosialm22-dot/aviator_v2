@@ -1,9 +1,11 @@
+import { TabActions } from './components';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAdmin } from '../../roleContext';
 import type { AdminAffiliateOverview } from '../../../types/marketing';
-import { HEAD, fmtKsh, fmtInt, fmtPct, errMsg, friendly } from './shared';
-import { Spin, StatCard } from './components';
+import { Button, Card, ErrorState, Notice, inputCls } from '../../ui/kit';
+import { fmtKsh, fmtInt, fmtPct, errMsg, friendly } from './shared';
+import { StatCard } from './components';
 
 // Overview tab - affiliate-program KPIs + program settings. Program settings
 // (commission rate, qualifying deposit) are the single editable home for those
@@ -68,24 +70,22 @@ export default function OverviewTab() {
   if (loading) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(8)].map((_, i) => <div key={i} className="h-24 rounded-xl border border-line bg-surface animate-pulse" />)}
+        {[...Array(8)].map((_, i) => <div key={i} className="h-[92px] rounded-xl bg-surface animate-pulse" />)}
       </div>
     );
   }
 
   if (err && !data) {
-    return <div className="rounded-xl border border-down/30 bg-down/10 p-6 text-down text-sm">{err}</div>;
+    return <ErrorState message={err} />;
   }
 
   const d = data!;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-end gap-3 -mt-2">
-        {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
-        {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
-        <button onClick={load} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 transition-colors">Refresh</button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <TabActions><Button onClick={load}>Refresh</Button></TabActions>
+      {notice && <Notice tone="ok">{notice}</Notice>}
+      {err && <Notice tone="error">{err}</Notice>}
 
       {/* Program KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -95,71 +95,65 @@ export default function OverviewTab() {
         <StatCard label="Revenue Generated (GGR)" value={fmtKsh(d.lifetime_ggr)} />
       </div>
 
-      <div className="rounded-xl border border-line bg-surface overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-line"><h3 className={HEAD}>Commission</h3></div>
-        <div className="grid grid-cols-2 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-line">
+      <Card title="Commission" pad={false}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line pb-1">
           <Cell label="Earned (lifetime)" value={fmtKsh(d.commission_earned)} />
           <Cell label="Paid out" value={fmtKsh(d.commission_paid)} />
           <Cell label="Outstanding (available)" value={fmtKsh(d.commission_available)} strong />
         </div>
-      </div>
+      </Card>
 
       {/* Program settings */}
-      <div className="rounded-xl border border-line bg-surface p-5">
-        <div className={HEAD}>Program settings</div>
-        <p className="text-[12px] text-muted mt-1.5">
+      <Card title="Program settings">
+        <p className="max-w-3xl text-[13px] text-muted">
           Commission is a revenue share of the floored GGR of each marketer&rsquo;s qualified referrals. A referral qualifies on their first M-Pesa deposit at or above the qualifying amount.
         </p>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Commission rate */}
           <div>
-            <label className="text-[11px] font-medium text-muted block mb-1.5">Commission rate</label>
+            <label className="mb-1.5 block text-[13px] font-medium text-muted">Commission rate</label>
             {isSuperAdmin ? (
-              <form onSubmit={saveRate} className="flex items-end gap-2">
-                <div className="relative">
+              <form onSubmit={saveRate} className="flex items-center gap-2">
+                <div className="relative w-32">
                   <input type="number" min={0} max={100} step="0.01" value={ratePct} onChange={e => setRatePct(e.target.value)}
-                    className="w-32 px-3 py-2.5 pr-8 bg-surface border border-line rounded-lg text-sm text-ink text-right tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
+                    className={inputCls + ' pr-8 text-right tabular-nums'} />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-faint">%</span>
                 </div>
-                <button type="submit" disabled={savingRate} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[13px] font-semibold transition-colors disabled:opacity-50">
-                  {savingRate && <Spin />}Save
-                </button>
+                <Button type="submit" variant="primary" loading={savingRate}>Save</Button>
               </form>
             ) : (
-              <div className="text-2xl font-semibold text-ink tabular-nums">{fmtPct(d.commission_rate)}
-                <span className="ml-2 text-[12px] font-normal text-faint">set by a super admin</span></div>
+              <div className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-ink tabular-nums">{fmtPct(d.commission_rate)}
+                <span className="ml-2 text-[12px] font-normal tracking-normal text-faint">set by a super admin</span></div>
             )}
           </div>
           {/* Qualifying deposit */}
           <div>
-            <label className="text-[11px] font-medium text-muted block mb-1.5">Qualifying deposit (minimum)</label>
+            <label className="mb-1.5 block text-[13px] font-medium text-muted">Qualifying deposit (minimum)</label>
             {isSuperAdmin ? (
-              <form onSubmit={saveMin} className="flex items-end gap-2">
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">KSh</span>
+              <form onSubmit={saveMin} className="flex items-center gap-2">
+                <div className="relative w-36">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-faint">KSh</span>
                   <input type="number" min={0} step="1" value={minDep} onChange={e => setMinDep(e.target.value)}
-                    className="w-36 pl-11 pr-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink text-right tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
+                    className={inputCls + ' pl-11 text-right tabular-nums'} />
                 </div>
-                <button type="submit" disabled={savingMin} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[13px] font-semibold transition-colors disabled:opacity-50">
-                  {savingMin && <Spin />}Save
-                </button>
+                <Button type="submit" variant="primary" loading={savingMin}>Save</Button>
               </form>
             ) : (
-              <div className="text-2xl font-semibold text-ink tabular-nums">{fmtKsh(d.qualifying_deposit_min)}
-                <span className="ml-2 text-[12px] font-normal text-faint">set by a super admin</span></div>
+              <div className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-ink tabular-nums">{fmtKsh(d.qualifying_deposit_min)}
+                <span className="ml-2 text-[12px] font-normal tracking-normal text-faint">set by a super admin</span></div>
             )}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
 
 function Cell({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="p-5">
-      <div className={HEAD}>{label}</div>
-      <div className={'mt-2 tabular-nums ' + (strong ? 'text-2xl font-semibold text-up' : 'text-xl font-semibold text-ink')}>{value}</div>
+    <div className="min-w-0 px-5 py-4">
+      <div className="text-[13px] font-medium text-muted">{label}</div>
+      <div className={'mt-1 text-[22px] font-semibold tabular-nums tracking-[-0.02em] ' + (strong ? 'text-up' : 'text-ink')}>{value}</div>
     </div>
   );
 }

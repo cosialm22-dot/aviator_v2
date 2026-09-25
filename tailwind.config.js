@@ -26,19 +26,19 @@ export default {
         info: '#17a2b8',                                         // player accent-blue (referrals/marketing)
         funmode: '#c8930a',                                      // FUN MODE banner amber
 
-        // ── ADMIN (dark) theme — institutional base + trading semantics ────
-        brand: { DEFAULT: '#1f9bb8', dark: '#013e4c' }, // teal accent (links/active/buttons); -dark is the deep sidebar/hover teal
-        gold: '#e0a80b',   // vivid accent; fills only (reads well on dark)
-        up: '#0ecb81',     // gains / win  (reads well on dark)
-        down: '#f6465d',   // loss / fault (reads well on dark)
-        ink: '#e6eaf0',    // primary text   (~15:1 on canvas)
-        muted: '#9aa6b2',  // secondary text (~8:1 on canvas, AA)
-        faint: '#828c97',  // labels/empty-state (~5.4:1 on canvas)
-        line: '#26303c',   // hairline borders
-        canvas: '#0b0f14', // page background (dark)
-        surface: '#141b24',// card background (dark, lifted from canvas)
-        raised: '#1b2430', // controls / hover rows / skeletons (one step above surface)
-        warn: '#f0b90b',   // needs attention (amber)
+        // ── ADMIN theme — Apple dark (macOS / iOS system colours), same family as the player sheets ──
+        brand: { DEFAULT: '#0a84ff', dark: '#0071e3' }, // systemBlue: selection, links, primary buttons
+        gold: '#ffd60a',   // systemYellow: platform-owner accents
+        up: '#30d158',     // systemGreen: money in, success
+        down: '#ff453a',   // systemRed: money out, errors, destructive
+        ink: '#f5f5f7',    // label
+        muted: '#a1a1a6',  // secondary label (~7.9:1 on surface)
+        faint: '#86868b',  // tertiary label (~5.1:1 on surface, AA)
+        line: '#38383a',   // opaque separator
+        canvas: '#000000', // window / grouped background
+        surface: '#1c1c1e',// cards (secondarySystemBackground)
+        raised: '#2c2c2e', // controls, hover rows, skeletons (tertiarySystemBackground)
+        warn: '#ff9f0a',   // systemOrange: needs attention
 
         // ── PLAYER SHEETS & PAGES: Apple dark system colours (iOS HIG) ──────
         // Everything off the game screen (wallet, sign-in, menu, sheets, profile) uses only these.

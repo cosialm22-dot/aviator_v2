@@ -41,9 +41,10 @@ export function friendly(code: string): string {
   return code || 'Action failed. Please try again.';
 }
 
-export const ROLE_META: Record<string, { label: string; badge: string }> = {
-  super_admin: { label: 'Super Admin', badge: 'bg-down/10 text-down border-down/30' },
-  admin:       { label: 'Admin',       badge: 'bg-brand/10 text-brand border-brand/20' },
-  marketer:    { label: 'Marketer',    badge: 'bg-violet-500/10 text-violet-300 border-violet-500/30' },
-  player:      { label: 'Player',      badge: 'bg-white/[0.06] text-muted border-line' },
+// `badge` is the kit <Badge tone> for the role.
+export const ROLE_META: Record<string, { label: string; badge: 'down' | 'brand' | 'warn' | 'muted' }> = {
+  super_admin: { label: 'Super Admin', badge: 'down' },
+  admin:       { label: 'Admin',       badge: 'brand' },
+  marketer:    { label: 'Marketer',    badge: 'warn' },
+  player:      { label: 'Player',      badge: 'muted' },
 };

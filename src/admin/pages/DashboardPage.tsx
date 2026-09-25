@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2, ChevronRight, RefreshCw } from 'lucide-rea
 import { supabase } from '../../lib/supabase';
 import { useAdmin, canAccess, type Section } from '../roleContext';
 import { useScope } from '../scopeContext';
-import { Button, Card, ErrorState, PageHeader, Pills, Skeleton, StatCard } from '../ui/kit';
+import { Badge, Button, Card, ErrorState, PageHeader, Pills, Skeleton, StatCard } from '../ui/kit';
 import { delta, kes, kesCompact, num, relTime, staffError } from '../ui/format';
 import SeriesChart from '../components/SeriesChart';
 
@@ -19,6 +19,9 @@ interface Overview {
   scope: 'all' | 'site'; days: number; generated_at: string;
   today: Record<string, number>; series: Day[]; attention: Record<string, number>; totals: Record<string, number>;
 }
+
+const DT = 'text-[13px] font-medium text-muted';
+const DD = 'mt-0.5 text-[15px] font-semibold tabular-nums tracking-[-0.02em]';
 
 const RANGES = [{ value: '7', label: '7 days' }, { value: '14', label: '14 days' }, { value: '30', label: '30 days' }] as const;
 
@@ -79,7 +82,7 @@ export default function DashboardPage() {
 
       {err && <ErrorState message={err} onRetry={() => void load()} />}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="overview-kpis">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="overview-kpis">
         <StatCard label="Deposits today" value={kes(t.deposits_kes ?? 0)} loading={!ov} tone="up" testId="kpi-deposits"
           sub={`${num(t.deposits_count)} deposits · ${num(t.depositors)} players`} delta={yesterday ? delta(t.deposits_kes ?? 0, yesterday.deposits_kes) : null} />
         <StatCard label="Withdrawals paid" value={kes(t.withdrawals_kes ?? 0)} loading={!ov} testId="kpi-withdrawals"
@@ -93,22 +96,22 @@ export default function DashboardPage() {
         <StatCard label="Bonuses given" value={kes(t.bonus_kes ?? 0)} loading={!ov} sub="Credited today" testId="kpi-bonus" />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card title={`Money in and out · ${days} days`} className="xl:col-span-2" testId="chart-money">
           {!ov ? <Skeleton className="h-52 w-full" /> : (
             <SeriesChart rows={ov.series as unknown as Record<string, number | string>[]} xKey="day" format={kes} testId="money-chart"
               series={[
-                { key: 'deposits_kes', label: 'Deposits', color: '#0ecb81' },
-                { key: 'withdrawals_kes', label: 'Withdrawals paid', color: '#f6465d' },
-                { key: 'house_revenue_kes', label: 'House revenue', color: '#e0a80b', kind: 'line' },
+                { key: 'deposits_kes', label: 'Deposits', color: '#30d158' },
+                { key: 'withdrawals_kes', label: 'Withdrawals paid', color: '#ff453a' },
+                { key: 'house_revenue_kes', label: 'House revenue', color: '#ffd60a', kind: 'line' },
               ]} />
           )}
           {ov && (
-            <dl className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-line pt-4 text-[12px]">
-              <div><dt className="text-faint">Deposits</dt><dd className="text-ink font-medium tabular-nums">{kesCompact(period.deposits)}</dd></div>
-              <div><dt className="text-faint">Withdrawals</dt><dd className="text-ink font-medium tabular-nums">{kesCompact(period.withdrawals)}</dd></div>
-              <div><dt className="text-faint">Staked</dt><dd className="text-ink font-medium tabular-nums">{kesCompact(period.stake)}</dd></div>
-              <div><dt className="text-faint">House revenue</dt><dd className={`font-medium tabular-nums ${period.revenue >= 0 ? 'text-up' : 'text-down'}`}>{kesCompact(period.revenue)}</dd></div>
+            <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4 sm:grid-cols-4">
+              <div><dt className={DT}>Deposits</dt><dd className={`${DD} text-ink`}>{kesCompact(period.deposits)}</dd></div>
+              <div><dt className={DT}>Withdrawals</dt><dd className={`${DD} text-ink`}>{kesCompact(period.withdrawals)}</dd></div>
+              <div><dt className={DT}>Staked</dt><dd className={`${DD} text-ink`}>{kesCompact(period.stake)}</dd></div>
+              <div><dt className={DT}>House revenue</dt><dd className={`${DD} ${period.revenue >= 0 ? 'text-up' : 'text-down'}`}>{kesCompact(period.revenue)}</dd></div>
             </dl>
           )}
         </Card>
@@ -120,14 +123,14 @@ export default function DashboardPage() {
                 <CheckCircle2 size={18} className="text-up" /> All clear — nothing is waiting on staff.
               </div>
             ) : (
-              <ul className="divide-y divide-line -mx-2">
+              <ul className="-mx-2 divide-y divide-line">
                 {attention.map((x) => (
                   <li key={x.label}>
-                    <Link to={x.to} className="flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-raised/60">
-                      <span className={`inline-flex min-w-[28px] h-7 px-2 items-center justify-center rounded-md text-[12px] font-semibold tabular-nums ${x.tone === 'down' ? 'bg-down/15 text-down' : 'bg-warn/15 text-warn'}`}>{x.n}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-[13px] text-ink truncate">{x.label}</span>
-                        {x.sub && <span className="block text-[11px] text-faint">{x.sub}</span>}
+                    <Link to={x.to} className="flex min-h-[48px] items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.06]">
+                      <span className="flex w-10 shrink-0 justify-center tabular-nums"><Badge tone={x.tone}>{x.n}</Badge></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] text-ink">{x.label}</span>
+                        {x.sub && <span className="block text-[12px] tabular-nums text-faint">{x.sub}</span>}
                       </span>
                       <ChevronRight size={14} className="text-faint" />
                     </Link>
@@ -136,29 +139,29 @@ export default function DashboardPage() {
               </ul>
             )}
           {ov && attention.some((x) => x.tone === 'down') && (
-            <p className="mt-3 flex items-center gap-1.5 text-[11px] text-down"><AlertTriangle size={12} /> Red items involve money or the live game.</p>
+            <p className="mt-3 flex items-center gap-1.5 text-[12px] text-faint"><AlertTriangle size={13} className="text-down" /> Red items involve money or the live game.</p>
           )}
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card title={`Players · ${days} days`} className="xl:col-span-2" testId="chart-players">
           {!ov ? <Skeleton className="h-52 w-full" /> : (
             <SeriesChart rows={ov.series as unknown as Record<string, number | string>[]} xKey="day" format={num}
               series={[
-                { key: 'bettors', label: 'Players betting', color: '#1f9bb8' },
-                { key: 'new_players', label: 'New players', color: '#e0a80b', kind: 'line' },
+                { key: 'bettors', label: 'Players betting', color: '#0a84ff' },
+                { key: 'new_players', label: 'New players', color: '#ff9f0a', kind: 'line' },
               ]} />
           )}
         </Card>
         <Card title="Balances held" testId="balances">
           {!ov ? <Skeleton className="h-32 w-full" /> : (
             <dl className="space-y-3 text-[13px]">
-              <div className="flex justify-between gap-3"><dt className="text-muted">Players</dt><dd className="text-ink tabular-nums">{num(ov.totals.players)}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted">Active in 7 days</dt><dd className="text-ink tabular-nums">{num(ov.totals.active_7d)}</dd></div>
-              <div className="flex justify-between gap-3 border-t border-line pt-3"><dt className="text-muted">Cash owed to players</dt><dd className="text-ink font-semibold tabular-nums">{kes(ov.totals.player_balances_kes)}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted">Locked bonus balances</dt><dd className="text-ink tabular-nums">{kes(ov.totals.bonus_balances_kes)}</dd></div>
-              <p className="text-[11px] text-faint">Cash owed is what players could withdraw today; keep at least this much available for payouts.</p>
+              <div className="flex justify-between gap-3"><dt className="text-muted">Players</dt><dd className="tabular-nums text-ink">{num(ov.totals.players)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-muted">Active in 7 days</dt><dd className="tabular-nums text-ink">{num(ov.totals.active_7d)}</dd></div>
+              <div className="flex justify-between gap-3 border-t border-line pt-3"><dt className="text-muted">Cash owed to players</dt><dd className="font-semibold tabular-nums tracking-[-0.01em] text-ink">{kes(ov.totals.player_balances_kes)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-muted">Locked bonus balances</dt><dd className="tabular-nums text-ink">{kes(ov.totals.bonus_balances_kes)}</dd></div>
+              <p className="text-[12px] text-faint">Cash owed is what players could withdraw today; keep at least this much available for payouts.</p>
             </dl>
           )}
         </Card>

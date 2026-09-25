@@ -37,19 +37,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <AdminHeader onMenuClick={() => setNavOpen(true)} />
         {/* Platform owner looking at one brand: a clear banner so nobody acts on the wrong brand. */}
         {scope.canSwitch && scope.siteId && (
-          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-1.5 bg-gold/10 border-b border-gold/30 text-[12px] text-ink" data-testid="scope-banner">
+          <div className="flex items-center justify-between gap-3 bg-gold/10 px-4 py-1.5 text-[12px] text-ink sm:px-6" data-testid="scope-banner">
             <span><span className="inline-block h-2 w-2 rounded-full bg-gold animate-pulse mr-2 align-middle" />Viewing <b>{scope.label}</b> only</span>
             <button onClick={() => scope.setSiteId(null)} className="text-gold hover:underline">Show all brands</button>
           </div>
         )}
         {unscoped && (
-          <div className="px-4 sm:px-6 py-1.5 bg-raised border-b border-line text-[12px] text-muted" data-testid="scope-unscoped">
+          <div className="bg-surface px-4 py-1.5 text-[12px] text-muted sm:px-6" data-testid="scope-unscoped">
             {page?.label} is not filtered by brand yet — it shows every brand you run.
           </div>
         )}
         {/* key: pages remount when the brand scope changes, so nothing stale is shown. */}
         <main key={scope.siteId ?? 'all'} className="flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="mx-auto w-full max-w-[1400px] px-4 py-5 md:px-8 md:py-7 flex flex-col gap-6">{children}</div>
+          <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 pb-10 pt-6 md:px-8 md:pt-8">{children}</div>
         </main>
       </div>
     </div>
