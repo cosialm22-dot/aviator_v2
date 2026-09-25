@@ -25,6 +25,10 @@ def run(sql: str):
 migration = open(MIG, encoding="utf-8").read()
 migration = re.sub(r"^\s*BEGIN;\s*$", "", migration, flags=re.M)
 migration = re.sub(r"^\s*COMMIT;\s*$", "", migration, flags=re.M)
+# The migration is live; re-applying it inside the test would roll later migrations' versions of the same
+# functions back to this one's. REAPPLY_MIGRATION=1 restores the original apply-then-test mode (only valid
+# on a database where this is the newest migration).
+REAPPLY = os.environ.get('REAPPLY_MIGRATION') == '1'
 
 TESTS = r"""
 CREATE OR REPLACE FUNCTION pg_temp.act(u uuid) RETURNS void LANGUAGE sql AS $$
@@ -81,7 +85,8 @@ BEGIN
   e := pg_temp.err('SELECT public.admin_list_fraud_alerts(''low'', 10)');
   out := out || jsonb_build_object('t','support can read risk alerts', 'ok', e = 'ok', 'got', e);
   e := pg_temp.err('SELECT public.admin_current_round()');
-  out := out || jsonb_build_object('t','support can see the live round', 'ok', e = 'ok', 'got', e);
+  -- The live round carries the crash point of a round every brand plays: owner-only since the multi-brand tiers.
+  out := out || jsonb_build_object('t','brand support cannot see the live round (shared engine is owner-only)', 'ok', e = 'NOT_AUTHORIZED', 'got', e);
   e := pg_temp.err(format('SELECT public.admin_set_ban(%L, true, %L)', pa, 'x'));
   out := out || jsonb_build_object('t','support still cannot ban', 'ok', e = 'FORBIDDEN', 'got', e);
   e := pg_temp.err('SELECT public.admin_list_audit(NULL, NULL, NULL, NULL, NULL, 10, 0)');
@@ -106,7 +111,7 @@ BEGIN
 
   PERFORM pg_temp.act(sb);
   e := pg_temp.err(format('SELECT public.admin_set_site_theme(%L, NULL, NULL)', B));
-  out := out || jsonb_build_object('t','brand B''s owner can theme brand B', 'ok', e NOT LIKE 'NOT_AUTHORIZED%', 'got', e);
+  out := out || jsonb_build_object('t','brand B''s owner may call the theme writer on brand B (a no-op save)', 'ok', e NOT LIKE 'NOT_AUTHORIZED%', 'got', e);
   e := pg_temp.err(format('SELECT public.admin_set_site_theme(%L, NULL, NULL)', A));
   out := out || jsonb_build_object('t','brand B''s owner cannot theme brand A', 'ok', e = 'NOT_AUTHORIZED', 'got', e);
 
@@ -226,7 +231,7 @@ END $t$;
 LOCKS = ("SET LOCAL lock_timeout = '15s';\n"
          "LOCK TABLE public.system_settings, public.crash_queue, public.admin_audit_log, public.withdrawal_requests, "
          "public.player_risk_scores, public.mpesa_config, public.profiles IN ACCESS EXCLUSIVE MODE;\n")
-status, body = run("BEGIN;\n" + LOCKS + migration + "\n" + TESTS)
+status, body = run("BEGIN;\n" + LOCKS + (migration if REAPPLY else "") + "\n" + TESTS)
 try:
     msg = json.loads(body).get("message", body)
 except Exception:

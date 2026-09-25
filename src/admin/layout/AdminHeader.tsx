@@ -24,14 +24,14 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         </button>
         <span className="truncate text-[15px] font-semibold text-ink lg:hidden">{current}</span>
 
-        {/* Scope: platform owner picks a brand; everyone else sees their brand. */}
+        {/* Scope: the owner / a platform admin picks a brand; brand staff see their brand. */}
         {scope.canSwitch ? (
           <label className="hidden sm:flex items-center gap-2 text-[12px] text-muted">
             <Building2 size={14} className="text-faint" />
             <span className="sr-only">Brand</span>
             <select value={scope.siteId ?? ''} onChange={(e) => scope.setSiteId(e.target.value || null)} aria-label="Brand scope" data-testid="scope-switcher"
               className="h-7 max-w-[220px] rounded-lg bg-raised pl-2.5 pr-7 text-[13px] text-ink focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand/50">
-              <option value="">All brands</option>
+              {scope.canPickAll && <option value="">All brands</option>}
               {scope.brands.map((b) => <option key={b.id} value={b.id}>{b.name}{b.status !== 'active' ? ` (${b.status})` : ''}</option>)}
             </select>
           </label>

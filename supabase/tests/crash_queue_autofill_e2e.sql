@@ -26,6 +26,7 @@ BEGIN
   -- Clean slate for deterministic assertions. crash_queue.round_id references
   -- game_rounds(id) with NO ACTION, so null the FK before deleting rounds.
   UPDATE crash_queue SET round_id = NULL;
+  UPDATE game_rounds SET queue_id = NULL WHERE queue_id IS NOT NULL;
   DELETE FROM crash_queue;
   DELETE FROM round_secrets;
   DELETE FROM bets;
@@ -55,6 +56,7 @@ BEGIN
   IF v_added=0 THEN v_log:=v_log||'Q4 idempotent ok; '; ELSE v_ok:=false; v_log:=v_log||'Q4 FAIL added='||v_added||'; '; END IF;
 
   -- Q5: manual row preserved; autofill appends after it.
+  UPDATE game_rounds SET queue_id = NULL WHERE queue_id IS NOT NULL;
   DELETE FROM crash_queue;
   INSERT INTO crash_queue(crash_multiplier, position, status, source, created_by)
     VALUES (7.77, 1, 'pending', 'manual', NULL);

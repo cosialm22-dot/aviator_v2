@@ -8,7 +8,7 @@ import BirdMark from '../components/game/BirdMark';
 import ScopeProvider from './ScopeProvider';
 
 // AdminGuard authenticates the session, authorises OPERATOR roles
-// (platform_superadmin, super_admin, admin, finance_admin, support), rejects
+// (platform_superadmin, platform_admin, super_admin, admin, finance_admin, support), rejects
 // suspended (banned) accounts, and publishes the resolved identity to the panel
 // via AdminContext, then the brand scope via ScopeProvider. Marketers and players
 // are NOT operators - they use the player shell. The server RPCs remain the real gate.
@@ -36,12 +36,12 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
   async function check() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setIdentity(null); setState('login'); return; }
-    const { data } = await supabase.from('profiles').select('role, is_banned, username, site_id').eq('id', session.user.id).maybeSingle();
+    const { data } = await supabase.from('profiles').select('role, is_banned, username, site_id, platform_id').eq('id', session.user.id).maybeSingle();
     const role = data?.role as Role | undefined;
     const banned = data?.is_banned === true;
     if (data && !banned && role && STAFF_ROLES.includes(role)) {
       setIdentity((prev) => (prev && prev.userId === session.user.id && prev.role === role ? prev
-        : makeIdentity(session.user.id, role, { username: data.username ?? 'Admin', siteId: data.site_id ?? null })));
+        : makeIdentity(session.user.id, role, { username: data.username ?? 'Admin', siteId: data.site_id ?? null, platformId: data.platform_id ?? null })));
       setState('ok');
     } else {
       setIdentity(null);

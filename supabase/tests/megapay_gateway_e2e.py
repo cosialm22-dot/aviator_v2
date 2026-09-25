@@ -30,6 +30,10 @@ def run(sql: str):
 migration = open(MIG, encoding="utf-8").read()
 migration = re.sub(r"^\s*BEGIN;\s*$", "", migration, flags=re.M)
 migration = re.sub(r"^\s*COMMIT;\s*$", "", migration, flags=re.M)
+# The migration is live; re-applying it inside the test would roll later migrations' versions of the same
+# functions back to this one's. REAPPLY_MIGRATION=1 restores the original apply-then-test mode (only valid
+# on a database where this is the newest migration).
+REAPPLY = os.environ.get('REAPPLY_MIGRATION') == '1'
 
 TESTS = r"""
 DO $t$
@@ -158,13 +162,13 @@ BEGIN
      AND (has_function_privilege('anon', oid, 'execute') OR has_function_privilege('authenticated', oid, 'execute'));
   out := out || jsonb_build_object('t','no fn_megapay_* function is callable by anon/authenticated', 'ok', n = 0, 'got', n);
   out := out || jsonb_build_object('t','the public payment config is readable by anyone', 'ok',
-    has_function_privilege('anon', 'public.fn_public_payment_config()', 'execute'));
+    has_function_privilege('anon', 'public.fn_public_payment_config(uuid)', 'execute'));
 
   RAISE EXCEPTION 'E2E_RESULT %', out::text;
 END $t$;
 """
 
-status, body = run("BEGIN;\n" + migration + "\n" + TESTS)
+status, body = run("BEGIN;\n" + (migration if REAPPLY else "") + "\n" + TESTS)
 try:
     msg = json.loads(body).get("message", body)
 except Exception:
