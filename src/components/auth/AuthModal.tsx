@@ -4,6 +4,8 @@ import { usePaymentConfig } from '../../hooks/usePaymentConfig';
 import { normalizeKenyanPhone, isValidKenyanPhone } from '../../lib/phone';
 import Sheet from '../ui/Sheet';
 import { Button, Field } from '../ui/ios';
+import { useBrand } from '../../brand/useBrand';
+import { Link } from 'react-router-dom';
 
 interface Props {
   initialMode: 'signin' | 'signup';
@@ -23,7 +25,11 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
 
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
-  const isSignup = mode === 'signup';
+  const brand = useBrand();
+  const b = brand.config;
+  // A brand can close sign-ups (features.registrations): the sheet then only logs in.
+  const canRegister = b['features.registrations'];
+  const isSignup = mode === 'signup' && canRegister;
   const cfg = usePaymentConfig();
 
   // Re-focus the first field when the mode flips (username for sign-up, phone for
@@ -73,8 +79,9 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
     : '';
 
   return (
-    <Sheet title={isSignup ? 'Register' : 'Log in'} onClose={onClose} initialFocus={firstFieldRef}>
+    <Sheet title={isSignup ? (b['copy.register_title'] || 'Register') : 'Log in'} onClose={onClose} initialFocus={firstFieldRef}>
       <form onSubmit={handleSubmit} className="px-4 pt-1">
+        {b['copy.tagline'] && <p className="mb-3 text-center text-subhead text-ios-label2" data-testid="brand-tagline">{b['copy.tagline']}</p>}
         {isSignup && offerText && (
           <p className="mb-4 flex items-center gap-2.5 rounded-xl bg-[rgba(48,209,88,0.12)] px-4 py-3 text-subhead font-medium text-ios-green">
             <Gift size={18} className="shrink-0" />{offerText}
@@ -93,17 +100,19 @@ export default function AuthModal({ initialMode, onSignUp, onSignIn, onClose }: 
             trailing={<button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? 'Hide password' : 'Show password'}
               className="-mr-2 grid h-11 w-11 place-items-center text-ios-label2">{showPass ? <EyeOff size={18} /> : <Eye size={18} />}</button>} />
         </div>
-        {isSignup ? <p className="px-4 pt-1.5 text-footnote text-ios-label2">At least 6 characters.</p> : null}
+        {isSignup ? <p className="px-4 pt-1.5 text-footnote text-ios-label2">At least 6 characters. {b['legal.min_age']}+ only{b['legal.terms'] ? <> · <Link to="/legal/terms" onClick={onClose} className="text-ios-green">Terms</Link></> : null}</p> : null}
 
         {error && <p role="alert" className="mt-3 px-2 text-center text-footnote text-ios-red">{error}</p>}
 
         <Button type="submit" disabled={loading} className="mt-5">{loading ? '…' : isSignup ? 'Register' : 'Log in'}</Button>
 
-        <p className="mt-3 text-center text-subhead text-ios-label2">
-          {isSignup ? 'Have an account? ' : 'New here? '}
-          <button type="button" onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(''); }}
-            className="inline-flex h-11 items-center font-semibold text-ios-green">{isSignup ? 'Log in' : 'Register'}</button>
-        </p>
+        {canRegister ? (
+          <p className="mt-3 text-center text-subhead text-ios-label2">
+            {isSignup ? 'Have an account? ' : 'New here? '}
+            <button type="button" onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(''); }}
+              className="inline-flex h-11 items-center font-semibold text-ios-green">{isSignup ? 'Log in' : 'Register'}</button>
+          </p>
+        ) : <p className="mt-3 pb-2 text-center text-footnote text-ios-label2">New sign-ups are closed.</p>}
       </form>
     </Sheet>
   );

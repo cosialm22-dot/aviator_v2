@@ -22,14 +22,14 @@ export default function PromoBar({ freeBets, rain, busy, canUseFreeBet, onClaimR
     <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto scrollbar-thin">
       {rain && (
         <button onClick={() => onClaimRain(rain.id)} disabled={busy}
-          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[#1d4ed8] px-3.5 text-[13px] font-bold text-white disabled:opacity-60 active:scale-95">
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-g-info px-3.5 text-[13px] font-bold text-white disabled:opacity-60 active:scale-95">
           <CloudRain size={15} />Claim {k(rain.per_user)} KES
         </button>
       )}
       {freeBets.map((fb) => (
         <button key={fb.id} onClick={() => onUseFreeBet(fb.id, FREE_BET_DEFAULT_AUTO)} disabled={!canUseFreeBet || busy}
           aria-label={`Use free bet of ${k(fb.amount)} KES`}
-          className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-win/50 bg-win/10 px-3.5 text-[13px] font-bold text-[#5cd334] disabled:opacity-40 active:scale-95">
+          className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-win/50 bg-win/10 px-3.5 text-[13px] font-bold text-g-money disabled:opacity-40 active:scale-95">
           <Zap size={13} className="fill-current" />Free {k(fb.amount)}
         </button>
       ))}

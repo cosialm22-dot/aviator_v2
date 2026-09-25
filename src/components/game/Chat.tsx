@@ -68,7 +68,7 @@ export default function Chat({ messages, sending, onSend, userId, username }: Pr
           const mine = !!userId && msg.user_id === userId;
           return mine ? (
             <div key={msg.id} className="flex justify-end">
-              <p className="max-w-[78%] break-words rounded-[18px] rounded-br-[6px] bg-ios-cta px-3.5 py-2 text-callout text-white">{msg.text}</p>
+              <p className="max-w-[78%] break-words rounded-[18px] rounded-br-[6px] bg-ios-cta px-3.5 py-2 text-callout text-ios-cta-fg">{msg.text}</p>
             </div>
           ) : (
             <div key={msg.id} className="flex items-end gap-2">
@@ -91,7 +91,7 @@ export default function Chat({ messages, sending, onSend, userId, username }: Pr
               placeholder="Message" aria-label="Message" maxLength={200} disabled={sending}
               className="h-10 min-w-0 flex-1 rounded-full border border-ios-sep bg-transparent px-4 text-body text-white placeholder:text-ios-label3 focus:border-ios-label3 focus:outline-none disabled:opacity-60" />
             <button onClick={sendMessage} disabled={!input.trim() || sending} aria-label="Send"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ios-cta text-white transition-opacity disabled:bg-ios-fill disabled:text-ios-label3">
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ios-cta text-ios-cta-fg transition-opacity disabled:bg-ios-fill disabled:text-ios-label3">
               <ArrowUp size={20} strokeWidth={2.6} />
             </button>
           </div>

@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react';
 import type { GameStatus } from '../../types';
 import { multiplierColor, planeParkFactor } from './canvasMotion';
 import { BIRD_MAP, DEFAULT_BIRD, drawBird, drawBirdPerched } from './birds';
+import { useBrand } from '../../brand/useBrand';
+import { canvasThemeFor, type CanvasTheme } from './canvasTheme';
+import { drawPlaneModel, PLANE_MAP } from '../../brand/planes';
 
 interface Props {
   status: GameStatus;
@@ -11,7 +14,7 @@ interface Props {
   crashPoint: number;
   /** Seconds remaining in the waiting phase (0 when unknown). */
   countdown: number;
-  /** Per-site plane skin key (selects the sprite). */
+  /** Streamer-mode bird species (marketers). Players see the brand's plane. */
   planeSkin?: string;
   /** Broadcast-safe render: no 'x' on the multiplier, no crash text. */
   streamer?: boolean;
@@ -78,25 +81,48 @@ function drawVectorPlane(ctx: CanvasRenderingContext2D, pw: number) {
   ctx.beginPath();
   ctx.moveTo(-10, 4); ctx.lineTo(-26, -14); ctx.lineTo(-2, 0); ctx.closePath(); ctx.fill();
 }
-function drawPlaneSprite(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, W: number) {
-  const pw = Math.max(64, Math.min(W * 0.11, 150));
-  const ph = pw / PLANE_ASPECT;
+function drawPlaneSprite(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, W: number, power = 1) {
+  const pw = planeWidth(W);
   const tilt = Math.max(-0.18, Math.min(0.05, angle * 0.35));
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(tilt);
-  if (planeImg && planeReady) ctx.drawImage(planeImg, -pw * 0.5, -ph * 0.55, pw, ph);
-  else drawVectorPlane(ctx, pw);
+  const p = theme.plane;
+  const spec = PLANE_MAP[p.model];
+  if (spec) {
+    drawPlaneModel(ctx, spec, p.colors, pw, performance.now(), p.exhaust ? power : 0, lowPower);
+  } else if (p.model === 'custom' && customImg && customReady) {
+    const ph = pw / (customImg.naturalWidth / Math.max(1, customImg.naturalHeight) || 2);
+    ctx.drawImage(customImg, -pw * 0.5, -ph * 0.55, pw, ph);
+  } else if (planeImg && planeReady) {
+    const ph = pw / PLANE_ASPECT;
+    ctx.drawImage(planeImg, -pw * 0.5, -ph * 0.55, pw, ph);
+  } else {
+    drawVectorPlane(ctx, pw);
+  }
   ctx.restore();
 }
 
-// ── Palette (sampled from the reference recording) ───────────────────────────
-const C_BG          = '#0d0d0d';
-const C_SPOKE_LIGHT = '#1e1e1e';
-const C_SPOKE_DARK  = '#101010';
-const C_TRAIL_LINE  = '#e51e3c';
-const C_TRAIL_DEAD  = '#7a2030';
-const C_CRASH       = '#e51e3c';
+// Uploaded plane image (brand setting plane.image_url), loaded once per URL.
+let customImg: HTMLImageElement | null = null;
+let customReady = false;
+let customSrc = '';
+function loadCustom(url: string | null) {
+  if (typeof Image === 'undefined' || !url || url === customSrc) return;
+  customSrc = url; customReady = false;
+  customImg = new Image();
+  customImg.onload = () => { customReady = true; };
+  customImg.onerror = () => { customReady = false; };
+  customImg.src = url;
+}
+
+/** Plane length in px for this canvas width (the brand's size setting scales it). */
+function planeWidth(W: number): number {
+  return Math.max(64, Math.min(W * 0.11, 150)) * theme.plane.scale;
+}
+
+// ── Palette: the brand's game-screen colours (look.* settings; defaults = the reference look) ──
+let theme: CanvasTheme = canvasThemeFor(null, null);
 
 // Set once per session when frames are too expensive (see the adaptive quality check).
 let lowPower = false;
@@ -104,6 +130,9 @@ let lowPower = false;
 export default function GameCanvas({ status, getMultiplier, crashPoint, countdown, planeSkin, streamer }: Props) {
   activeBird = (planeSkin || DEFAULT_BIRD).toLowerCase();
   activeStreamer = !!streamer;
+  const brand = useBrand();
+  theme = canvasThemeFor(brand.config, brand.theme_tokens as Record<string, unknown>, !!streamer);
+  loadCustom(theme.plane.model === 'custom' ? theme.plane.image : null);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const rafRef     = useRef<number>(0);
   const prevStatus = useRef<GameStatus>('idle');
@@ -174,7 +203,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       glowRef.current += (glowTarget - glowRef.current) * 0.06;
 
       const colorMult = status === 'crashed' ? crashPoint : flying ? mult : 1.0;
-      drawBackground(ctx, W, H, now, glowRef.current, multiplierColor(colorMult));
+      drawBackground(ctx, W, H, now, theme.glow ? glowRef.current : 0, multiplierColor(colorMult));
 
       const cd = cdRef.current;
       if (status !== 'waiting') { cd.total = 0; cd.value = 0; }
@@ -204,7 +233,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       // addition to the artistic X_MAX cap inside xTipNorm). This guarantees
       // (tip.x + planeRightExt) <= W - wallGap for every W, multiplier and hover
       // phase, since tip.x <= xt*W + maxHoverRight.
-      const planeW        = Math.max(64, Math.min(W * 0.11, 150)); // must match drawPlane()
+      const planeW        = planeWidth(W);                            // must match drawPlane()
       const planeRightExt = planeW * 0.56;            // sprite half-width at max tilt
       const wallGap       = Math.max(10, W * 0.02);   // never-touch clearance
       const maxHoverRight = W * 0.04 * parkFactor;    // worst-case rightward wander
@@ -215,7 +244,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       if (isCrashed && flashRef.current > 0 && flashRef.current < 16) {
         ctx.save();
         ctx.globalAlpha = (1 - flashRef.current / 16) * 0.4;
-        ctx.fillStyle = C_CRASH;
+        ctx.fillStyle = theme.crash;
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
         flashRef.current++;
@@ -251,11 +280,11 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       // Filled area under the curve, bounded by a vertical edge at the tip.
       const fill = ctx.createLinearGradient(0, PLOT_TOP * H, 0, baseY);
       if (isCrashed) {
-        fill.addColorStop(0, 'rgba(120, 16, 34, 0.38)');
-        fill.addColorStop(1, 'rgba(60, 6, 16, 0.20)');
+        fill.addColorStop(0, theme.fillDeadTop);
+        fill.addColorStop(1, theme.fillDeadBottom);
       } else {
-        fill.addColorStop(0, 'rgba(229, 30, 60, 0.60)');
-        fill.addColorStop(1, 'rgba(140, 10, 32, 0.28)');
+        fill.addColorStop(0, theme.fillTop);
+        fill.addColorStop(1, theme.fillBottom);
       }
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
@@ -276,10 +305,10 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       ctx.lineJoin = 'round';
       ctx.lineCap  = 'round';
       if (!isCrashed) {
-        ctx.strokeStyle = 'rgba(229, 30, 60, 0.22)'; ctx.lineWidth = lw * 4; ctx.stroke();
-        ctx.strokeStyle = 'rgba(229, 30, 60, 0.35)'; ctx.lineWidth = lw * 2.2; ctx.stroke();
+        ctx.strokeStyle = theme.glow1; ctx.lineWidth = lw * 4; ctx.stroke();
+        ctx.strokeStyle = theme.glow2; ctx.lineWidth = lw * 2.2; ctx.stroke();
       }
-      ctx.strokeStyle = isCrashed ? C_TRAIL_DEAD : C_TRAIL_LINE;
+      ctx.strokeStyle = isCrashed ? theme.curveDead : theme.curve;
       ctx.lineWidth   = lw;
       ctx.stroke();
       ctx.restore();
@@ -300,7 +329,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
 
       // Scene text.
       if (isCrashed) { if (!activeStreamer) drawCrashText(ctx, W, H, crashPoint); }
-      else           drawMultiplier(ctx, W, H, mult, '#ffffff');
+      else           drawMultiplier(ctx, W, H, mult, theme.multiplier);
 
       track(t0);
       rafRef.current = requestAnimationFrame(frame);
@@ -319,43 +348,20 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
 }
 
-// ── Background: dark sky + rotating spoke sunburst + cyan flight glow ─────────
+// ── Background: the brand's sky (sunburst / soft rays / radar grid / stars / plain) + flight glow ──
 function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now: number, glow: number, glowRgb: string) {
-  ctx.fillStyle = C_BG;
+  ctx.fillStyle = theme.bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Spokes radiate from just outside the bottom-left corner and rotate slowly.
-  const ox = -W * 0.02, oy = H * 1.02;
-  const R  = Math.hypot(W, H) * 1.5;
-  // Sunburst is a full rotating fan; only the wedges whose rays cross the canvas
-  // are visible (the origin sits just off the bottom-left corner, so the on-screen
-  // angular span is ~87° on every aspect ratio — measured portrait→ultrawide).
-  // Visible spokes ≈ N × 87°/360° ≈ N/4. N = 72 → 18 spokes on screen at any time
-  // (9 light + 9 dark). N must stay a multiple of 4 to keep the two shades balanced.
-  const N  = 72;                       // 72 wedges → 18 visible (9 per colour)
-  // 2.5× the original speed (0.000018 → 0.000045) and negated so the fan turns
-  // clockwise about the bottom-left origin, making the wedges sweep across the
-  // canvas from the top-left toward the bottom-right.
-  const rot = -now * 0.000045;
-  ctx.save();
-  const TAU = Math.PI * 2;
-  for (let i = 0; i < N; i++) {
-    const a0 = rot + (i)     * (TAU / N);
-    const a1 = rot + (i + 1) * (TAU / N);
-    // Only the wedges that cross the canvas (angles ~0..90° from the bottom-left origin) are drawn.
-    const m0 = ((a0 % TAU) + TAU) % TAU;
-    if (m0 > Math.PI / 2 + 0.12 && m0 < TAU - 0.2) continue;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(ox + R * Math.cos(a0), oy - R * Math.sin(a0));
-    ctx.lineTo(ox + R * Math.cos(a1), oy - R * Math.sin(a1));
-    ctx.closePath();
-    ctx.fillStyle = i % 2 === 0 ? C_SPOKE_LIGHT : C_SPOKE_DARK;
-    ctx.fill();
+  switch (theme.style) {
+    case 'sunburst': drawSpokes(ctx, W, H, now, 72, theme.ray, theme.rayDark, 1); break;
+    case 'rays': drawSpokes(ctx, W, H, now, 36, theme.ray, theme.bg, 0.55); break;
+    case 'grid': drawGrid(ctx, W, H, now); break;
+    case 'stars': drawStars(ctx, W, H, now); break;
+    default: break;
   }
-  ctx.restore();
 
-  // Radial glow behind the multiplier; colour shifts with the round (purple→red).
+  // Radial glow behind the multiplier; colour shifts with the round (blue → purple → red).
   if (glow > 0.01) {
     const gx = W * 0.5, gy = H * 0.42, gr = W * 0.62;
     const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
@@ -367,16 +373,77 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
   }
 }
 
+// Rotating fan of wedges from just outside the bottom-left corner. Only wedges that cross the
+// canvas (~87° of the fan on every aspect ratio) are drawn. N must stay a multiple of 4.
+function drawSpokes(ctx: CanvasRenderingContext2D, W: number, H: number, now: number, N: number, light: string, dark: string, alpha: number) {
+  const ox = -W * 0.02, oy = H * 1.02;
+  const R  = Math.hypot(W, H) * 1.5;
+  const rot = -now * 0.000045;           // clockwise about the bottom-left origin
+  const TAU = Math.PI * 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (let i = 0; i < N; i++) {
+    const a0 = rot + i * (TAU / N);
+    const a1 = rot + (i + 1) * (TAU / N);
+    const m0 = ((a0 % TAU) + TAU) % TAU;
+    if (m0 > Math.PI / 2 + 0.12 && m0 < TAU - 0.2) continue;
+    if (i % 2 === 1 && dark === theme.bg) continue;   // soft rays: only the light wedges
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    ctx.lineTo(ox + R * Math.cos(a0), oy - R * Math.sin(a0));
+    ctx.lineTo(ox + R * Math.cos(a1), oy - R * Math.sin(a1));
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? light : dark;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Radar grid: fine lines drifting slowly left, brighter towards the bottom-left origin.
+function drawGrid(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
+  const step = Math.max(28, Math.min(W, H) / 9);
+  const off = (now * 0.012) % step;
+  ctx.save();
+  ctx.strokeStyle = theme.ray;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = -off; x < W; x += step) { ctx.moveTo(Math.round(x) + 0.5, 0); ctx.lineTo(Math.round(x) + 0.5, H); }
+  for (let y = H - (off * 0.6) % step; y > 0; y -= step) { ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(W, Math.round(y) + 0.5); }
+  ctx.stroke();
+  const v = ctx.createRadialGradient(0, H, 0, 0, H, Math.hypot(W, H));
+  v.addColorStop(0, 'rgba(0,0,0,0)');
+  v.addColorStop(1, theme.bgFade);
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+// Starfield: fixed pseudo-random stars twinkling and drifting slowly left.
+const STARS = Array.from({ length: 90 }, (_, i) => {
+  const r = (n: number) => { const x = Math.sin(i * 127.1 + n * 311.7) * 43758.5453; return x - Math.floor(x); };
+  return { x: r(1), y: r(2), s: 0.6 + r(3) * 1.4, p: r(4) * Math.PI * 2 };
+});
+function drawStars(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
+  ctx.save();
+  ctx.fillStyle = theme.ray;
+  for (const st of STARS) {
+    const x = ((st.x * W - now * 0.004 * st.s) % W + W) % W;
+    ctx.globalAlpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(now * 0.0015 + st.p));
+    ctx.fillRect(x, st.y * H, st.s, st.s);
+  }
+  ctx.restore();
+}
+
 // ── Resting plane (idle/waiting): parked at the origin corner, fully visible ──
 function drawRestingPlane(ctx: CanvasRenderingContext2D, W: number, H: number, now: number) {
-  const size = Math.max(64, Math.min(W * 0.11, 150));
+  const size = planeWidth(W);
   const halfLen = size * 0.5;
   const heading = -0.42;                       // nose/bird up-right along take-off tangent
   const bob = Math.sin(now * 0.0018) * H * 0.008;
   const x = Math.cos(heading) * halfLen;       // tail at the origin
   const y = PLOT_BOTTOM * H + Math.sin(heading) * halfLen + bob;
   if (activeStreamer) drawBirdPerched(ctx, birdSpec(), x, y, size, now);
-  else                drawPlaneSprite(ctx, x, y, heading, W);
+  else                drawPlaneSprite(ctx, x, y, heading, W, 0.25);   // engine idling on the runway
 }
 
 // ── Waiting overlay: a bar that drains to take-off (no words). `frac` < 0 = not known yet
@@ -390,16 +457,16 @@ function drawWaiting(ctx: CanvasRenderingContext2D, W: number, H: number, now: n
   ctx.save();
   roundRect(ctx, bx, by, bw, bh, bh / 2); ctx.clip();
   if (frac >= 0) {
-    ctx.fillStyle = '#e8123c';
+    ctx.fillStyle = theme.wait;
     ctx.fillRect(bx, by, bw * Math.max(0, Math.min(1, frac)), bh);
   } else {
     const seg = bw * 0.32;
     const t = (now % 1400) / 1400;
     const sx = bx + (bw + seg) * t - seg;
     const grad = ctx.createLinearGradient(sx, 0, sx + seg, 0);
-    grad.addColorStop(0, 'rgba(232,18,60,0)');
-    grad.addColorStop(0.5, 'rgba(232,18,60,1)');
-    grad.addColorStop(1, 'rgba(232,18,60,0)');
+    grad.addColorStop(0, theme.waitClear);
+    grad.addColorStop(0.5, theme.wait);
+    grad.addColorStop(1, theme.waitClear);
     ctx.fillStyle = grad;
     ctx.fillRect(bx, by, bw, bh);
   }
@@ -413,7 +480,7 @@ function drawMultiplier(ctx: CanvasRenderingContext2D, W: number, H: number, m: 
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `800 ${fs}px Inter, "Arial Black", Arial, sans-serif`;
+  ctx.font = `${theme.weight} ${fs}px ${theme.font}`;
   ctx.shadowBlur = lowPower ? 0 : fs * 0.35;
   ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.fillStyle = color;
@@ -421,21 +488,21 @@ function drawMultiplier(ctx: CanvasRenderingContext2D, W: number, H: number, m: 
   ctx.restore();
 }
 
-// ── Crash text: "FLEW AWAY!" + red multiplier ────────────────────────────────
+// ── Crash text: the brand's fly-away line + the crash multiplier ─────────────
 function drawCrashText(ctx: CanvasRenderingContext2D, W: number, H: number, m: number) {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const labelFs = Math.max(16, Math.min(W * 0.045, 34));
-  ctx.font = `700 ${labelFs}px Inter, Arial, sans-serif`;
+  ctx.font = `700 ${labelFs}px ${theme.font}`;
   ctx.shadowBlur = lowPower ? 0 : 16; ctx.shadowColor = 'rgba(0,0,0,0.7)';
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('FLEW AWAY!', W / 2, H * 0.34);
+  ctx.fillText(theme.flewAway, W / 2, H * 0.34);
 
   const fs = multFont(W, H);
-  ctx.font = `800 ${fs}px Inter, "Arial Black", Arial, sans-serif`;
-  ctx.shadowBlur = lowPower ? 0 : fs * 0.4; ctx.shadowColor = 'rgba(232,18,60,0.55)';
-  ctx.fillStyle = C_CRASH;
+  ctx.font = `${theme.weight} ${fs}px ${theme.font}`;
+  ctx.shadowBlur = lowPower ? 0 : fs * 0.4; ctx.shadowColor = theme.crashGlow;
+  ctx.fillStyle = theme.crash;
   ctx.fillText(`${fmt(m)}x`, W / 2, H * 0.34 + labelFs * 0.7 + fs * 0.5);
   ctx.restore();
 }
@@ -443,7 +510,7 @@ function drawCrashText(ctx: CanvasRenderingContext2D, W: number, H: number, m: n
 // ── Plane drawing (sprite with vector fallback) ──────────────────────────────
 function drawPlane(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, W: number) {
   if (activeStreamer) {
-    const size = Math.max(64, Math.min(W * 0.11, 150)); // bird body length in px
+    const size = planeWidth(W);                          // bird body length in px
     drawBird(ctx, birdSpec(), x, y, angle, size, performance.now());
   } else {
     drawPlaneSprite(ctx, x, y, angle, W);              // player mode: original red plane

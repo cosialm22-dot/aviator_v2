@@ -21,6 +21,9 @@ import type { GameStatus } from '../../types';
 import type { Profile, Wallet } from '../../types';
 import { useSiteTheme } from '../../hooks/useSiteTheme';
 import { useStreamerMode } from '../../hooks/useStreamerMode';
+import { useBrand } from '../../brand/useBrand';
+import { isOperatorRole } from '../../lib/roles';
+import Announcement from './Announcement';
 
 interface Props {
   profile: Profile | null;
@@ -33,8 +36,10 @@ interface Props {
 }
 
 export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequired, onRefreshWallet, onDepositOpen }: Props) {
-  const { planeSkin } = useSiteTheme();
+  const { birdId: planeSkin } = useSiteTheme();
   const streamer = useStreamerMode();
+  const cfg = useBrand().config;
+  const twoBets = cfg['features.two_bets'];
   // Chat opens as a sheet from the game menu.
   const [chatOpen, setChatOpen] = useState(false);
   useEffect(() => {
@@ -62,7 +67,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
   // Operators (admin/super_admin) run the platform and must never wager. Marketers
   // and players are unaffected. The DB is the authoritative gate (place_bet +
   // block_operator_bets trigger); this only keeps the UI honest.
-  const isOperator = profile?.role === 'admin' || profile?.role === 'super_admin';
+  const isOperator = isOperatorRole(profile?.role);
 
   // Maintenance mode (real-money only). The DB place_bet RPC is the authoritative
   // gate; this flag locks the UI so players can't tap into a server rejection.
@@ -93,7 +98,11 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
   } = view;
 
   // Player promotions (free bets + rain) - real-money mode only.
-  const { freeBets, rain: openRain, busy: promoBusy, placeFreeBet: placeFreeBetRpc, claimRain } = usePromos(profile?.id, onRefreshWallet);
+  const promos = usePromos(profile?.id, onRefreshWallet);
+  // The brand's switches hide what it does not offer (the server refuses them too).
+  const freeBets = cfg['features.free_bets'] ? promos.freeBets : [];
+  const openRain = cfg['features.rain'] ? promos.rain : null;
+  const { busy: promoBusy, placeFreeBet: placeFreeBetRpc, claimRain } = promos;
   // A free bet queued to auto-place on the next waiting round (slot 1).
   const [queuedFreeBet, setQueuedFreeBet] = useState<{ id: string; auto: number } | null>(null);
 
@@ -189,7 +198,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
       .catch(() => setQueuedFreeBet(null));
   }, [gameStatus, queuedFreeBet, currentRound, activeBets, queuedBets, isDemo, isOperator, placeFreeBetRpc]);
 
-  const showSecond = dual || !!panelActiveBets[2] || !!queuedBets[2];
+  const showSecond = !!panelActiveBets[2] || !!queuedBets[2] || (twoBets && dual);
   const panelProps = (slot: BetSlot) => ({
     panelIndex: slot - 1,
     status: gameStatus,
@@ -206,6 +215,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
     isAuthenticated: panelAuthed,
     isOperator: panelOperatorLock,
     streamer: streamer.enabled,
+    autoAllowed: cfg['features.autobet'],
   });
 
   // One bets board, mounted where it is shown (left column on desktop, under the panels on
@@ -215,10 +225,10 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
   const previousRound = history[0] ?? null;
 
   return (
-    <div className="flex h-full min-h-0 bg-[#0e0e0e] lg:gap-2 lg:p-2">
+    <div className="flex h-full min-h-0 bg-g-bg lg:gap-2 lg:p-2">
 
       {/* Desktop: All Bets / Previous / Top on the left */}
-      {!streamer.enabled && wide && (
+      {!streamer.enabled && wide && cfg['features.live_bets'] && (
         <BetsPanel bets={liveBets} status={gameStatus} previousRound={previousRound} me={me} className="w-[380px] shrink-0" />
       )}
 
@@ -227,12 +237,16 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain lg:overflow-hidden">
         <div className="flex min-h-full shrink-0 flex-col gap-1.5 px-1.5 pb-1.5 lg:h-full lg:min-h-0 lg:px-0 lg:pb-0">
 
-          <div className="relative z-20 shrink-0 px-1 pt-1.5 lg:pt-0">
-            <GameHistory history={history} />
-          </div>
+          {!streamer.enabled && <Announcement />}
+
+          {cfg['features.history'] && (
+            <div className="relative z-20 shrink-0 px-1 pt-1.5 lg:pt-0">
+              <GameHistory history={history} />
+            </div>
+          )}
 
           {/* Plane */}
-          <div className={`relative min-h-[190px] flex-1 overflow-hidden rounded-2xl border bg-[#0d0d0d] lg:min-h-[260px] ${isDemo ? 'border-funmode/70' : 'border-[#2a2b2e]'}`}>
+          <div className={`relative min-h-[190px] flex-1 overflow-hidden rounded-2xl border bg-g-bg lg:min-h-[260px] ${isDemo ? 'border-funmode/70' : 'border-g-line'}`}>
             <GameCanvas
               planeSkin={planeSkin}
               streamer={streamer.enabled}
@@ -246,10 +260,10 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
           </div>
 
           {maintenance && !isDemo && isOperator && (
-            <div className="shrink-0 rounded-xl bg-amber-500/15 px-3 py-2 text-center text-[13px] font-semibold text-amber-300">Maintenance on · players can't bet</div>
+            <div className="shrink-0 rounded-xl bg-g-warn/15 px-3 py-2 text-center text-[13px] font-semibold text-g-warn-edge">Maintenance on · players can't bet</div>
           )}
           {maintenanceLock && anyBetThisRound && (
-            <div className="shrink-0 rounded-xl bg-amber-500/15 px-3 py-2 text-center text-[13px] font-semibold text-amber-300">Maintenance · cash out only</div>
+            <div className="shrink-0 rounded-xl bg-g-warn/15 px-3 py-2 text-center text-[13px] font-semibold text-g-warn-edge">Maintenance · cash out only</div>
           )}
 
           {!isDemo && profile && !isOperator && !streamer.enabled && (
@@ -258,13 +272,13 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
 
           {/* Bet panels */}
           {maintenanceLock && !anyBetThisRound ? (
-            <div className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#1b1c1d] px-4 py-6 text-sm font-semibold text-amber-300">
-              <Wrench size={18} />Betting paused for maintenance
+            <div className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-g-panel px-4 py-6 text-center text-sm font-semibold text-g-warn-edge">
+              <Wrench size={18} className="shrink-0" />{cfg['features.maintenance_message'] || 'Betting paused for maintenance'}
             </div>
           ) : (
             <div className="flex shrink-0 flex-col gap-1.5 md:flex-row md:justify-center lg:gap-2">
               <div className="md:w-full md:max-w-[460px]">
-                <BettingPanel {...panelProps(1)} corner={showSecond ? null : { kind: 'add', onClick: () => setDual(true) }} />
+                <BettingPanel {...panelProps(1)} corner={showSecond || !twoBets ? null : { kind: 'add', onClick: () => setDual(true) }} />
               </div>
               {showSecond && (
                 <div className="md:w-full md:max-w-[460px]">
@@ -277,7 +291,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
         </div>
 
         {/* Phones and tablets: the bets list under the panels */}
-        {!streamer.enabled && !wide && (
+        {!streamer.enabled && !wide && cfg['features.live_bets'] && (
           <BetsPanel bets={liveBets} status={gameStatus} previousRound={previousRound} me={me}
             className="mx-1.5 mb-[calc(6px+env(safe-area-inset-bottom))] min-h-[420px] shrink-0" />
         )}
@@ -287,7 +301,7 @@ export default function AviatorGame({ profile, wallet, mode, demo, onAuthRequire
         freeBets={isDemo ? [] : freeBets} canUseFreeBet={!isDemo && !isOperator && slot1Free && !queuedFreeBet}
         onUseFreeBet={handleUseFreeBet} minAuto={1.01} />
 
-      {chatOpen && !streamer.enabled && <ChatSheet profile={profile} onClose={() => setChatOpen(false)} />}
+      {chatOpen && !streamer.enabled && cfg['features.chat'] && <ChatSheet profile={profile} onClose={() => setChatOpen(false)} />}
     </div>
   );
 }

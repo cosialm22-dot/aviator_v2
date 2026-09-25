@@ -754,10 +754,8 @@ BEGIN
       UPDATE profiles SET site_id = p_site WHERE id = p_user;
       UPDATE wallets SET site_id = p_site WHERE user_id = p_user;
     END IF;
-    IF v_role = 'player' THEN
-      UPDATE profiles SET role = 'marketer' WHERE id = p_user;
-      PERFORM public._ensure_referral_code(p_user);
-    END IF;
+    IF v_role = 'player' THEN UPDATE profiles SET role = 'marketer' WHERE id = p_user; END IF;
+    PERFORM public._ensure_referral_code(p_user);   -- the brand's marketer always has a link to share
     UPDATE sites SET default_marketer_id = p_user, updated_at = now() WHERE id = p_site;
   END IF;
   INSERT INTO admin_audit_log(admin_id, action, target_type, target_id, details, site_id)

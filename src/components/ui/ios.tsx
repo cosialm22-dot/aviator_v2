@@ -9,7 +9,7 @@ import { ChevronRight } from 'lucide-react';
 
 type Variant = 'filled' | 'tinted' | 'gray' | 'plain' | 'destructive';
 const VARIANT: Record<Variant, string> = {
-  filled: 'bg-ios-cta text-white active:brightness-90 disabled:bg-ios-fill disabled:text-ios-label3',
+  filled: 'bg-ios-cta text-ios-cta-fg active:brightness-90 disabled:bg-ios-fill disabled:text-ios-label3',
   tinted: 'bg-[rgba(48,209,88,0.15)] text-ios-green active:bg-[rgba(48,209,88,0.25)] disabled:opacity-40',
   gray: 'bg-ios-fill text-white active:bg-ios-elev3 disabled:opacity-40',
   plain: 'bg-transparent text-ios-green active:opacity-60 disabled:opacity-40',

@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { onConfigConnected, onConfigEvent } from '../lib/configChannel';
+import { useBrand } from '../brand/useBrand';
 
-// useMaintenance - reflects the server's `system.maintenance_mode` flag so the betting UI can
-// lock the instant the platform is closed.
-//
-// The authoritative gate is the place_bet RPC (it raises MAINTENANCE_MODE); this hook only keeps
-// the UI honest. The flag is PUSHED on the public broadcast topic "config" when it changes, so
-// pages no longer poll. It is read once on load, after every (re)connect, and every 5 minutes as
-// a safety net in case a message is missed.
+// useMaintenance — true while bets are closed: the platform-wide `system.maintenance_mode` flag or
+// this brand's `features.maintenance` switch. The authoritative gate is place_bet (it raises
+// MAINTENANCE_MODE); this only keeps the UI honest. The platform flag is PUSHED on the public
+// broadcast topic "config" and re-read after every (re)connect and every 5 minutes; the brand switch
+// arrives with the brand (also pushed on "config").
 const SAFETY_POLL_MS = 5 * 60_000;
 
 export function useMaintenance(): boolean {
   const [on, setOn] = useState(false);
+  const brandOn = useBrand().config['features.maintenance'];
 
   useEffect(() => {
     let alive = true;
@@ -19,15 +20,15 @@ export function useMaintenance(): boolean {
       const { data, error } = await supabase.rpc('is_maintenance');
       if (alive && !error) setOn(Boolean(data));
     };
-    const ch = supabase
-      .channel('config')
-      .on('broadcast', { event: 'maintenance' }, ({ payload }) => {
-        if (alive && typeof payload?.maintenance === 'boolean') setOn(payload.maintenance);
-      })
-      .subscribe((status) => { if (status === 'SUBSCRIBED') void check(); });
+    const off1 = onConfigEvent('maintenance', (p) => {
+      const m = (p as { maintenance?: unknown })?.maintenance;
+      if (alive && typeof m === 'boolean') setOn(m);
+    });
+    const off2 = onConfigConnected(() => { void check(); });
+    void check();
     const id = setInterval(check, SAFETY_POLL_MS);
-    return () => { alive = false; clearInterval(id); void supabase.removeChannel(ch); };
+    return () => { alive = false; clearInterval(id); off1(); off2(); };
   }, []);
 
-  return on;
+  return on || brandOn;
 }

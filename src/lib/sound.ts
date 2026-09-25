@@ -10,13 +10,22 @@ const KEY = 'aviator:sound';
 // flyaway is a sustained roar (mean -10 dB vs about -20 dB for the chimes): 0.3 puts it level.
 const VOLUME: Record<SoundName, number> = { place: 0.5, win: 0.6, flyaway: 0.3, toggle: 0.4 };
 
-let enabled = (() => { try { return localStorage.getItem(KEY) !== 'off'; } catch { return true; } })();
 const listeners = new Set<() => void>();
+// A player's own choice wins; before they choose, the brand's default (features.sound) applies.
+let chosen = (() => { try { return localStorage.getItem(KEY); } catch { return null; } })();
+let enabled = chosen !== 'off';
+/** Brand default for players who never touched the switch. */
+export function setSoundDefault(on: boolean): void {
+  if (chosen != null || enabled === on) return;
+  enabled = on;
+  listeners.forEach((f) => f());
+}
 const cache = new Map<SoundName, HTMLAudioElement>();
 
 export function setSoundEnabled(on: boolean): void {
   enabled = on;
-  try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch { /* private mode */ }
+  chosen = on ? 'on' : 'off';
+  try { localStorage.setItem(KEY, chosen); } catch { /* private mode */ }
   listeners.forEach((l) => l());
   if (on) playSound('toggle');
 }

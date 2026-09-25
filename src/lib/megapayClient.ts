@@ -21,12 +21,24 @@ export interface PaymentConfig {
   minBet: number;
   maxBet: number;
   maxPayout: number;
+  /** Pre-filled stake and the four quick stakes (brand settings). */
+  defaultBet: number;
+  betChips: number[];
+  /** Brand's own deposit chips (null = chosen from the limits). */
+  depositChips: number[] | null;
+  /** Per-request and per-day withdrawal caps (null = none). */
+  maxWithdrawal: number | null;
+  dailyWithdrawal: number | null;
+  /** The brand's deposit / withdrawal switches (maintenance included). */
+  depositsOpen: boolean;
+  withdrawalsOpen: boolean;
   offer: BonusOffer | null;
 }
 
 export const DEFAULT_PAYMENT_CONFIG: PaymentConfig = {
   depositProvider: 'megapay', minDeposit: 100, maxDeposit: 150_000, minWithdrawal: 100,
-  minBet: 50, maxBet: 100_000, maxPayout: 500_000, offer: null,
+  minBet: 50, maxBet: 100_000, maxPayout: 500_000, defaultBet: 100, betChips: [50, 100, 200, 500], depositChips: null,
+  maxWithdrawal: null, dailyWithdrawal: null, depositsOpen: true, withdrawalsOpen: true, offer: null,
 };
 
 /** Coerce the fn_public_payment_config() payload; anything missing or odd falls back to the defaults. */
@@ -43,14 +55,27 @@ export function parsePaymentConfig(raw: unknown): PaymentConfig {
   const offer: BonusOffer | null = o
     ? { welcome: Math.round(n0(o.welcome)), matchPct: Math.round(n0(o.match_pct)), matchCap: Math.round(n0(o.match_cap)), wagerX: n0(o.wager_x) }
     : null;
+  const minBet = num(r.min_bet, DEFAULT_PAYMENT_CONFIG.minBet);
+  const maxBet = Math.max(minBet, num(r.max_bet, DEFAULT_PAYMENT_CONFIG.maxBet));
+  const list = (v: unknown): number[] | null => Array.isArray(v) && v.length > 0 && v.every((x) => Number.isFinite(Number(x)) && Number(x) > 0) ? v.map((x) => Math.round(Number(x))) : null;
+  const clampBet = (n: number) => Math.min(maxBet, Math.max(minBet, n));
+  const chips = (list(r.bet_chips) ?? [minBet, minBet * 2, minBet * 4, minBet * 10]).map(clampBet).slice(0, 4);
+  const opt = (v: unknown) => { const n = Number(v); return v != null && Number.isFinite(n) && n > 0 ? Math.round(n) : null; };
   return {
     depositProvider: r.deposit_provider === 'daraja' ? 'daraja' : 'megapay',
     minDeposit: min,
     maxDeposit: max,
     minWithdrawal: num(r.min_withdrawal, DEFAULT_PAYMENT_CONFIG.minWithdrawal),
-    minBet: num(r.min_bet, DEFAULT_PAYMENT_CONFIG.minBet),
-    maxBet: num(r.max_bet, DEFAULT_PAYMENT_CONFIG.maxBet),
+    minBet,
+    maxBet,
     maxPayout: num(r.max_payout, DEFAULT_PAYMENT_CONFIG.maxPayout),
+    defaultBet: clampBet(num(r.default_bet, Math.max(minBet, DEFAULT_PAYMENT_CONFIG.defaultBet))),
+    betChips: chips.length === 4 ? chips : DEFAULT_PAYMENT_CONFIG.betChips.map(clampBet),
+    depositChips: (list(r.deposit_chips) ?? null)?.filter((q) => q >= min && q <= max) ?? null,
+    maxWithdrawal: opt(r.max_withdrawal),
+    dailyWithdrawal: opt(r.daily_withdrawal),
+    depositsOpen: r.deposits !== false,
+    withdrawalsOpen: r.withdrawals !== false,
     offer: offer && (offer.welcome > 0 || (offer.matchPct > 0 && offer.matchCap > 0)) ? offer : null,
   };
 }
@@ -146,6 +171,7 @@ export async function pollDeposit(invoke: Invoke, id: string, o: PollOptions = {
 
 /** Quick-pick chips that respect the brand's limits. */
 export function quickDepositAmounts(cfg: PaymentConfig): number[] {
+  if (cfg.depositChips && cfg.depositChips.length) return cfg.depositChips.slice(0, 6);
   const base = [100, 250, 500, 1000, 2000, 5000];
   const ok = base.filter((q) => q >= cfg.minDeposit && q <= cfg.maxDeposit);
   if (ok.length >= 3) return ok.slice(0, 6);

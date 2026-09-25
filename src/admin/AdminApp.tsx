@@ -28,6 +28,8 @@ function RequireSection({ section, children }: { section: Section; children: Rea
 
 export default function AdminApp() {
   return (
+    // The back office keeps its own Apple-dark look and system type whatever brand the site wears.
+    <div className="admin-scope contents">
     <AdminGuard>
       <AdminLayout>
         <Routes>
@@ -52,5 +54,6 @@ export default function AdminApp() {
         </Routes>
       </AdminLayout>
     </AdminGuard>
+    </div>
   );
 }

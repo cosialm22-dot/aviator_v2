@@ -30,21 +30,21 @@ const Ctx = createContext<StreamerCtx>({ enabled: false, canToggle: false, toggl
 
 const LS_KEY = 'aviator_streamer_mode';
 
-export function StreamerModeProvider({ role, children }: { role: string | null | undefined; children: ReactNode }) {
+export function StreamerModeProvider({ role, defaultOn = true, children }: { role: string | null | undefined; defaultOn?: boolean; children: ReactNode }) {
   const isMarketer = role === 'marketer';
   // Per-browser override: null = follow the role default (marketers => on).
   const [override, setOverride] = useState<boolean | null>(() => {
     try { const v = localStorage.getItem(LS_KEY); return v == null ? null : v === '1'; } catch { return null; }
   });
-  const enabled = isMarketer ? (override ?? true) : false;   // players: always off
+  const enabled = isMarketer ? (override ?? defaultOn) : false;   // players: always off; brand sets the marketer default
   const toggle = useCallback(() => {
     setOverride((prev) => {
-      const cur = prev ?? true;
+      const cur = prev ?? defaultOn;
       const next = !cur;
       try { localStorage.setItem(LS_KEY, next ? '1' : '0'); } catch { /* ignore */ }
       return next;
     });
-  }, []);
+  }, [defaultOn]);
   return <Ctx.Provider value={{ enabled, canToggle: isMarketer, toggle }}>{children}</Ctx.Provider>;
 }
 

@@ -37,7 +37,7 @@ DECLARE
   own uuid := public._root_super_admin();
   pa1 uuid := gen_random_uuid(); sb uuid := gen_random_uuid(); ab uuid := gen_random_uuid(); supb uuid := gen_random_uuid();
   pb uuid := gen_random_uuid(); mb uuid := gen_random_uuid(); pa uuid := gen_random_uuid(); ma uuid := gen_random_uuid();
-  newu uuid := gen_random_uuid(); newu2 uuid := gen_random_uuid();
+  newu uuid := gen_random_uuid(); newu2 uuid := gen_random_uuid(); newu3 uuid := gen_random_uuid(); newu4 uuid := gen_random_uuid(); code text;
   r jsonb; e text; n int; v int; g numeric;
 BEGIN
   -- ── fixtures ──
@@ -366,6 +366,45 @@ BEGIN
   e := pg_temp.err('SELECT count(*) FROM public.platform_sites_overview()');
   out := out || jsonb_build_object('t','brand staff cannot open the platform overview', 'ok', e = 'FORBIDDEN', 'got', e);
 
+  -- ── brand assets (storage) ──
+  PERFORM pg_temp.act(pa1);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  e := pg_temp.err(format('INSERT INTO storage.objects(bucket_id, name, owner_id) VALUES (%L, %L, %L)', 'brand-assets', B || '/plane/e2e.png', pa1));
+  out := out || jsonb_build_object('t','platform admin uploads into its brand''s folder', 'ok', e = 'ok', 'got', e);
+  e := pg_temp.err(format('INSERT INTO storage.objects(bucket_id, name, owner_id) VALUES (%L, %L, %L)', 'brand-assets', C || '/plane/e2e.png', pa1));
+  out := out || jsonb_build_object('t','platform admin cannot upload into another platform''s brand', 'ok', e LIKE '%row-level security%', 'got', e);
+  e := pg_temp.err(format('INSERT INTO storage.objects(bucket_id, name, owner_id) VALUES (%L, %L, %L)', 'brand-assets', 'no-brand/e2e.png', pa1));
+  out := out || jsonb_build_object('t','uploads must sit under a brand id', 'ok', e LIKE '%row-level security%', 'got', e);
+  EXECUTE 'RESET ROLE';
+  PERFORM pg_temp.act(sb);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  e := pg_temp.err(format('INSERT INTO storage.objects(bucket_id, name, owner_id) VALUES (%L, %L, %L)', 'brand-assets', B || '/logo/e2e.png', sb));
+  out := out || jsonb_build_object('t','brand owner uploads its own logo', 'ok', e = 'ok', 'got', e);
+  EXECUTE 'RESET ROLE';
+  PERFORM pg_temp.act(ab);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  e := pg_temp.err(format('INSERT INTO storage.objects(bucket_id, name, owner_id) VALUES (%L, %L, %L)', 'brand-assets', B || '/logo/e2e2.png', ab));
+  out := out || jsonb_build_object('t','brand admin (not owner) cannot upload', 'ok', e LIKE '%row-level security%', 'got', e);
+  EXECUTE 'RESET ROLE';
+  out := out || jsonb_build_object('t','bucket is public, raster only, 2 MB', 'ok',
+    (SELECT public AND file_size_limit = 2097152 AND NOT ('image/svg+xml' = ANY(allowed_mime_types)) FROM storage.buckets WHERE id = 'brand-assets'));
+
+  -- ── referral links switch ──
+  PERFORM pg_temp.act(own);
+  PERFORM public.admin_brand_save(B, NULL, NULL, NULL, '{"features.registrations":true,"features.referrals":false}'::jsonb, NULL);
+  PERFORM public._ensure_referral_code(mb);
+  code := (SELECT referral_code FROM profiles WHERE id = mb);
+  INSERT INTO auth.users(id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at)
+  VALUES (newu3, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'brand-new3@example.invalid',
+          jsonb_build_object('username', 'brndnew3', 'phone', '254733000097', 'site_slug', 'e2e-brand-b', 'referral_code', code), now(), now());
+  out := out || jsonb_build_object('t','referral links off: a ?ref= sign-up is not credited to that marketer', 'ok',
+    code IS NOT NULL AND (SELECT referred_by FROM profiles WHERE id = newu3) IS NULL, 'got', code);
+  PERFORM public.admin_brand_save(B, NULL, NULL, NULL, '{"features.referrals":true}'::jsonb, NULL);
+  INSERT INTO auth.users(id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at)
+  VALUES (newu4, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'brand-new4@example.invalid',
+          jsonb_build_object('username', 'brndnew4', 'phone', '254733000096', 'site_slug', 'e2e-brand-b', 'referral_code', code), now(), now());
+  out := out || jsonb_build_object('t','referral links on: the sign-up is credited', 'ok', (SELECT referred_by FROM profiles WHERE id = newu4) = mb);
+
   RAISE EXCEPTION 'E2E_RESULT %', out::text;
 END $t$;
 """
@@ -384,5 +423,11 @@ for r in results:
     ok = r.get("ok") is True
     bad += 0 if ok else 1
     print(f"  [{'PASS' if ok else 'FAIL'}] {r['t']}" + ("" if ok else f"  -- got {json.dumps(r.get('got'))[:600]}"))
+# The web app's typed settings file must match the registry it was generated from.
+chk = __import__('subprocess').run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'scripts', 'sync_brand_settings.py'), '--check'], capture_output=True, text=True)
+ok = chk.returncode == 0
+bad += 0 if ok else 1
+results.append({'t': 'settings.generated.ts matches brand_setting_defs', 'ok': ok})
+print(f"  [{'PASS' if ok else 'FAIL'}] settings.generated.ts matches brand_setting_defs" + ('' if ok else '  -- ' + chk.stdout.strip()))
 print(f"\n{len(results) - bad} passed, {bad} failed (everything rolled back)")
 sys.exit(1 if bad else 0)
