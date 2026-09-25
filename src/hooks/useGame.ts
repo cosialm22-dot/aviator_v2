@@ -1,19 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getMultiplierAtTime } from '../lib/gameEngine';
+import { serverNow, setServerOffset, syncClock } from '../lib/serverClock';
 import type { GameStatus, GameRound, Profile } from '../types';
 
 // ============================================================================
-// useGame - SERVER-AUTHORITATIVE (Phase 5)
+// useGame - SERVER-AUTHORITATIVE
 // ----------------------------------------------------------------------------
 // The single shared round lives in `game_rounds` and is advanced by the
-// server-side driver (game_tick). This hook is a pure CONSUMER:
-//   • Subscribes to game_rounds via Realtime for the live round lifecycle.
-//   • Animates the multiplier locally from the server's started_at, then SNAPS
-//     to the server-revealed crash_multiplier on the 'crashed' event. The crash
-//     point is hidden server-side until then (provably fair).
+// server-side driver (game_drive → game_tick). This hook is a pure CONSUMER:
+//   • ONE Realtime channel for the whole session: the public broadcast topic
+//     "game" carries `round` events (new round / take-off / crash) and `bet`
+//     events (real players only). Payloads are built by the database and never
+//     contain the crash time, crash point or seed before the crash.
+//   • Animates the multiplier from the server's started_at using the SERVER
+//     clock (NTP-style offset from server_time()), then snaps to the revealed
+//     crash_multiplier on the crash event.
+//   • Reads state over REST only on first load and after a reconnect.
 //   • Places bets / cashes out ONLY through the place_bet / cash_out RPCs.
-//   • Reads its own bets + the live board from `bets` via Realtime.
 // It never writes wallets/bets/transactions/game_rounds directly.
 //
 // DUAL BET: a player may hold up to TWO independent bets per round, one per
@@ -23,6 +27,10 @@ import type { GameStatus, GameRound, Profile } from '../types';
 // ============================================================================
 
 const UI_THROTTLE_MS = 66; // ~15fps React updates; canvas reads the ref at 60fps
+const CLOCK_RESYNC_MS = 5 * 60_000;
+// Public columns only (the crash instant and override flags are not readable by clients).
+const ROUND_COLS = 'id, round_number, crash_multiplier, status, started_at, crashed_at, created_at, betting_ends_at, seed_hash, server_seed';
+const BET_COLS = 'id, round_id, user_id, username, avatar_color, amount, auto_cashout, cashout_multiplier, winnings, status, is_bot, slot';
 
 export type BetSlot = 1 | 2;
 export const BET_SLOTS: readonly BetSlot[] = [1, 2] as const;
@@ -32,7 +40,6 @@ type RoundRow = GameRound & {
   betting_ends_at: string | null;
   seed_hash: string | null;
   server_seed: string | null;
-  crashes_at: string | null;
 };
 
 export interface ActiveBet {
@@ -66,6 +73,7 @@ export interface LiveBetEntry {
 // realtime payload and the hydrate query both conform to this subset.
 type BetRow = {
   id: string;
+  round_id?: string;
   user_id: string | null;
   username: string;
   avatar_color: string;
@@ -122,10 +130,14 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
   const statusRef = useRef<GameStatus>('idle');
   const roundRef = useRef<RoundRow | null>(null);
   const startedAtRef = useRef<number | null>(null);
-  const crashesAtRef = useRef<number | null>(null);
   const lastUiRef = useRef<number>(0);
   const profileRef = useRef<Profile | null>(profile);
   profileRef.current = profile;
+  // Latest wallet refresher, read through a ref so the realtime channel never has to be
+  // torn down and re-joined when the parent re-creates the callback (that cost a resync
+  // and risked missing events every round).
+  const refreshRef = useRef(onRefreshWallet);
+  refreshRef.current = onRefreshWallet;
 
   const getMultiplier = useCallback(() => multiplierRef.current, []);
 
@@ -138,13 +150,8 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
   const stopRaf = () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); rafRef.current = 0; };
   const animate = useCallback(() => {
     if (statusRef.current !== 'flying' || startedAtRef.current == null) return;
-    const nowMs = Date.now();
-    // Clamp to the server-provided crash instant so the climb approaches but never
-    // exceeds the crash point (no overshoot / snap-back). Falls back to unbounded
-    // when crashes_at is absent (older rows / algorithm rounds without it).
-    const crashAt = crashesAtRef.current;
-    const elapsed = Math.min(nowMs, crashAt ?? nowMs) - startedAtRef.current;
-    const m = getMultiplierAtTime(elapsed);
+    // Server clock, so every player sees the multiplier the server will pay.
+    const m = getMultiplierAtTime(serverNow() - startedAtRef.current);
     multiplierRef.current = m;
     const now = Date.now();
     if (now - lastUiRef.current >= UI_THROTTLE_MS) {
@@ -170,7 +177,6 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
     if (row.status === 'waiting') {
       stopRaf();
       startedAtRef.current = null;
-      crashesAtRef.current = null;
       multiplierRef.current = 1.0;
       setCurrentMultiplier(1.0);
       setCrashPoint(0);
@@ -179,8 +185,7 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
       statusRef.current = 'waiting';
       setGameStatus('waiting');
     } else if (row.status === 'flying') {
-      startedAtRef.current = row.started_at ? new Date(row.started_at).getTime() : Date.now();
-      crashesAtRef.current = row.crashes_at ? new Date(row.crashes_at).getTime() : null;
+      startedAtRef.current = row.started_at ? new Date(row.started_at).getTime() : serverNow();
       statusRef.current = 'flying';
       setGameStatus('flying');
       stopRaf();
@@ -202,92 +207,92 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
       // prepend to history
       setHistory((h) => [row as GameRound, ...h.filter((x) => x.id !== row.id)].slice(0, 50));
       // server may have auto-cashed us - reconcile wallet
-      void onRefreshWallet();
+      void refreshRef.current();
     }
-  }, [animate, onRefreshWallet]);
+  }, [animate]);
 
-  // ── Initial load: history + whatever round is currently live ──
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data: hist } = await supabase
-        .from('game_rounds').select('*').eq('status', 'crashed')
-        .order('round_number', { ascending: false }).limit(50);
-      if (!cancelled && hist) setHistory(hist as GameRound[]);
+  // ── Live board helpers ──
+  const toEntry = (b: BetRow): LiveBetEntry => ({
+    id: b.id, username: b.username, avatar_color: b.avatar_color, amount: Number(b.amount),
+    cashout_multiplier: b.cashout_multiplier, winnings: b.winnings, status: b.status, is_bot: b.is_bot,
+  });
+  const upsertBet = useCallback((b: BetRow) => {
+    const entry = toEntry(b);
+    setLiveBets((prev) => {
+      const i = prev.findIndex((x) => x.id === b.id);
+      if (i === -1) return [entry, ...prev];
+      const next = prev.slice(); next[i] = entry; return next;
+    });
+    if (b.user_id && b.user_id === profileRef.current?.id && !b.is_bot) {
+      const slot = toSlot(b.slot);
+      setActiveBets((prev) => ({ ...prev, [slot]: toActiveBet(b) }));
+      if (b.status === 'won') void refreshRef.current();
+    }
+  }, []);
 
-      const { data: live } = await supabase
-        .from('game_rounds').select('*').in('status', ['waiting', 'flying'])
-        .order('round_number', { ascending: false }).limit(1).maybeSingle();
-      if (!cancelled && live) applyRound(live as RoundRow);
-    })();
-    return () => { cancelled = true; stopRaf(); };
-  }, [applyRound]);
-
-  // ── Realtime: round lifecycle ──
-  useEffect(() => {
-    const ch = supabase
-      .channel('rt-game-rounds')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_rounds' },
-        (payload) => { if (payload.new) applyRound(payload.new as RoundRow); })
-      .subscribe();
-    return () => { void supabase.removeChannel(ch); };
-  }, [applyRound]);
-
-  // ── Realtime: live board + own bets (both slots), scoped to the current round ──
-  const roundId = currentRound?.id ?? null;
-  useEffect(() => {
-    if (!roundId) return;
-    // hydrate existing bets for this round (covers reconnects mid-round)
-    (async () => {
-      const { data } = await supabase
-        .from('bets').select('*').eq('round_id', roundId).order('created_at', { ascending: false });
-      if (data) {
-        setLiveBets(data.map((b: BetRow) => ({
-          id: b.id, username: b.username, avatar_color: b.avatar_color, amount: Number(b.amount),
-          cashout_multiplier: b.cashout_multiplier, winnings: b.winnings, status: b.status, is_bot: b.is_bot,
-        })));
-        const mineRows = data.filter((b: BetRow) => b.user_id && b.user_id === profileRef.current?.id && !b.is_bot);
-        if (mineRows.length) {
+  // Full state over REST: on first load and after every (re)subscribe, so nothing is missed
+  // while the socket was down. Between those, broadcast events are the only traffic.
+  const resync = useCallback(async () => {
+    const [{ data: hist }, { data: live }] = await Promise.all([
+      supabase.from('game_rounds').select(ROUND_COLS).eq('status', 'crashed')
+        .order('round_number', { ascending: false }).limit(50),
+      supabase.from('game_rounds').select(ROUND_COLS).in('status', ['waiting', 'flying'])
+        .order('round_number', { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    if (hist) setHistory(hist as unknown as GameRound[]);
+    if (live) {
+      applyRound(live as unknown as RoundRow);
+      const { data: bets } = await supabase.from('bets').select(BET_COLS)
+        .eq('round_id', (live as { id: string }).id).order('created_at', { ascending: false });
+      if (bets) {
+        setLiveBets((bets as unknown as BetRow[]).map(toEntry));
+        const mine = (bets as unknown as BetRow[]).filter((b) => b.user_id && b.user_id === profileRef.current?.id && !b.is_bot);
+        if (mine.length) {
           setActiveBets((prev) => {
             const next: ActiveBets = { ...prev };
-            for (const b of mineRows) next[toSlot(b.slot)] = toActiveBet(b);
+            for (const b of mine) next[toSlot(b.slot)] = toActiveBet(b);
             return next;
           });
         }
       }
-    })();
+    }
+  }, [applyRound]);
 
-    const upsert = (b: BetRow) => {
-      const entry: LiveBetEntry = {
-        id: b.id, username: b.username, avatar_color: b.avatar_color, amount: Number(b.amount),
-        cashout_multiplier: b.cashout_multiplier, winnings: b.winnings, status: b.status, is_bot: b.is_bot,
-      };
-      setLiveBets((prev) => {
-        const i = prev.findIndex((x) => x.id === b.id);
-        if (i === -1) return [entry, ...prev];
-        const next = prev.slice(); next[i] = entry; return next;
+  // ── Server clock (NTP-style), refreshed every few minutes ──
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      const r = await syncClock(async () => {
+        const { data, error } = await supabase.rpc('server_time');
+        if (error) throw error;
+        return Number(data);
       });
-      if (b.user_id && b.user_id === profileRef.current?.id && !b.is_bot) {
-        const slot = toSlot(b.slot);
-        setActiveBets((prev) => ({ ...prev, [slot]: toActiveBet(b) }));
-        if (b.status === 'won') void onRefreshWallet();
-      }
+      if (!cancelled && r) setServerOffset(r.offset);
     };
+    void run();
+    const t = setInterval(() => { void run(); }, CLOCK_RESYNC_MS);
+    return () => { cancelled = true; clearInterval(t); };
+  }, []);
 
+  // ── One realtime channel for the session: round + bet broadcasts ──
+  useEffect(() => {
     const ch = supabase
-      .channel(`rt-bets-${roundId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bets', filter: `round_id=eq.${roundId}` },
-        (payload) => { if (payload.new) upsert(payload.new as BetRow); })
-      .subscribe();
-    return () => { void supabase.removeChannel(ch); };
-  }, [roundId, onRefreshWallet]);
+      .channel('game')
+      .on('broadcast', { event: 'round' }, ({ payload }) => { if (payload?.id) applyRound(payload as RoundRow); })
+      .on('broadcast', { event: 'bet' }, ({ payload }) => {
+        const b = payload as BetRow;
+        if (b?.id && b.round_id && b.round_id === roundRef.current?.id) upsertBet(b);
+      })
+      .subscribe((status) => { if (status === 'SUBSCRIBED') void resync(); });
+    return () => { stopRaf(); void supabase.removeChannel(ch); };
+  }, [applyRound, upsertBet, resync]);
 
   // ── Betting countdown derived from server betting_ends_at ──
   useEffect(() => {
     if (gameStatus !== 'waiting') { setCountdown(0); return; }
     const endsAt = roundRef.current?.betting_ends_at ? new Date(roundRef.current.betting_ends_at).getTime() : null;
     if (!endsAt) return;
-    const tick = () => setCountdown(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+    const tick = () => setCountdown(Math.max(0, Math.ceil((endsAt - serverNow()) / 1000)));
     tick();
     const id = setInterval(tick, 200);
     return () => clearInterval(id);
