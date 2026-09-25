@@ -26,7 +26,6 @@ import type { GameStatus, GameRound, Profile } from '../types';
 // independently, so the two slots never interfere with one another.
 // ============================================================================
 
-const UI_THROTTLE_MS = 66; // ~15fps React updates; canvas reads the ref at 60fps
 const CLOCK_RESYNC_MS = 5 * 60_000;
 // Public columns only (the crash instant and override flags are not readable by clients).
 const ROUND_COLS = 'id, round_number, crash_multiplier, status, started_at, crashed_at, created_at, betting_ends_at, seed_hash, server_seed';
@@ -130,7 +129,6 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
   const statusRef = useRef<GameStatus>('idle');
   const roundRef = useRef<RoundRow | null>(null);
   const startedAtRef = useRef<number | null>(null);
-  const lastUiRef = useRef<number>(0);
   const profileRef = useRef<Profile | null>(profile);
   profileRef.current = profile;
   // Latest wallet refresher, read through a ref so the realtime channel never has to be
@@ -152,12 +150,10 @@ export function useGame(profile: Profile | null, _walletBalance: number, onRefre
     if (statusRef.current !== 'flying' || startedAtRef.current == null) return;
     // Server clock, so every player sees the multiplier the server will pay.
     const m = getMultiplierAtTime(serverNow() - startedAtRef.current);
+    // Only the ref moves at frame rate. React state is not touched per frame: re-rendering the
+    // game tree 15x a second froze low-end phones (worst with the Top list open). Components that
+    // show the live value read getMultiplier() on their own clock (useLiveMultiplier).
     multiplierRef.current = m;
-    const now = Date.now();
-    if (now - lastUiRef.current >= UI_THROTTLE_MS) {
-      lastUiRef.current = now;
-      setCurrentMultiplier(m);
-    }
     rafRef.current = requestAnimationFrame(animate);
   }, []);
 

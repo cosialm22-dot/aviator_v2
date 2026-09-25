@@ -5,8 +5,6 @@ import { BIRD_MAP, DEFAULT_BIRD, drawBird, drawBirdPerched } from './birds';
 
 interface Props {
   status: GameStatus;
-  /** Latest multiplier as React state (used only for the a11y live region upstream). */
-  multiplier: number;
   /** 60fps multiplier sampler from the game engine (drives all canvas motion). */
   getMultiplier: () => number;
   /** Final multiplier of the crashed round. */
@@ -100,6 +98,9 @@ const C_TRAIL_LINE  = '#e51e3c';
 const C_TRAIL_DEAD  = '#7a2030';
 const C_CRASH       = '#e51e3c';
 
+// Set once per session when frames are too expensive (see the adaptive quality check).
+let lowPower = false;
+
 export default function GameCanvas({ status, getMultiplier, crashPoint, countdown, planeSkin, streamer }: Props) {
   activeBird = (planeSkin || DEFAULT_BIRD).toLowerCase();
   activeStreamer = !!streamer;
@@ -111,6 +112,8 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
   const flashRef   = useRef(0);       // crash flash frames
   const dimRef     = useRef({ w: 0, h: 0, dpr: 1 });
   const cdRef      = useRef({ value: 0, at: 0, total: 0 }); // smooths the whole-second countdown
+  const resizeRef  = useRef<() => void>(() => {});
+  const costRef    = useRef({ ema: 0, n: 0 });                 // draw cost per frame (ms)
 
   const stateRef = useRef({ status, crashPoint, getMultiplier, countdown });
   stateRef.current = { status, crashPoint, getMultiplier, countdown };
@@ -122,13 +125,14 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
     const ctx = canvas.getContext('2d')!;
     const resize = () => {
       const r = canvas.parentElement!.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, lowPower ? 1 : 2);
       dimRef.current = { w: r.width, h: r.height, dpr };
       canvas.width  = Math.round(r.width  * dpr);
       canvas.height = Math.round(r.height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
+    resizeRef.current = resize;
     const ro = new ResizeObserver(resize);
     ro.observe(canvas.parentElement!);
     return () => ro.disconnect();
@@ -153,6 +157,11 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
     const ctx = canvas.getContext('2d')!;
 
     const frame = () => {
+      const t0 = performance.now();
+      // Adaptive quality: if drawing a frame costs too much (low-end phone), drop to 1x pixels and
+      // no blurs for the rest of the session so the plane keeps moving smoothly.
+      const c = costRef.current;
+      if (!lowPower && c.n > 90 && c.ema > 9) { lowPower = true; resizeRef.current(); }
       const { status, getMultiplier, crashPoint, countdown } = stateRef.current;
       const { w: W, h: H } = dimRef.current;
       if (W === 0 || H === 0) { rafRef.current = requestAnimationFrame(frame); return; }
@@ -177,6 +186,7 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
         const remain = countdown > 0 ? Math.max(countdown - 1, countdown - (now - cd.at) / 1000) : 0;
         drawRestingPlane(ctx, W, H, now);
         drawWaiting(ctx, W, H, now, status === 'waiting' && cd.total > 0 ? remain / cd.total : -1);
+        track(t0);
         rafRef.current = requestAnimationFrame(frame);
         return;
       }
@@ -256,17 +266,21 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       ctx.fillStyle = fill;
       ctx.fill();
 
-      // Curve edge with a soft red glow.
+      // Curve edge with a soft red glow: a wide translucent stroke under the line (a Gaussian
+      // shadowBlur on a 96-point path is one of the most expensive canvas operations on phones).
       ctx.save();
-      ctx.shadowBlur  = isCrashed ? 4 : 14;
-      ctx.shadowColor = isCrashed ? '#5a1020' : '#e51e3c';
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
       for (const p of pts) ctx.lineTo(p.x, p.y);
+      const lw = Math.max(2.5, W * 0.0038);
+      ctx.lineJoin = 'round';
+      ctx.lineCap  = 'round';
+      if (!isCrashed) {
+        ctx.strokeStyle = 'rgba(229, 30, 60, 0.22)'; ctx.lineWidth = lw * 4; ctx.stroke();
+        ctx.strokeStyle = 'rgba(229, 30, 60, 0.35)'; ctx.lineWidth = lw * 2.2; ctx.stroke();
+      }
       ctx.strokeStyle = isCrashed ? C_TRAIL_DEAD : C_TRAIL_LINE;
-      ctx.lineWidth   = Math.max(2.5, W * 0.0038);
-      ctx.lineJoin    = 'round';
-      ctx.lineCap     = 'round';
+      ctx.lineWidth   = lw;
       ctx.stroke();
       ctx.restore();
 
@@ -288,7 +302,14 @@ export default function GameCanvas({ status, getMultiplier, crashPoint, countdow
       if (isCrashed) { if (!activeStreamer) drawCrashText(ctx, W, H, crashPoint); }
       else           drawMultiplier(ctx, W, H, mult, '#ffffff');
 
+      track(t0);
       rafRef.current = requestAnimationFrame(frame);
+    };
+    const track = (t0: number) => {
+      const c = costRef.current;
+      const dt = performance.now() - t0;
+      c.ema = c.n === 0 ? dt : c.ema * 0.95 + dt * 0.05;
+      c.n++;
     };
 
     rafRef.current = requestAnimationFrame(frame);
@@ -317,9 +338,13 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, now
   // canvas from the top-left toward the bottom-right.
   const rot = -now * 0.000045;
   ctx.save();
+  const TAU = Math.PI * 2;
   for (let i = 0; i < N; i++) {
-    const a0 = rot + (i)     * (Math.PI * 2 / N);
-    const a1 = rot + (i + 1) * (Math.PI * 2 / N);
+    const a0 = rot + (i)     * (TAU / N);
+    const a1 = rot + (i + 1) * (TAU / N);
+    // Only the wedges that cross the canvas (angles ~0..90° from the bottom-left origin) are drawn.
+    const m0 = ((a0 % TAU) + TAU) % TAU;
+    if (m0 > Math.PI / 2 + 0.12 && m0 < TAU - 0.2) continue;
     ctx.beginPath();
     ctx.moveTo(ox, oy);
     ctx.lineTo(ox + R * Math.cos(a0), oy - R * Math.sin(a0));
@@ -389,7 +414,7 @@ function drawMultiplier(ctx: CanvasRenderingContext2D, W: number, H: number, m: 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `800 ${fs}px Inter, "Arial Black", Arial, sans-serif`;
-  ctx.shadowBlur = fs * 0.35;
+  ctx.shadowBlur = lowPower ? 0 : fs * 0.35;
   ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.fillStyle = color;
   ctx.fillText(activeStreamer ? fmt(m) : `${fmt(m)}x`, W / 2, H * 0.40);
@@ -403,13 +428,13 @@ function drawCrashText(ctx: CanvasRenderingContext2D, W: number, H: number, m: n
   ctx.textBaseline = 'middle';
   const labelFs = Math.max(16, Math.min(W * 0.045, 34));
   ctx.font = `700 ${labelFs}px Inter, Arial, sans-serif`;
-  ctx.shadowBlur = 16; ctx.shadowColor = 'rgba(0,0,0,0.7)';
+  ctx.shadowBlur = lowPower ? 0 : 16; ctx.shadowColor = 'rgba(0,0,0,0.7)';
   ctx.fillStyle = '#ffffff';
   ctx.fillText('FLEW AWAY!', W / 2, H * 0.34);
 
   const fs = multFont(W, H);
   ctx.font = `800 ${fs}px Inter, "Arial Black", Arial, sans-serif`;
-  ctx.shadowBlur = fs * 0.4; ctx.shadowColor = 'rgba(232,18,60,0.55)';
+  ctx.shadowBlur = lowPower ? 0 : fs * 0.4; ctx.shadowColor = 'rgba(232,18,60,0.55)';
   ctx.fillStyle = C_CRASH;
   ctx.fillText(`${fmt(m)}x`, W / 2, H * 0.34 + labelFs * 0.7 + fs * 0.5);
   ctx.restore();

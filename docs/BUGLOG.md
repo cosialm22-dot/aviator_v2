@@ -4,6 +4,31 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #29 — Game froze when switching All Bets / Previous / Top; win shown on the plane; Real/Demo on the plane — FIXED (branch `fix/canvas-ui-wins`)
+- **Root cause of the freeze:** during every flight the engines pushed the multiplier into React state about 15 times a second. That re-rendered the whole game screen each time: both bet panels, the history strip, and both bets boards (one was only hidden with CSS).
+  - With the Top or Previous list open the tree was larger.
+  - On a low-end phone, emulated with a 20x CPU throttle, the frame rate in flight fell to 7–9 fps with Top/Rounds/Year open, and each tab tap took 0.5–1.9 s. That reads as a frozen game.
+  - It could not be seen on a desktop at full speed.
+- **Fix:**
+  - The multiplier now lives only in a ref. The canvas reads it every frame. Only the Cash Out value and the screen-reader status sample it on their own clock (`useLiveMultiplier`, 12 and 4 per second). React commits during a flight dropped from 15+/s to 4/s, and those remaining are a single hidden leaf.
+  - The bets board and the history strip are memoised, and only one bets board is mounted (a media query instead of CSS `hidden`), so there is one set of queries instead of two.
+  - On phones the board is part of the page scroll, with no nested scroller to trap touches.
+  - The screen-reader status no longer announces every multiplier during the flight.
+  - **Canvas:**
+    - It skips the ~54 of 72 sunburst wedges that are off screen.
+    - The trail glow is two translucent strokes instead of a Gaussian `shadowBlur` on a 96-point path.
+    - If a frame costs over 9 ms on average (a slow phone), it switches for the session to 1x pixels and no blurs.
+  - Same 20x-throttled test: in flight with Top/Previous open, 18–23 fps instead of 7–13, and taps respond immediately.
+- **Real / Demo** moved from the plane into the ☰ menu (top, as a two-way switch). Picking one closes the menu.
+- **Wins fly into the balance:** the "+KES · x" pill over the plane is gone. On a cash-out, the amount leaves that bet's button as a chip with a short trail of coins, arcs into the header balance, and the balance pulses and counts up as it lands, with a short haptic tick on Android.
+  - It uses the Web Animations API on transform and opacity only, so it runs on the compositor and stays smooth even if the main thread is busy.
+  - It respects reduced motion (no flight, the balance just updates).
+  - The header holds a balance increase until the chip lands, so the number grows as the coins arrive.
+- **Tests:**
+  - `aviator-ui.e2e.mjs` 88/88 on 3 sizes: the chip starts at the button, shows only the amount, travels toward the balance, is cleaned up, and the balance counts to the exact new total. The Cash Out value climbs during the flight, and Real / Demo is in the menu.
+  - `mobile_ui_e2e.py` 61/61: React commits during a flight with Top open, tab switches respond, Real / Demo in the menu.
+  - `game_live_ui_e2e.py` 19/19, `megapay_ui_e2e.py` 57/57, unit tests 99/99.
+
 ## #28 — Jet roar when the plane flies away — DONE (branch `feat/flyaway-sound`)
 - **Source:** "Jet Plane Flyby" by qubodup on Freesound (https://freesound.org/people/qubodup/sounds/189446/). It is CC0 public domain, taken from a U.S. Government video, so no licence fee and no attribution are required. The link is kept in `public/sounds/LICENSE.txt`.
 - **Edit:** 3.0–9.0 s of the recording, sped up 2.2x so the pitch rises and it sounds like a fast climb. The roar hits within 0.3 s, then a 0.85 s fade. 2.7 s long, mono MP3, 22 KB.
