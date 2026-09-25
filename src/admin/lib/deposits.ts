@@ -69,12 +69,12 @@ export function maskPhone(p: string | null | undefined): string {
 }
 
 export const STATUS_META: Record<DepositStatus, { label: string; cls: string }> = {
-  initiated: { label: 'Sending', cls: 'bg-white/[0.06] text-muted border-line' },
-  pending:   { label: 'Waiting for PIN', cls: 'bg-brand/10 text-brand border-brand/30' },
-  completed: { label: 'Credited', cls: 'bg-up/10 text-up border-up/30' },
-  failed:    { label: 'Failed', cls: 'bg-down/10 text-down border-down/30' },
-  cancelled: { label: 'Cancelled', cls: 'bg-down/10 text-down border-down/30' },
-  timeout:   { label: 'Unconfirmed', cls: 'bg-amber-400/10 text-amber-300 border-amber-400/30' },
+  initiated: { label: 'Sending', cls: 'bg-raised text-muted' },
+  pending:   { label: 'Waiting for PIN', cls: 'bg-brand/15 text-brand' },
+  completed: { label: 'Credited', cls: 'bg-up/15 text-up' },
+  failed:    { label: 'Failed', cls: 'bg-down/15 text-down' },
+  cancelled: { label: 'Cancelled', cls: 'bg-down/15 text-down' },
+  timeout:   { label: 'Unconfirmed', cls: 'bg-warn/15 text-warn' },
 };
 
 export function relTime(iso: string | null | undefined, now = Date.now()): string {

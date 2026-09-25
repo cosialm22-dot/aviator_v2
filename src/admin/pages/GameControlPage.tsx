@@ -4,13 +4,14 @@ import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import { useAdmin } from '../roleContext';
 import { getMultiplierAtTime } from '../../lib/gameEngine';
-import { Target, Power, Plus, ListPlus, Trash2, X, Plane, Layers } from 'lucide-react';
+import { Power, Plus, ListPlus, Trash2, X, Plane, Layers, RefreshCw } from 'lucide-react';
+import { Badge, Button, Card, Empty, ErrorState, Modal, PageHeader, inputCls } from '../ui/kit';
 
 interface LiveRound { id:string; round_number:number; status:string; started_at:string|null; betting_ends_at:string|null; source:string; queue_id:string|null; crash_point:number|null }
 interface CQItem { id:string; crash_multiplier:number; position:number; status:string; created_at:string }
 
 const POLL_MS=2000; const TICK_MS=120; const MIN_C=1; const MAX_C=80;
-const CAP='text-[11px] font-semibold uppercase tracking-[0.1em] text-muted';
+const areaCls=inputCls.replace('h-9 ','')+' py-2 resize-y tabular-nums';
 
 function fmt(n:number|null|undefined):string{ return n==null?'—':Number(n).toFixed(2)+'x'; }
 function elapsedMs(iso:string|null):number{ return iso?Math.max(0,Date.now()-new Date(iso).getTime()):0; }
@@ -18,10 +19,10 @@ function elapsedMs(iso:string|null):number{ return iso?Math.max(0,Date.now()-new
 function cpTone(v:number|null):string{
   if(v==null) return 'text-ink';
   if(v<1.5) return 'text-down';
-  if(v<2)   return 'text-amber-400';
+  if(v<2)   return 'text-warn';
   if(v<5)   return 'text-up';
-  if(v<10)  return 'text-cyan-400';
-  return 'text-amber-300';
+  if(v<10)  return 'text-brand';
+  return 'text-gold';
 }
 
 export default function GameControlPage(){
@@ -37,6 +38,7 @@ export default function GameControlPage(){
   const [confirmClear,setConfirmClear]=useState(false);
   const [lock,setLock]=useState<string|null>(null);
   const [,setNow]=useState(Date.now());
+  const closeClear=useCallback(()=>setConfirmClear(false),[]); // stable: the page re-renders every tick
   const pRef=useRef<ReturnType<typeof setInterval>>();
   const aRef=useRef<AbortController|null>(null);
 
@@ -100,148 +102,129 @@ export default function GameControlPage(){
   }
 
   return(
-    <div className="space-y-6">
-      <div className="mx-auto max-w-3xl space-y-5">
+    <>
+      <PageHeader
+        title="Crash Control"
+        subtitle="The round in play and the upcoming crash points."
+        actions={<Button onClick={fetchAll} loading={loading}>{!loading&&<RefreshCw size={14} />}{loading?'…':'Refresh'}</Button>}
+      />
 
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 border border-brand/20"><Target size={18} className="text-brand" /></span>
-            <div>
-              <h1 className="text-[20px] font-semibold text-ink tracking-tight">Crash Control</h1>
-              <p className="text-[12px] text-muted">The round in play and the upcoming crash points.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {err&&<span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[240px] truncate" title={err}>{err}</span>}
-            <button onClick={fetchAll} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 transition-colors disabled:opacity-50">{loading&&<Spin />}{loading?'…':'Refresh'}</button>
-          </div>
-        </div>
+      {err&&<ErrorState message={err} />}
 
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {/* ============ NOW ============ */}
-        <section className="rounded-2xl border border-line bg-surface overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-line bg-white/[0.02]">
-            <span className={CAP+' flex items-center gap-2'}><Plane size={13} className={isFlying?'text-up':'text-faint'} />Now</span>
-            {round&&<span className="text-[11px] text-faint font-mono">Round #{round.round_number}</span>}
-          </div>
-
+        <Card
+          title={<span className="flex items-center gap-2"><Plane size={15} className={isFlying?'text-up':'text-faint'} />Now</span>}
+          action={round&&<span className="text-[13px] tabular-nums text-faint">Round #{round.round_number}</span>}
+        >
           {!round?(
-            <div className="px-5 py-12 text-center">
-              <p className="text-muted text-[14px] font-medium">No round in play</p>
-              <p className="text-faint text-[12px] mt-1">The next round is being prepared.</p>
-            </div>
+            <Empty icon={<Plane size={20} strokeWidth={1.75} />} title="No round in play" body="The next round is being prepared." />
           ):(
-            <div className="px-5 py-6">
-              <div className="flex items-end justify-between gap-6 flex-wrap">
+            <div className="pt-2">
+              <div className="flex flex-wrap items-end justify-between gap-6">
                 <div>
-                  <div className="text-[11px] text-muted mb-1.5">{isFlying?'Crashes at':'Will crash at'}</div>
-                  <div className={'text-[52px] leading-none font-bold font-mono tracking-tight '+cpTone(cp)}>{fmt(cp)}</div>
+                  <div className="mb-1.5 text-[13px] font-medium text-muted">{isFlying?'Crashes at':'Will crash at'}</div>
+                  <div className={'text-[52px] font-semibold leading-none tabular-nums tracking-[-0.02em] '+cpTone(cp)}>{fmt(cp)}</div>
                   <div className="mt-3 flex items-center gap-2">
-                    <span className={'inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide '+(isFlying?'bg-up/10 text-up':'bg-amber-500/10 text-amber-400')}>
-                      {isFlying?'FLYING':'BETTING OPEN'}
-                    </span>
-                    <span className="text-[11px] text-faint">{round.source==='queue'?'from queue':'algorithm'}</span>
+                    <Badge tone={isFlying?'up':'warn'}>{isFlying?'FLYING':'BETTING OPEN'}</Badge>
+                    <span className="text-[12px] text-faint">{round.source==='queue'?'from queue':'algorithm'}</span>
                   </div>
                 </div>
                 {isFlying&&liveMult!=null&&(
                   <div className="text-right">
-                    <div className="text-[11px] text-muted mb-1.5">Current</div>
-                    <div className="text-[28px] leading-none font-semibold font-mono text-ink">{fmt(liveMult)}</div>
-                    <div className="text-[10px] text-faint mt-1.5">climbing</div>
+                    <div className="mb-1.5 text-[13px] font-medium text-muted">Current</div>
+                    <div className="text-[28px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-ink">{fmt(liveMult)}</div>
+                    <div className="mt-1.5 text-[12px] text-faint">climbing</div>
                   </div>
                 )}
               </div>
 
               {/* progress toward the fixed crash point */}
               {isFlying&&cp&&cp>1&&(
-                <div className="mt-5">
-                  <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                <div className="mt-6">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-raised">
                     <div className="h-full rounded-full bg-up transition-all duration-150" style={{width:pct+'%'}} />
                   </div>
-                  <div className="mt-1.5 flex justify-between text-[10px] text-faint font-mono"><span>1.00x</span><span>{fmt(cp)}</span></div>
+                  <div className="mt-1.5 flex justify-between text-[12px] tabular-nums text-faint"><span>1.00x</span><span>{fmt(cp)}</span></div>
                 </div>
               )}
               {isWaiting&&(
-                <p className="mt-4 text-[12px] text-muted">Betting is open. The round starts when the timer ends.</p>
+                <p className="mt-4 text-[13px] text-muted">Betting is open. The round starts when the timer ends.</p>
               )}
             </div>
           )}
-        </section>
+        </Card>
 
         {/* ============ UP NEXT ============ */}
-        <section className="rounded-2xl border border-line bg-surface overflow-hidden">
-          <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-line bg-white/[0.02] flex-wrap">
-            <span className={CAP+' flex items-center gap-2'}><Layers size={13} className="text-brand" />Up next
-              <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-md bg-brand/10 border border-brand/20 text-brand text-[11px] font-bold normal-case tracking-normal">{queue.length}</span>
-            </span>
-            <div className="flex items-center gap-2">
-              <span className={'inline-flex items-center gap-1.5 text-[11px] font-medium '+(qEnabled?'text-up':'text-muted')}>
-                <span className={'h-1.5 w-1.5 rounded-full '+(qEnabled?'bg-up animate-pulse':'bg-faint')} />{qEnabled?'Queue on':'Algorithm on'}
+        <Card
+          pad={false}
+          className="overflow-hidden"
+          title={<span className="flex items-center gap-2"><Layers size={15} className="text-brand" />Up next<Badge tone="brand">{queue.length}</Badge></span>}
+          action={
+            <div className="flex flex-wrap items-center gap-3">
+              <span className={'inline-flex items-center gap-1.5 text-[13px] font-medium '+(qEnabled?'text-up':'text-muted')}>
+                <span className={'h-1.5 w-1.5 rounded-full '+(qEnabled?'animate-pulse bg-up':'bg-faint')} />{qEnabled?'Queue on':'Algorithm on'}
               </span>
               {isSuperAdmin&&(
-                <button onClick={toggleQueue} disabled={lock==='qe'} className={'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-colors disabled:opacity-50 '+(qEnabled?'border border-line bg-surface text-muted hover:text-ink':'bg-brand text-white hover:bg-brand-dark')}>
-                  {lock==='qe'?<Spin />:<Power size={13} />}{qEnabled?'Switch to algorithm':'Use queue'}
-                </button>
+                <Button size="sm" variant={qEnabled?'default':'primary'} onClick={toggleQueue} loading={lock==='qe'}>
+                  {lock!=='qe'&&<Power size={13} />}{qEnabled?'Switch to algorithm':'Use queue'}
+                </Button>
               )}
             </div>
-          </div>
-
+          }
+        >
           {/* add controls */}
           {isSuperAdmin&&(
-            <div className="px-5 py-3.5 border-b border-line flex items-center gap-2 flex-wrap">
-              <input type="number" value={sVal} onChange={e=>setSVal(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addSingle()} placeholder={`Add crash point ${MIN_C}–${MAX_C}`} min={MIN_C} max={MAX_C} step="0.01" className="flex-1 min-w-[180px] px-3.5 py-2.5 bg-canvas border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
-              <button onClick={addSingle} disabled={lock==='as'||!sVal.trim()} className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand hover:bg-brand-dark text-white font-semibold text-[13px] rounded-lg transition-colors disabled:opacity-40">{lock==='as'?<Spin />:<Plus size={14} />}Add</button>
-              <button onClick={()=>setShowBatch(v=>!v)} className="inline-flex items-center gap-1.5 px-3.5 py-2.5 border border-line bg-surface text-muted hover:text-ink text-[13px] font-medium rounded-lg transition-colors"><ListPlus size={14} />Batch</button>
-              {queue.length>0&&<button onClick={()=>setConfirmClear(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2.5 border border-down/30 text-down hover:bg-down/10 text-[13px] font-medium rounded-lg transition-colors"><Trash2 size={14} />Clear</button>}
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-4 pt-2">
+              <input type="number" value={sVal} onChange={e=>setSVal(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addSingle()} placeholder={`Add crash point ${MIN_C}–${MAX_C}`} min={MIN_C} max={MAX_C} step="0.01" className={inputCls+' min-w-[180px] flex-1 tabular-nums'} />
+              <Button variant="primary" className="h-9" onClick={addSingle} disabled={!sVal.trim()} loading={lock==='as'}>{lock!=='as'&&<Plus size={14} />}Add</Button>
+              <Button className="h-9" onClick={()=>setShowBatch(v=>!v)}><ListPlus size={14} />Batch</Button>
+              {queue.length>0&&<Button variant="danger" className="h-9" onClick={()=>setConfirmClear(true)}><Trash2 size={14} />Clear</Button>}
             </div>
           )}
           {isSuperAdmin&&showBatch&&(
-            <div className="px-5 py-3.5 border-b border-line space-y-2.5">
-              <textarea value={bVal} onChange={e=>setBVal(e.target.value)} placeholder="1.23, 4.56, 12.00" rows={3} className="w-full px-3.5 py-2.5 bg-canvas border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
+            <div className="space-y-2 px-5 pb-4">
+              <textarea value={bVal} onChange={e=>setBVal(e.target.value)} placeholder="1.23, 4.56, 12.00" rows={3} className={areaCls} />
               <div className="flex justify-end gap-2">
-                <button onClick={()=>setShowBatch(false)} className="px-3.5 py-2 border border-line bg-surface text-muted text-[13px] rounded-lg">Cancel</button>
-                <button onClick={addBatch} disabled={lock==='ab'||!bVal.trim()} className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand hover:bg-brand-dark text-white font-semibold text-[13px] rounded-lg disabled:opacity-40">{lock==='ab'&&<Spin />}Add batch</button>
+                <Button onClick={()=>setShowBatch(false)}>Cancel</Button>
+                <Button variant="primary" onClick={addBatch} disabled={!bVal.trim()} loading={lock==='ab'}>Add batch</Button>
               </div>
             </div>
           )}
 
           {/* pending list */}
-          {queue.length===0?(
-            <div className="px-5 py-14 text-center">
-              <p className="text-muted text-[13px] font-medium">No upcoming crash points</p>
-              <p className="text-faint text-[11px] mt-1">Autofill tops the queue up automatically.</p>
-            </div>
-          ):(
-            <ul className="divide-y divide-line">
-              {queue.map((q,i)=>(
-                <li key={q.id} className={'flex items-center gap-4 px-5 py-3 transition-colors '+(i===0?'bg-brand/[0.05]':'hover:bg-white/[0.02]')}>
-                  <span className={'w-12 flex-shrink-0 text-[11px] font-bold uppercase tracking-wide '+(i===0?'text-brand':'text-faint')}>{i===0?'Next':'+'+(i+1)}</span>
-                  <span className={'flex-1 font-mono text-[16px] font-semibold '+cpTone(q.crash_multiplier)}>{fmt(q.crash_multiplier)}</span>
-                  {isSuperAdmin?(
-                    <button onClick={()=>removeOne(q.id)} disabled={lock==='rm'+q.id} title="Remove" className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-faint hover:text-down hover:bg-down/10 transition-colors disabled:opacity-40">{lock==='rm'+q.id?<Spin />:<X size={15} />}</button>
-                  ):<span className="w-8" />}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <p className="text-center text-[11px] text-faint">Only the round in play and upcoming crash points are shown. A point disappears the moment its round crashes.</p>
+          <div className="border-t border-line">
+            {queue.length===0?(
+              <Empty icon={<Layers size={20} strokeWidth={1.75} />} title="No upcoming crash points" body="Autofill tops the queue up automatically." />
+            ):(
+              <ul className="divide-y divide-line">
+                {queue.map((q,i)=>(
+                  <li key={q.id} className={'flex h-12 items-center gap-4 px-5 transition-colors '+(i===0?'bg-brand/10':'hover:bg-white/[0.03]')}>
+                    <span className={'w-12 shrink-0 text-[13px] font-medium tabular-nums '+(i===0?'text-brand':'text-faint')}>{i===0?'Next':'+'+(i+1)}</span>
+                    <span className={'flex-1 text-[15px] font-semibold tabular-nums tracking-[-0.01em] '+cpTone(q.crash_multiplier)}>{fmt(q.crash_multiplier)}</span>
+                    {isSuperAdmin?(
+                      <button onClick={()=>removeOne(q.id)} disabled={lock==='rm'+q.id} title="Remove" className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-white/[0.06] hover:text-ink disabled:opacity-40">{lock==='rm'+q.id?<Spin />:<X size={15} />}</button>
+                    ):<span className="w-8" />}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Card>
       </div>
+
+      <p className="text-[12px] text-faint">Only the round in play and upcoming crash points are shown. A point disappears the moment its round crashes.</p>
 
       {/* clear confirm */}
       {confirmClear&&(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={()=>setConfirmClear(false)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e=>e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Clear queue</h3>
-            <p className="text-muted text-[13px] mt-3 leading-relaxed">Remove all {queue.length} upcoming crash point(s)? Autofill will top the queue back up.</p>
-            <div className="flex gap-3 mt-6">
-              <button onClick={()=>setConfirmClear(false)} disabled={lock==='cl'} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={clearAll} disabled={lock==='cl'} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm bg-down hover:brightness-95 transition disabled:opacity-40 inline-flex items-center justify-center gap-2">{lock==='cl'&&<Spin />}Clear all</button>
-            </div>
-          </div>
-        </div>
+        <Modal title="Clear queue" tone="danger" width={400} onClose={closeClear}
+          footer={<>
+            <Button onClick={closeClear} disabled={lock==='cl'}>Cancel</Button>
+            <Button variant="danger" onClick={clearAll} loading={lock==='cl'}>Clear all</Button>
+          </>}>
+          <p className="text-[13px] leading-5 text-muted">Remove all {queue.length} upcoming crash point(s)? Autofill will top the queue back up.</p>
+        </Modal>
       )}
-    </div>
+    </>
   );
 }

@@ -1,7 +1,8 @@
+import { TabActions } from './marketing/components';
 import { useState, useEffect, useCallback } from 'react';
-import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
+import { Badge, Button, Card, Empty, Modal, Notice, PageHeader, Pills, StatCard, TableWrap, Td, Th, inputCls } from '../ui/kit';
 import type { AdminCommissionOverview, AdminCommissionPayoutRow } from '../../types/marketing';
 
 // ============================================================================
@@ -28,7 +29,7 @@ const TABS: { k: StatusTab; label: string }[] = [
   { k: 'all', label: 'All' },
 ];
 
-const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
+const TAB_ITEMS = TABS.map(t => ({ value: t.k, label: t.label }));
 
 function fmtKsh(n: number): string {
   return 'KSh ' + Number(n).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -53,13 +54,12 @@ function relTime(iso: string): string {
   if (s < 86400) return Math.floor(s / 3600) + 'h ago';
   return Math.floor(s / 86400) + 'd ago';
 }
-function payoutBadge(s: string): string {
+function payoutTone(s: string): 'warn' | 'brand' | 'up' | 'muted' {
   switch (s) {
-    case 'pending': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-    case 'approved': return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
-    case 'paid': return 'bg-up/10 text-up border-up/30';
-    case 'rejected': return 'bg-white/[0.06] text-muted border-line';
-    default: return 'bg-white/[0.06] text-muted border-line';
+    case 'pending': return 'warn';
+    case 'approved': return 'brand';
+    case 'paid': return 'up';
+    default: return 'muted';
   }
 }
 
@@ -126,150 +126,113 @@ export default function CommissionsPage({ embedded = false }: { embedded?: boole
     } catch (e) { setErr(errMsg(e, 'Could not record receipt.')); } finally { setBusyId(null); }
   }
 
+  // Stable closers so the kit Modal does not re-run its focus effect on every keystroke.
+  const closeReject = useCallback(() => { if (!busyId) setRejectRow(null); }, [busyId]);
+  const closeRecord = useCallback(() => { if (!busyId) setRecordRow(null); }, [busyId]);
+
+  const refresh = <Button onClick={fetchAll} loading={loading}>{loading ? 'Refreshing' : 'Refresh'}</Button>;
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          {!embedded && <h1 className="text-[22px] font-semibold text-ink tracking-tight">Commissions</h1>}
-          <p className="text-[13px] text-muted mt-1">Review and settle marketer affiliate payouts</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[420px] truncate" title={notice}>{notice}</span>}
-          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[420px] truncate" title={err}>{err}</span>}
-          <button onClick={fetchAll} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 transition-colors disabled:opacity-50">
-            {loading && <Spin />}{loading ? 'Refreshing' : 'Refresh'}
-          </button>
-        </div>
-      </div>
+      {!embedded ? (
+        <PageHeader title="Commissions" subtitle="Review and settle marketer affiliate payouts" actions={refresh} />
+      ) : (
+        <TabActions>{refresh}</TabActions>
+      )}
+      {notice && <Notice tone="ok">{notice}</Notice>}
+      {err && <Notice tone="error">{err}</Notice>}
 
       {/* Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-line bg-surface p-5">
-          <div className={HEAD}>Pending Requests</div>
-          <div className="mt-2 text-2xl font-semibold text-ink tabular-nums">{overview?.pending_count ?? 0}</div>
-        </div>
-        <div className="rounded-xl border border-line bg-surface p-5">
-          <div className={HEAD}>Pending Payout Value</div>
-          <div className="mt-2 text-2xl font-semibold text-ink tabular-nums">{fmtKsh(overview?.pending_amount ?? 0)}</div>
-        </div>
-        <div className="rounded-xl border border-line bg-surface p-5">
-          <div className={HEAD}>Total Paid</div>
-          <div className="mt-2 text-2xl font-semibold text-ink tabular-nums">{fmtKsh(overview?.paid_total ?? 0)}</div>
-        </div>
+        <StatCard label="Pending Requests" value={String(overview?.pending_count ?? 0)} />
+        <StatCard label="Pending Payout Value" value={fmtKsh(overview?.pending_amount ?? 0)} />
+        <StatCard label="Total Paid" value={fmtKsh(overview?.paid_total ?? 0)} />
       </div>
 
       {/* Status tabs */}
-      <div className="inline-flex gap-1 bg-white/[0.06] border border-line rounded-lg p-1 flex-wrap">
-        {TABS.map(t => (
-          <button key={t.k} onClick={() => setTab(t.k)} aria-current={tab === t.k ? 'page' : undefined}
-            className={'px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (tab === t.k ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Pills<StatusTab> items={TAB_ITEMS} value={tab} onChange={setTab} label="Payout status" />
 
       {/* Table */}
-      <div className="rounded-xl border border-line bg-surface overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left">
-                <th className="px-5 py-3 font-medium text-muted text-[12px]">Marketer</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] text-right">Amount</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] hidden md:table-cell">Phone</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px]">Status</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] hidden lg:table-cell">Requested</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] text-right">Action</th>
+      <Card pad={false}>
+        <TableWrap minWidth={0}>
+          <thead>
+            <tr>
+              <Th>Marketer</Th>
+              <Th numeric>Amount</Th>
+              <Th className="hidden md:table-cell">Phone</Th>
+              <Th>Status</Th>
+              <Th className="hidden lg:table-cell">Requested</Th>
+              <Th numeric>Action</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan={6}><Empty title={`No ${tab === 'all' ? '' : tab + ' '}payouts.`} /></td></tr>
+            )}
+            {rows.map(r => (
+              <tr key={r.id} className="transition-colors hover:bg-white/[0.03]">
+                <Td className="font-medium text-ink">{r.marketer_username}</Td>
+                <Td numeric className="font-semibold text-ink">{fmtKsh(Number(r.amount))}</Td>
+                <Td className="hidden md:table-cell font-mono text-[12px] text-muted">{r.phone_number}</Td>
+                <Td>
+                  <Badge tone={payoutTone(r.status)}><span className="capitalize">{r.status}</span></Badge>
+                  {r.status === 'rejected' && r.rejection_reason && (
+                    <div className="mt-1 max-w-[200px] truncate text-[12px] text-faint" title={r.rejection_reason}>{r.rejection_reason}</div>
+                  )}
+                  {r.status === 'paid' && r.mpesa_receipt && (
+                    <div className="mt-1 font-mono text-[12px] text-faint">{r.mpesa_receipt}</div>
+                  )}
+                </Td>
+                <Td className="hidden lg:table-cell whitespace-nowrap text-[12px] text-muted" title={new Date(r.created_at).toLocaleString()}>{relTime(r.created_at)}</Td>
+                <Td className="whitespace-nowrap text-right">
+                  {r.status === 'pending' ? (
+                    <div className="inline-flex items-center gap-2">
+                      <Button size="sm" variant="primary" onClick={() => doApprove(r)} loading={busyId === r.id}>Approve</Button>
+                      <Button size="sm" variant="danger" onClick={() => { setErr(null); setRejectReason(''); setRejectRow(r); }} disabled={busyId === r.id}>Reject</Button>
+                    </div>
+                  ) : r.status === 'approved' ? (
+                    <Button size="sm" variant="primary" onClick={() => { setErr(null); setReceipt(''); setRecordRow(r); }} loading={busyId === r.id}>Record receipt</Button>
+                  ) : (
+                    <span className="text-[12px] text-faint">{r.reviewer_username ? 'by ' + r.reviewer_username : '-'}</span>
+                  )}
+                </Td>
               </tr>
-            </thead>
-            <tbody>
-              {!loading && rows.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-faint text-sm">No {tab === 'all' ? '' : tab + ' '}payouts.</td></tr>
-              )}
-              {rows.map(r => (
-                <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas/60 transition-colors">
-                  <td className="px-5 py-3 text-ink font-medium">{r.marketer_username}</td>
-                  <td className="px-5 py-3 text-right text-ink font-semibold tabular-nums">{fmtKsh(Number(r.amount))}</td>
-                  <td className="px-5 py-3 text-muted font-mono text-[13px] hidden md:table-cell">{r.phone_number}</td>
-                  <td className="px-5 py-3">
-                    <span className={'inline-flex px-2 py-0.5 rounded border text-[11px] font-semibold capitalize ' + payoutBadge(r.status)}>{r.status}</span>
-                    {r.status === 'rejected' && r.rejection_reason && (
-                      <div className="text-[11px] text-muted mt-0.5 max-w-[200px] truncate" title={r.rejection_reason}>{r.rejection_reason}</div>
-                    )}
-                    {r.status === 'paid' && r.mpesa_receipt && (
-                      <div className="text-[11px] text-muted mt-0.5 font-mono">{r.mpesa_receipt}</div>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-muted text-xs hidden lg:table-cell" title={new Date(r.created_at).toLocaleString()}>{relTime(r.created_at)}</td>
-                  <td className="px-5 py-3 text-right whitespace-nowrap">
-                    {r.status === 'pending' ? (
-                      <div className="inline-flex items-center gap-2">
-                        <button onClick={() => doApprove(r)} disabled={busyId === r.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[12px] font-semibold transition-colors disabled:opacity-40">
-                          {busyId === r.id && <Spin />}Approve
-                        </button>
-                        <button onClick={() => { setErr(null); setRejectReason(''); setRejectRow(r); }} disabled={busyId === r.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line text-muted hover:text-down hover:border-down/40 text-[12px] font-semibold transition-colors disabled:opacity-40">
-                          Reject
-                        </button>
-                      </div>
-                    ) : r.status === 'approved' ? (
-                      <button onClick={() => { setErr(null); setReceipt(''); setRecordRow(r); }} disabled={busyId === r.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[12px] font-semibold transition-colors disabled:opacity-40">
-                        {busyId === r.id && <Spin />}Record receipt
-                      </button>
-                    ) : (
-                      <span className="text-faint text-[12px]">{r.reviewer_username ? 'by ' + r.reviewer_username : '-'}</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            ))}
+          </tbody>
+        </TableWrap>
+      </Card>
 
       {/* Reject modal */}
       {rejectRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setRejectRow(null)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Reject payout</h3>
-            <p className="text-muted text-[13px] mt-3 leading-relaxed">
-              Reject <span className="font-semibold text-ink">{fmtKsh(Number(rejectRow.amount))}</span> for <span className="font-semibold text-ink">{rejectRow.marketer_username}</span>. The commission returns to their available balance. A reason is required and recorded.
-            </p>
-            <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} autoFocus rows={3}
-              placeholder="Reason for rejection (required)…"
-              className="mt-4 w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-down/30 focus:border-down/40 resize-none transition" />
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setRejectRow(null)} disabled={busyId === rejectRow.id} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={() => doReject(rejectRow, rejectReason)} disabled={busyId === rejectRow.id || !rejectReason.trim()} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-down hover:brightness-95">
-                {busyId === rejectRow.id && <Spin />}Reject
-              </button>
-            </div>
-          </div>
-        </div>
+        <Modal title="Reject payout" tone="danger" onClose={closeReject}
+          footer={<>
+            <Button onClick={() => setRejectRow(null)} disabled={busyId === rejectRow.id}>Cancel</Button>
+            <Button variant="danger" onClick={() => doReject(rejectRow, rejectReason)} loading={busyId === rejectRow.id} disabled={!rejectReason.trim()}>Reject</Button>
+          </>}>
+          <p className="text-[13px] leading-relaxed text-muted">
+            Reject <span className="font-semibold text-ink">{fmtKsh(Number(rejectRow.amount))}</span> for <span className="font-semibold text-ink">{rejectRow.marketer_username}</span>. The commission returns to their available balance. A reason is required and recorded.
+          </p>
+          <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} autoFocus rows={3}
+            placeholder="Reason for rejection (required)…" aria-label="Reason for rejection"
+            className="w-full resize-none rounded-lg bg-raised px-3 py-2 text-[13px] text-ink placeholder:text-faint focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand/50" />
+        </Modal>
       )}
 
       {/* Record receipt modal */}
       {recordRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setRecordRow(null)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Record M-Pesa receipt</h3>
-            <p className="text-muted text-[13px] mt-3 leading-relaxed">
-              Confirm the <span className="font-semibold text-ink">{fmtKsh(Number(recordRow.amount))}</span> payout to <span className="font-semibold text-ink">{recordRow.marketer_username}</span> at <span className="font-mono">{recordRow.phone_number}</span> has been sent via M-Pesa, and enter the receipt to mark it paid.
-            </p>
-            <input value={receipt} onChange={e => setReceipt(e.target.value)} autoFocus
-              placeholder="M-Pesa receipt (e.g. SLJ7RT61SV)"
-              className="mt-4 w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setRecordRow(null)} disabled={busyId === recordRow.id} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={() => doRecord(recordRow, receipt)} disabled={busyId === recordRow.id || !receipt.trim()} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark">
-                {busyId === recordRow.id && <Spin />}Mark paid
-              </button>
-            </div>
-          </div>
-        </div>
+        <Modal title="Record M-Pesa receipt" onClose={closeRecord}
+          footer={<>
+            <Button onClick={() => setRecordRow(null)} disabled={busyId === recordRow.id}>Cancel</Button>
+            <Button variant="primary" onClick={() => doRecord(recordRow, receipt)} loading={busyId === recordRow.id} disabled={!receipt.trim()}>Mark paid</Button>
+          </>}>
+          <p className="text-[13px] leading-relaxed text-muted">
+            Confirm the <span className="font-semibold text-ink">{fmtKsh(Number(recordRow.amount))}</span> payout to <span className="font-semibold text-ink">{recordRow.marketer_username}</span> at <span className="font-mono text-[12px]">{recordRow.phone_number}</span> has been sent via M-Pesa, and enter the receipt to mark it paid.
+          </p>
+          <input value={receipt} onChange={e => setReceipt(e.target.value)} autoFocus
+            placeholder="M-Pesa receipt (e.g. SLJ7RT61SV)" aria-label="M-Pesa receipt"
+            className={inputCls + ' font-mono'} />
+        </Modal>
       )}
     </div>
   );

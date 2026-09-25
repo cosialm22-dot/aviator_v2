@@ -70,33 +70,33 @@ export default function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/60 px-4 pt-[12vh]"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/40 px-4 pt-[16vh] animate-[fadeIn_0.15s_ease]"
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
       onClick={() => setOpen(false)}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
+        className="w-full max-w-[640px] overflow-hidden rounded-2xl bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.6)] ring-1 ring-white/[0.08] animate-[menuIn_0.2s_cubic-bezier(0.32,0.72,0,1)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2.5 border-b border-line px-4">
-          <Search size={16} className="text-faint" />
+        <div className="flex h-14 items-center gap-3 px-4">
+          <Search size={20} strokeWidth={2} className="shrink-0 text-faint" />
           <input
             ref={inputRef}
             value={q}
             onChange={(e) => { setQ(e.target.value); setActive(0); }}
             onKeyDown={onInputKey}
             placeholder="Jump to…"
-            className="w-full bg-transparent py-3.5 text-sm text-ink outline-none placeholder:text-faint"
+            className="h-full w-full bg-transparent text-[17px] tracking-[-0.01em] text-ink outline-none placeholder:text-faint"
             aria-label="Search admin sections"
           />
-          <kbd className="hidden shrink-0 rounded bg-raised px-1.5 py-0.5 text-[10px] text-faint sm:block">ESC</kbd>
+          <kbd className="hidden shrink-0 rounded-md bg-raised px-1.5 py-0.5 font-sans text-[11px] font-medium text-faint sm:block">ESC</kbd>
         </div>
 
-        <ul className="max-h-[52vh] overflow-y-auto py-1.5">
+        <ul className="max-h-[52vh] overflow-y-auto border-t border-line p-1.5">
           {filtered.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-faint">No matches</li>
+            <li className="px-4 py-6 text-center text-[13px] text-faint">No matches</li>
           )}
           {filtered.map((cmd, i) => {
             const Icon = cmd.icon;
@@ -107,14 +107,14 @@ export default function CommandPalette() {
                   type="button"
                   onMouseEnter={() => setActive(i)}
                   onClick={() => run(cmd)}
-                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                    isActive ? 'bg-raised text-ink' : 'text-muted hover:bg-raised/60'
+                  className={`flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] ${
+                    isActive ? 'bg-brand text-white' : 'text-ink'
                   }`}
                 >
-                  <Icon size={16} strokeWidth={1.75} className={isActive ? 'text-ink' : 'text-faint'} />
-                  <span className="flex-1">{cmd.label}</span>
-                  <span className="text-xs text-faint">{cmd.hint}</span>
-                  {isActive && <CornerDownLeft size={13} className="text-faint" />}
+                  <Icon size={16} strokeWidth={1.75} className={isActive ? 'text-white' : 'text-muted'} />
+                  <span className="flex-1 truncate font-medium">{cmd.label}</span>
+                  <span className={`truncate text-[12px] ${isActive ? 'text-white/70' : 'text-faint'}`}>{cmd.hint}</span>
+                  {isActive && <CornerDownLeft size={13} className="shrink-0 text-white/70" />}
                 </button>
               </li>
             );

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { UserPlus, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import PlayerCombobox, { type PlayerLite } from '../../components/PlayerCombobox';
-import { HEAD, errMsg, friendly } from './shared';
-import { Spin } from './components';
+import { Button, Card } from '../../ui/kit';
+import { errMsg, friendly } from './shared';
 
 // "Add a marketer" card for the Affiliates tab (super_admin only). The operator
 // searches registered players in a typeahead, selects one, then confirms the
@@ -34,51 +34,44 @@ export default function PromoteMarketer({ onPromoted }: { onPromoted: (message: 
   }
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-5">
-      <div className={HEAD}>Add a marketer</div>
-
+    <Card title="Add a marketer">
       {!selected ? (
-        <div className="mt-3">
-          <label className="text-[11px] font-medium text-muted block mb-1.5">Find a player</label>
+        <div>
+          <label className="mb-1.5 block text-[13px] font-medium text-muted">Find a player</label>
           <PlayerCombobox onSelect={p => { setErr(null); setSelected(p); }} />
         </div>
       ) : (
-        <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0 rounded-lg border border-line bg-canvas px-3 py-2.5">
-            <span className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: selected.avatar_color }}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-lg bg-raised py-2 pl-3 pr-1.5">
+            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-semibold text-white" style={{ backgroundColor: selected.avatar_color }}>
               {selected.username[0]?.toUpperCase()}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] text-ink font-medium truncate">{selected.username}</span>
-              <span className="block text-[11px] text-faint">Joined {new Date(selected.created_at).toLocaleDateString()}</span>
+              <span className="block truncate text-[13px] font-medium text-ink">{selected.username}</span>
+              <span className="block text-[12px] text-faint">Joined {new Date(selected.created_at).toLocaleDateString()}</span>
             </span>
             <button
               type="button"
               aria-label="Choose a different player"
               onClick={() => { setSelected(null); setErr(null); }}
               disabled={promoting}
-              className="text-faint hover:text-ink transition-colors disabled:opacity-40"
+              className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-white/[0.06] hover:text-ink disabled:opacity-40"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           </div>
-          <button
-            type="button"
-            onClick={promote}
-            disabled={promoting}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[13px] font-semibold transition-colors disabled:opacity-50 flex-shrink-0"
-          >
-            {promoting ? <Spin /> : <UserPlus size={15} />}Promote to marketer
-          </button>
+          <Button type="button" variant="primary" onClick={promote} loading={promoting} className="flex-shrink-0">
+            {!promoting && <UserPlus size={14} />}Promote to marketer
+          </Button>
         </div>
       )}
 
       {err && (
-        <p role="alert" className="mt-2.5 text-[12px] text-down">{err}</p>
+        <p role="alert" className="mt-3 text-[13px] text-down">{err}</p>
       )}
-      <p className="text-[12px] text-faint mt-2.5">
+      <p className="mt-3 text-[12px] text-faint">
         Promotes an existing player; a unique referral code is generated automatically. Admins and super admins cannot be made marketers.
       </p>
-    </div>
+    </Card>
   );
 }

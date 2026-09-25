@@ -1,4 +1,7 @@
-import { HEAD } from './shared';
+import { useContext, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { StatCard as KitStatCard } from '../../ui/kit';
+import { TabActionsSlot } from './shared';
 
 // Small presentational components for the admin Marketing hub. Component-only
 // module (Fast-Refresh friendly); pure helpers live in ./shared.
@@ -6,10 +9,11 @@ import { HEAD } from './shared';
 export { Spin } from '../../components/Spin';
 
 export function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-line bg-surface p-5">
-      <div className={HEAD}>{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-ink tabular-nums">{value}</div>
-    </div>
-  );
+  return <KitStatCard label={label} value={value} />;
+}
+
+/** Renders a tab's actions (Refresh, New …) at the right end of the Marketing tab bar. */
+export function TabActions({ children }: { children: ReactNode }) {
+  const slot = useContext(TabActionsSlot);
+  return slot ? createPortal(children, slot) : <div className="flex justify-end gap-2">{children}</div>;
 }

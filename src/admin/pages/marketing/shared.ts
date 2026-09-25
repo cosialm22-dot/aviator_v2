@@ -1,9 +1,11 @@
+import { createContext } from 'react';
 // Shared formatting, error-mapping, and status-styling utilities for the admin
 // Marketing hub (Overview / Affiliates / Promotions). Pure, non-component module
 // so it stays a single source of truth for these helpers and is Fast-Refresh
 // friendly. React components live in ./components.
 
-export const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
+// Section-title style (sentence case, Apple grouped-list heading).
+export const HEAD = 'text-[15px] font-semibold tracking-[-0.01em] text-ink';
 
 // Supabase/PostgREST can return Postgres `numeric` as a string; coerce safely.
 export function num(v: unknown): number {
@@ -64,18 +66,20 @@ export function friendly(code: string): string {
   return code || 'Action failed. Please try again.';
 }
 
-// Status pill styling shared by commission payouts and promotion runtime status.
-export function statusBadge(s: string): string {
+// Badge tone (kit <Badge tone>) shared by commission payouts, referral status and
+// promotion runtime status.
+export type StatusTone = 'warn' | 'brand' | 'up' | 'muted';
+export function statusBadge(s: string): StatusTone {
   switch (s) {
     case 'pending':
-    case 'scheduled': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-    case 'approved': return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+    case 'scheduled': return 'warn';
+    case 'approved': return 'brand';
     case 'paid':
     case 'live':
-    case 'qualified': return 'bg-up/10 text-up border-up/30';
-    case 'rejected':
-    case 'expired':
-    case 'inactive': return 'bg-white/[0.06] text-muted border-line';
-    default: return 'bg-white/[0.06] text-muted border-line';
+    case 'qualified': return 'up';
+    default: return 'muted';
   }
 }
+
+/** Where a Marketing tab puts its actions: the right end of the tab bar (see MarketingAdminPage). */
+export const TabActionsSlot = createContext<HTMLElement | null>(null);

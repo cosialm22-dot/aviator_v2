@@ -37,7 +37,7 @@ function summary(r: Row): string {
 }
 
 const PAGE = 50;
-const DATE = 'h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 [color-scheme:dark]';
+const DATE = 'h-8 rounded-lg bg-raised px-3 text-[13px] tabular-nums text-ink focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand/50 [color-scheme:dark]';
 
 export default function AuditPage() {
   const scope = useScope();
@@ -70,43 +70,43 @@ export default function AuditPage() {
   return (
     <>
       <PageHeader title="Audit log" subtitle={`${scope.label} · every staff action, newest first. Entries cannot be edited or deleted.`} />
-      <Card pad={false}>
-        <div className="p-4 flex flex-wrap items-center gap-2 border-b border-line">
+      <Card pad={false} className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-line p-4">
           <Select value={action} onChange={setAction} label="Action" className="max-w-[240px]"
             options={[{ value: '', label: 'All actions' }, ...actions.map((a) => ({ value: a, label: label(a) }))]} />
           <SearchInput value={actor} onChange={setActor} placeholder="Staff username" label="Filter by staff member" className="w-52" />
           <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} aria-label="From date" className={DATE} />
-          <span className="text-faint text-xs">to</span>
+          <span className="text-[13px] text-faint">to</span>
           <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} aria-label="To date" className={DATE} />
         </div>
         {err && <div className="p-4"><ErrorState message={err} onRetry={() => void load()} /></div>}
         {rows === null ? (
-          <div className="p-4 space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          <div className="space-y-2 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
         ) : rows.length === 0 ? (
-          <div className="p-4"><Empty title="No entries" body="Nothing matches these filters." /></div>
+          <Empty title="No entries" body="Nothing matches these filters." />
         ) : (
           <TableWrap testId="audit-table" minWidth={880}>
             <thead><tr><Th>When</Th>{scope.multiBrand && <Th>Brand</Th>}<Th>Who</Th><Th>What</Th><Th>Details</Th></tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-line/60 align-top" data-testid="audit-row">
-                  <Td className="text-muted text-xs whitespace-nowrap" title={dateTime(r.created_at)}>{relTime(r.created_at)}</Td>
-                  {scope.multiBrand && <Td className="text-muted text-xs">{r.site_name ?? 'Platform'}</Td>}
+                <tr key={r.id} className="border-b border-line align-top transition-colors last:border-0 hover:bg-white/[0.03]" data-testid="audit-row">
+                  <Td className="whitespace-nowrap text-muted" title={dateTime(r.created_at)}>{relTime(r.created_at)}</Td>
+                  {scope.multiBrand && <Td className="text-muted">{r.site_name ?? 'Platform'}</Td>}
                   <Td className="whitespace-nowrap">
-                    <span className="text-ink text-[13px]">{r.actor ? `@${r.actor}` : 'System'}</span>
-                    {r.actor_role && <span className="block text-[11px] text-faint">{ROLE_LABEL[r.actor_role] ?? r.actor_role}</span>}
+                    <span className="text-ink">{r.actor ? `@${r.actor}` : 'System'}</span>
+                    {r.actor_role && <span className="block text-[12px] text-faint">{ROLE_LABEL[r.actor_role] ?? r.actor_role}</span>}
                   </Td>
                   <Td>
-                    <span className="text-ink text-[13px]">{label(r.action)}</span>
-                    <span className="block font-mono text-[11px] text-faint">{r.action}</span>
-                    {r.target_type === 'user' && r.target_id && <Link to={`/admin/users/${r.target_id}`} className="text-[11px] text-brand hover:underline">Open player</Link>}
+                    <span className="text-ink">{label(r.action)}</span>
+                    <span className="block font-mono text-[12px] text-faint">{r.action}</span>
+                    {r.target_type === 'user' && r.target_id && <Link to={`/admin/users/${r.target_id}`} className="text-[12px] text-brand hover:underline">Open player</Link>}
                   </Td>
-                  <Td className="text-[12px] text-muted max-w-[420px]">
+                  <Td className="max-w-[420px] text-muted">
                     <span className="block break-words">{summary(r) || '—'}</span>
                     {r.details && Object.keys(r.details).length > 0 && (
                       <details className="mt-1">
-                        <summary className="cursor-pointer text-[11px] text-faint hover:text-ink">Full record</summary>
-                        <pre className="mt-1 max-h-60 overflow-auto rounded-md bg-canvas p-2 text-[11px] text-muted whitespace-pre-wrap break-all">{JSON.stringify({ target: r.target_type ? `${r.target_type}:${r.target_id}` : null, ...r.details }, null, 2)}</pre>
+                        <summary className="cursor-pointer text-[12px] text-faint hover:text-ink">Full record</summary>
+                        <pre className="mt-1.5 max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-raised p-3 font-mono text-[12px] text-muted">{JSON.stringify({ target: r.target_type ? `${r.target_type}:${r.target_id}` : null, ...r.details }, null, 2)}</pre>
                       </details>
                     )}
                   </Td>

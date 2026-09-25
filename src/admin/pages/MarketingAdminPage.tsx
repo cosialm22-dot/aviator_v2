@@ -1,5 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
-import { BarChart3, Users, Megaphone, Coins } from 'lucide-react';
+import { useState } from 'react';
+import { PageHeader, Tabs } from '../ui/kit';
+import { TabActionsSlot } from './marketing/shared';
 import OverviewTab from './marketing/OverviewTab';
 import AffiliatesTab from './marketing/AffiliatesTab';
 import PromotionsTab from './marketing/PromotionsTab';
@@ -19,14 +21,15 @@ import CommissionsPage from './CommissionsPage';
 // ============================================================================
 
 const TABS = [
-  { k: 'overview', label: 'Overview', icon: BarChart3 },
-  { k: 'affiliates', label: 'Affiliates', icon: Users },
-  { k: 'promotions', label: 'Promotions', icon: Megaphone },
-  { k: 'commissions', label: 'Commissions', icon: Coins },
+  { k: 'overview', label: 'Overview' },
+  { k: 'affiliates', label: 'Affiliates' },
+  { k: 'promotions', label: 'Promotions' },
+  { k: 'commissions', label: 'Commissions' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['k'];
 const TAB_KEYS = TABS.map(t => t.k) as readonly string[];
+const TAB_ITEMS = TABS.map(t => ({ value: t.k as TabKey, label: t.label }));
 
 export default function MarketingAdminPage() {
   const [params, setParams] = useSearchParams();
@@ -39,34 +42,24 @@ export default function MarketingAdminPage() {
     return next;
   }, { replace: true });
 
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-[22px] font-semibold text-ink tracking-tight">Marketing</h1>
-        <p className="text-[13px] text-muted mt-1">Affiliate program, marketers, promotions, and commission payouts</p>
+    <div className="flex flex-col gap-6">
+      <PageHeader title="Marketing" subtitle="Affiliate program, marketers, promotions, and commission payouts" />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs<TabKey> tabs={TAB_ITEMS} value={tab} onChange={setTab} label="Marketing sections" />
+        <div ref={setSlot} className="flex items-center gap-2" />
       </div>
 
-      <div className="border-b border-line">
-        <nav className="flex gap-1 -mb-px overflow-x-auto" role="tablist" aria-label="Marketing sections">
-          {TABS.map(({ k, label, icon: Icon }) => {
-            const active = tab === k;
-            return (
-              <button key={k} role="tab" aria-selected={active} onClick={() => setTab(k)}
-                className={'inline-flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium border-b-2 whitespace-nowrap transition-colors ' +
-                  (active ? 'border-brand text-ink' : 'border-transparent text-muted hover:text-ink')}>
-                <Icon size={15} strokeWidth={1.75} />{label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
+      <TabActionsSlot.Provider value={slot}>
       <div>
         {tab === 'overview' && <OverviewTab />}
         {tab === 'affiliates' && <AffiliatesTab />}
         {tab === 'promotions' && <PromotionsTab />}
-        {tab === 'commissions' && <CommissionsPage />}
+        {tab === 'commissions' && <CommissionsPage embedded />}
       </div>
+      </TabActionsSlot.Provider>
     </div>
   );
 }

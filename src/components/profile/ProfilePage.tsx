@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronLeft, ArrowDownLeft, ArrowUpRight, Gift, Wallet as WalletIcon } from 'lucide-react';
+import NavPage from '../ui/NavPage';
+import { ArrowDownLeft, ArrowUpRight, Gift, Wallet as WalletIcon } from 'lucide-react';
 import { Button, Empty, Glyph, Group, Row, Segmented, Spinner, kes } from '../ui/ios';
 import { supabase } from '../../lib/supabase';
 import type { Profile, Wallet } from '../../types';
@@ -200,17 +200,6 @@ export default function ProfilePage({ user, profile, wallet, onSignInRequired, o
   );
 }
 
-/** Page frame: iOS navigation bar (back to the game) over a black grouped background. */
 function Page({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="h-full overflow-y-auto bg-black">
-      <header className="sticky top-0 z-20 flex h-11 items-center bg-black/80 backdrop-blur-xl backdrop-saturate-150">
-        <Link to="/" className="flex h-11 items-center pl-2 pr-3 text-body text-ios-green active:opacity-60" aria-label="Back to game">
-          <ChevronLeft size={28} strokeWidth={2.2} className="-mr-0.5" />Game
-        </Link>
-        <span className="absolute left-1/2 -translate-x-1/2 text-headline text-white">Profile</span>
-      </header>
-      <div className="mx-auto max-w-xl pb-[calc(32px+env(safe-area-inset-bottom))]">{children}</div>
-    </div>
-  );
+  return <NavPage title="Profile">{children}</NavPage>;
 }

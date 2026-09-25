@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
+import { Badge, Button, Card, Empty, ErrorState, Modal, Notice, PageHeader, StatCard, TableWrap, Tabs, Td, Th } from '../ui/kit';
 
 // ============================================================================
 // WithdrawalsPage - admin cashier queue (Milestone 1)
@@ -54,8 +54,6 @@ const TABS: { k: StatusTab; label: string }[] = [
   { k: 'all', label: 'All' },
 ];
 
-const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
-
 function fmtKES(n: number): string {
   return 'KSh ' + Math.round(n).toLocaleString('en-KE');
 }
@@ -102,21 +100,21 @@ async function extractFnError(error: unknown): Promise<string> {
 }
 
 
-function statusBadge(s: string): string {
+/** Withdrawal status → kit Badge tone. */
+function statusTone(s: string): string {
   switch (s) {
-    case 'pending': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-    case 'processing': return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
-    case 'completed': return 'bg-up/10 text-up border-up/30';
-    case 'failed': return 'bg-down/10 text-down border-down/30';
-    case 'rejected': return 'bg-white/[0.06] text-muted border-line';
-    default: return 'bg-white/[0.06] text-muted border-line';
+    case 'pending': return 'warn';
+    case 'processing': return 'brand';
+    case 'completed': return 'up';
+    case 'failed': return 'down';
+    default: return 'muted';
   }
 }
 
-function riskBadge(score: number): string {
-  if (score >= 70) return 'bg-down/10 text-down border-down/30';
-  if (score >= 30) return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-  return 'bg-white/[0.06] text-muted border-line';
+function riskTone(score: number): string {
+  if (score >= 70) return 'down';
+  if (score >= 30) return 'warn';
+  return 'muted';
 }
 
 export default function WithdrawalsPage() {
@@ -230,173 +228,157 @@ export default function WithdrawalsPage() {
     }
   }
 
+  // Stable close handlers for the kit Modal (it re-runs its focus effect when onClose changes).
+  // Same guard as before: a dialog cannot be dismissed while its action is running.
+  const closeConfirm = useCallback(() => { if (!busyId) setConfirm(null); }, [busyId]);
+  const closeReject = useCallback(() => { if (!busyId) setRejectRow(null); }, [busyId]);
+  // Keep the reason box focused when the reject dialog opens (runs after the Modal's own focus).
+  const rejectRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { if (rejectRow) rejectRef.current?.focus(); }, [rejectRow]);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-[22px] font-semibold text-ink tracking-tight">Withdrawals</h1>
-          <p className="text-[13px] text-muted mt-1">Review, approve and reject player payouts</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[360px] truncate" title={notice}>{notice}</span>}
-          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[360px] truncate" title={err}>{err}</span>}
-          <button onClick={fetchAll} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-surface text-[13px] text-muted hover:text-ink hover:border-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-50">
-            {loading && <Spin />}{loading ? 'Refreshing' : 'Refresh'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Withdrawals"
+        subtitle="Review, approve and reject player payouts"
+        actions={<Button onClick={fetchAll} loading={loading}>{loading ? 'Refreshing' : 'Refresh'}</Button>}
+      />
+
+      {notice && <Notice tone="ok">{notice}</Notice>}
+      {err && <ErrorState message={err} />}
 
       {/* KPI strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-line bg-surface p-5">
-          <div className={HEAD}>Pending Requests</div>
-          <div className="mt-2 text-2xl font-semibold text-ink tabular-nums">{pendingCount}</div>
-        </div>
-        <div className="rounded-xl border border-line bg-surface p-5">
-          <div className={HEAD}>Pending Payout Value</div>
-          <div className="mt-2 text-2xl font-semibold text-ink tabular-nums">{fmtKES(pendingTotal)}</div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <StatCard label="Pending Requests" value={String(pendingCount)} />
+        <StatCard label="Pending Payout Value" value={fmtKES(pendingTotal)} />
       </div>
 
       {/* Status tabs */}
-      <div className="inline-flex gap-1 bg-white/[0.06] border border-line rounded-lg p-1 flex-wrap">
-        {TABS.map(t => (
-          <button
-            key={t.k}
-            onClick={() => setTab(t.k)}
-            aria-current={tab === t.k ? 'page' : undefined}
-            className={'px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ' + (tab === t.k ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs label="Withdrawal status" value={tab} onChange={setTab} tabs={TABS.map(t => ({ value: t.k, label: t.label }))} />
 
       {/* Table */}
-      <div className="rounded-xl border border-line bg-surface overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left">
-                <th className="px-5 py-3 font-medium text-muted text-[12px]">Player</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] text-right">Amount</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] hidden md:table-cell">Phone</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] text-right hidden lg:table-cell">Balance</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] hidden sm:table-cell">Risk</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px]">Status</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] hidden lg:table-cell">Requested</th>
-                <th className="px-5 py-3 font-medium text-muted text-[12px] text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!loading && rows.length === 0 && (
-                <tr><td colSpan={8} className="px-5 py-12 text-center text-faint text-sm">No {tab === 'all' ? '' : tab + ' '}withdrawals.</td></tr>
-              )}
-              {rows.map(r => {
-                const insufficient = r.wallet_balance != null && Number(r.wallet_balance) < Number(r.amount);
-                const score = r.risk_score ?? 0;
-                return (
-                  <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas/60 transition-colors">
-                    <td className="px-5 py-3">
-                      <div className="text-ink font-medium">{r.username}</div>
-                      {r.auto_approved && <div className="text-[11px] text-muted mt-0.5">auto-approve eligible</div>}
-                    </td>
-                    <td className="px-5 py-3 text-right text-ink font-semibold tabular-nums">{fmtKES(Number(r.amount))}</td>
-                    <td className="px-5 py-3 text-muted font-mono text-[13px] hidden md:table-cell">{r.phone_number}</td>
-                    <td className="px-5 py-3 text-right tabular-nums hidden lg:table-cell">
-                      <span className={insufficient ? 'text-down font-medium' : 'text-muted'}>{r.wallet_balance != null ? fmtKES(Number(r.wallet_balance)) : '-'}</span>
-                      {insufficient && <div className="text-[11px] text-down">below requested</div>}
-                    </td>
-                    <td className="px-5 py-3 hidden sm:table-cell">
-                      <span className={'inline-flex px-2 py-0.5 rounded border text-[11px] font-semibold ' + riskBadge(score)}>{score}</span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className={'inline-flex px-2 py-0.5 rounded border text-[11px] font-semibold capitalize ' + statusBadge(r.status)}>{r.status}</span>
-                      {r.status === 'rejected' && r.rejection_reason && (
-                        <div className="text-[11px] text-muted mt-0.5 max-w-[200px] truncate" title={r.rejection_reason}>{r.rejection_reason}</div>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-muted text-xs hidden lg:table-cell" title={new Date(r.created_at).toLocaleString()}>{relTime(r.created_at)}</td>
-                    <td className="px-5 py-3 text-right whitespace-nowrap">
-                      {r.status === 'pending' ? (
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            onClick={() => { setErr(null); setConfirm(r); }}
-                            disabled={busyId === r.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-[12px] font-semibold transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-                          >
-                            {busyId === r.id && <Spin />}Approve
-                          </button>
-                          <button
-                            onClick={() => { setErr(null); setRejectReason(''); setRejectRow(r); }}
-                            disabled={busyId === r.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line text-muted hover:text-down hover:border-down/40 text-[12px] font-semibold transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-down/30"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-faint text-[12px]">
-                          {r.reviewer_username ? 'by ' + r.reviewer_username : '-'}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Card pad={false} className="overflow-hidden">
+        <TableWrap minWidth={0}>
+          <thead>
+            <tr>
+              <Th className="pl-5">Player</Th>
+              <Th numeric>Amount</Th>
+              <Th className="hidden md:table-cell">Phone</Th>
+              <Th numeric className="hidden lg:table-cell">Balance</Th>
+              <Th className="hidden sm:table-cell">Risk</Th>
+              <Th>Status</Th>
+              <Th className="hidden lg:table-cell">Requested</Th>
+              <Th numeric className="pr-5">Action</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan={8}><Empty title={`No ${tab === 'all' ? '' : tab + ' '}withdrawals.`} /></td></tr>
+            )}
+            {rows.map(r => {
+              const insufficient = r.wallet_balance != null && Number(r.wallet_balance) < Number(r.amount);
+              const score = r.risk_score ?? 0;
+              return (
+                <tr key={r.id} className="transition-colors hover:bg-white/[0.03]">
+                  <Td className="pl-5">
+                    <div className="font-medium text-ink">{r.username}</div>
+                    {r.auto_approved && <div className="mt-0.5 text-[12px] text-faint">auto-approve eligible</div>}
+                  </Td>
+                  <Td numeric className="font-semibold text-ink">{fmtKES(Number(r.amount))}</Td>
+                  <Td className="hidden md:table-cell"><span className="font-mono text-[12px] text-muted">{r.phone_number}</span></Td>
+                  <Td numeric className="hidden lg:table-cell">
+                    <span className={insufficient ? 'text-down font-medium' : 'text-muted'}>{r.wallet_balance != null ? fmtKES(Number(r.wallet_balance)) : '-'}</span>
+                    {insufficient && <div className="text-[12px] text-down">below requested</div>}
+                  </Td>
+                  <Td className="hidden sm:table-cell">
+                    <span className="tabular-nums"><Badge tone={riskTone(score)}>{score}</Badge></span>
+                  </Td>
+                  <Td>
+                    <span className="capitalize"><Badge tone={statusTone(r.status)}>{r.status}</Badge></span>
+                    {r.status === 'rejected' && r.rejection_reason && (
+                      <div className="mt-0.5 max-w-[200px] truncate text-[12px] text-faint" title={r.rejection_reason}>{r.rejection_reason}</div>
+                    )}
+                  </Td>
+                  <Td className="hidden lg:table-cell whitespace-nowrap text-muted" title={new Date(r.created_at).toLocaleString()}>{relTime(r.created_at)}</Td>
+                  <Td className="pr-5 text-right whitespace-nowrap">
+                    {r.status === 'pending' ? (
+                      <div className="inline-flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => { setErr(null); setConfirm(r); }}
+                          loading={busyId === r.id}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => { setErr(null); setRejectReason(''); setRejectRow(r); }}
+                          disabled={busyId === r.id}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-[12px] text-faint">
+                        {r.reviewer_username ? 'by ' + r.reviewer_username : '-'}
+                      </span>
+                    )}
+                  </Td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </TableWrap>
+      </Card>
 
       {/* Approve confirmation */}
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setConfirm(null)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Approve withdrawal</h3>
-            <p className="text-muted text-[13px] mt-3 leading-relaxed">
-              Pay <span className="font-semibold text-ink">{fmtKES(Number(confirm.amount))}</span> to <span className="font-semibold text-ink">{confirm.username}</span> at <span className="font-mono">{confirm.phone_number}</span> via M-Pesa. This debits the player's wallet and cannot be undone once Safaricom confirms.
+        <Modal
+          title="Approve withdrawal"
+          onClose={closeConfirm}
+          width={400}
+          footer={<>
+            <Button onClick={() => setConfirm(null)} disabled={busyId === confirm.id}>Cancel</Button>
+            <Button variant="primary" onClick={() => doApprove(confirm)} loading={busyId === confirm.id}>Approve & Pay</Button>
+          </>}
+        >
+          <p className="text-[13px] leading-relaxed text-muted">
+            Pay <span className="font-semibold text-ink tabular-nums">{fmtKES(Number(confirm.amount))}</span> to <span className="font-semibold text-ink">{confirm.username}</span> at <span className="font-mono text-[12px]">{confirm.phone_number}</span> via M-Pesa. This debits the player's wallet and cannot be undone once Safaricom confirms.
+          </p>
+          {confirm.wallet_balance != null && Number(confirm.wallet_balance) < Number(confirm.amount) && (
+            <p className="rounded-xl bg-down/15 px-4 py-2.5 text-[13px] text-down">
+              Warning: player balance ({fmtKES(Number(confirm.wallet_balance))}) is below the requested amount. The payout will be aborted by the server.
             </p>
-            {confirm.wallet_balance != null && Number(confirm.wallet_balance) < Number(confirm.amount) && (
-              <p className="mt-3 px-3 py-2 bg-down/10 border border-down/30 rounded-lg text-down text-[12px]">
-                Warning: player balance ({fmtKES(Number(confirm.wallet_balance))}) is below the requested amount. The payout will be aborted by the server.
-              </p>
-            )}
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setConfirm(null)} disabled={busyId === confirm.id} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={() => doApprove(confirm)} disabled={busyId === confirm.id} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark">
-                {busyId === confirm.id && <Spin />}Approve & Pay
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+        </Modal>
       )}
 
       {/* Reject with required reason */}
       {rejectRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busyId ? null : setRejectRow(null)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Reject withdrawal</h3>
-            <p className="text-muted text-[13px] mt-3 leading-relaxed">
-              Reject <span className="font-semibold text-ink">{fmtKES(Number(rejectRow.amount))}</span> for <span className="font-semibold text-ink">{rejectRow.username}</span>. No funds move (the request never debited the wallet). A reason is required and recorded.
-            </p>
-            <textarea
-              value={rejectReason}
-              onChange={e => setRejectReason(e.target.value)}
-              autoFocus
-              rows={3}
-              placeholder="Reason for rejection (required)…"
-              className="mt-4 w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-down/30 focus:border-down/40 resize-none transition"
-            />
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setRejectRow(null)} disabled={busyId === rejectRow.id} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={() => doReject(rejectRow, rejectReason)} disabled={busyId === rejectRow.id || !rejectReason.trim()} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-down hover:brightness-95">
-                {busyId === rejectRow.id && <Spin />}Reject
-              </button>
-            </div>
-          </div>
-        </div>
+        <Modal
+          title="Reject withdrawal"
+          onClose={closeReject}
+          width={400}
+          footer={<>
+            <Button onClick={() => setRejectRow(null)} disabled={busyId === rejectRow.id}>Cancel</Button>
+            <Button variant="danger" onClick={() => doReject(rejectRow, rejectReason)} disabled={!rejectReason.trim()} loading={busyId === rejectRow.id}>Reject</Button>
+          </>}
+        >
+          <p className="text-[13px] leading-relaxed text-muted">
+            Reject <span className="font-semibold text-ink tabular-nums">{fmtKES(Number(rejectRow.amount))}</span> for <span className="font-semibold text-ink">{rejectRow.username}</span>. No funds move (the request never debited the wallet). A reason is required and recorded.
+          </p>
+          <textarea
+            ref={rejectRef}
+            value={rejectReason}
+            onChange={e => setRejectReason(e.target.value)}
+            autoFocus
+            rows={3}
+            placeholder="Reason for rejection (required)…"
+            className="w-full resize-none rounded-lg bg-raised px-3 py-2.5 text-[13px] text-ink placeholder:text-faint focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand/50"
+          />
+        </Modal>
       )}
     </div>
   );

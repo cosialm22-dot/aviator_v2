@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useScope } from '../scopeContext';
-import { Button, PageHeader } from '../ui/kit';
+import { Badge, Button, Card, Empty, ErrorState, Field, Modal, PageHeader, StatCard, Switch, TableWrap, Td, Th, inputCls } from '../ui/kit';
 import GlobalControls from '../components/GlobalControls';
-import { Building2, Plus, X, Users, TrendingUp, Banknote, Clock, Check, AlertCircle } from 'lucide-react';
+import { Plus, X, Check, AlertCircle } from 'lucide-react';
 
 // ============================================================================
 // Platform Console (platform_superadmin only) - the cross-brand control room.
@@ -33,9 +33,6 @@ interface SiteRow {
   net_cashflow: number;
 }
 
-const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
-const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
-
 function fmtKES(n: number): string {
   const v = Number(n) || 0;
   const sign = v < 0 ? '-' : '';
@@ -61,10 +58,10 @@ function friendly(msg: string | undefined): string {
   return msg;
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  active: 'bg-up/15 text-up',
-  suspended: 'bg-gold/15 text-gold',
-  disabled: 'bg-down/15 text-down',
+const STATUS_TONE: Record<string, 'up' | 'warn' | 'down'> = {
+  active: 'up',
+  suspended: 'warn',
+  disabled: 'down',
 };
 
 export default function PlatformConsolePage() {
@@ -100,123 +97,82 @@ export default function PlatformConsolePage() {
   );
 
   return (
-    <div className="w-full">
-      {/* Header */}
-      <div className="mb-6">
-        <PageHeader eyebrow="Platform" title="Brands & controls"
-          subtitle="Every brand runs on one shared game engine. Switches here apply to all brands at once; open a brand to work in its back office."
-          actions={<Button variant="primary" onClick={() => setShowCreate(true)}><Plus size={15} /> New brand</Button>} />
-      </div>
-      <div className="mb-6"><GlobalControls /></div>
+    <div className="flex flex-col gap-6">
+      <PageHeader eyebrow="Platform" title="Brands & controls"
+        subtitle="Every brand runs on one shared game engine. Switches here apply to all brands at once; open a brand to work in its back office."
+        actions={<Button variant="primary" onClick={() => setShowCreate(true)}><Plus size={14} /> New brand</Button>} />
+      <GlobalControls />
 
       {/* Platform roll-up */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        <SummaryCard label="Brands" value={totals.brands.toLocaleString('en-KE')} icon={<Building2 size={15} />} />
-        <SummaryCard label="Players" value={totals.players.toLocaleString('en-KE')} icon={<Users size={15} />} />
-        <SummaryCard label="Deposits" value={fmtKES(totals.deposits)} icon={<Banknote size={15} />} />
-        <SummaryCard label="GGR" value={fmtKES(totals.ggr)} icon={<TrendingUp size={15} />} tone={totals.ggr >= 0 ? 'up' : 'down'} />
-        <SummaryCard label="Pending payouts" value={`${totals.pending} · ${fmtKES(totals.pendingAmt)}`} icon={<Clock size={15} />} />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <StatCard label="Brands" value={totals.brands.toLocaleString('en-KE')} />
+        <StatCard label="Players" value={totals.players.toLocaleString('en-KE')} />
+        <StatCard label="Deposits" value={fmtKES(totals.deposits)} />
+        <StatCard label="GGR" value={fmtKES(totals.ggr)} tone={totals.ggr >= 0 ? 'up' : 'down'} />
+        <StatCard label="Pending payouts" value={`${totals.pending} · ${fmtKES(totals.pendingAmt)}`} />
       </div>
 
-      {err && (
-        <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-down/10 border border-down/30 text-down text-[13px]">
-          <AlertCircle size={15} /> {err}
-        </div>
-      )}
+      {err && <ErrorState message={err} />}
 
       {/* Brands table */}
-      <section className="bg-surface border border-line rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-line flex items-center justify-between">
-          <span className={HEAD}>Brands</span>
-          <span className="text-[12px] text-muted tabular-nums">{rows.length}</span>
-        </div>
-
+      <Card title="Brands" action={<span className="text-[13px] text-muted tabular-nums">{rows.length}</span>} pad={false}>
         {loading ? (
           <div className="p-10 flex justify-center">
             <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
           </div>
         ) : rows.length === 0 ? (
-          <div className="p-10 text-center text-muted text-[13px]">No brands yet. Create your first brand.</div>
+          <Empty title="No brands yet. Create your first brand." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="text-left border-b border-line">
-                  {['Brand', 'Status', 'Players', 'Marketers', 'Deposits', 'GGR', 'Pending', 'Payouts', ''].map((h, i) => (
-                    <th key={i} className={`px-4 py-2.5 font-medium ${CAP} ${i >= 2 && i <= 6 ? 'text-right' : ''}`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.site_id} className="border-b border-line/60 hover:bg-white/[0.02]">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-ink">{r.name}</div>
-                      <div className="text-[11px] text-faint">/{r.slug}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium capitalize ${STATUS_STYLE[r.status] ?? 'bg-white/10 text-muted'}`}>{r.status}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-ink">{Number(r.player_count).toLocaleString('en-KE')}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted">{Number(r.marketer_count).toLocaleString('en-KE')}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-ink">{fmtKES(r.deposit_total)}</td>
-                    <td className={`px-4 py-3 text-right tabular-nums ${Number(r.ggr) >= 0 ? 'text-up' : 'text-down'}`}>{fmtKES(r.ggr)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted">
-                      {Number(r.withdrawal_pending_count) > 0
-                        ? <span className="text-gold">{r.withdrawal_pending_count} · {fmtKES(r.withdrawal_pending_total)}</span>
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      {r.withdrawals_enabled
-                        ? <span className="inline-flex items-center gap-1 text-up text-[12px]"><Check size={13} /> On</span>
-                        : <span className="inline-flex items-center gap-1 text-down text-[12px]"><X size={13} /> Off</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="inline-flex gap-1.5">
-                        <button onClick={() => { scope.setSiteId(r.site_id); navigate('/admin'); }} data-testid="open-brand"
-                          className="px-2.5 py-1 rounded-md border border-brand/40 text-brand hover:bg-brand/10 text-[12px] transition-colors">Open</button>
-                        <button onClick={() => setEditing(r)} className="px-2.5 py-1 rounded-md border border-line text-muted hover:text-ink hover:border-brand text-[12px] transition-colors">Edit</button>
-                      </span>
-                    </td>
-                  </tr>
+          <TableWrap minWidth={860}>
+            <thead>
+              <tr>
+                {['Brand', 'Status', 'Players', 'Marketers', 'Deposits', 'GGR', 'Pending', 'Payouts', ''].map((h, i) => (
+                  <Th key={i} numeric={i >= 2 && i <= 6} className={i === 0 ? 'pl-5' : i === 8 ? 'pr-5' : ''}>{h}</Th>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {rows.map((r) => (
+                <tr key={r.site_id} className="transition-colors hover:bg-white/[0.03]">
+                  <Td className="pl-5">
+                    <div className="font-medium text-ink">{r.name}</div>
+                    <div className="font-mono text-[12px] text-faint">/{r.slug}</div>
+                  </Td>
+                  <Td>
+                    <Badge tone={STATUS_TONE[r.status] ?? 'muted'}><span className="capitalize">{r.status}</span></Badge>
+                  </Td>
+                  <Td numeric className="text-ink">{Number(r.player_count).toLocaleString('en-KE')}</Td>
+                  <Td numeric className="text-muted">{Number(r.marketer_count).toLocaleString('en-KE')}</Td>
+                  <Td numeric className="text-ink">{fmtKES(r.deposit_total)}</Td>
+                  <Td numeric className={Number(r.ggr) >= 0 ? 'text-up' : 'text-down'}>{fmtKES(r.ggr)}</Td>
+                  <Td numeric className="text-muted">
+                    {Number(r.withdrawal_pending_count) > 0
+                      ? <span className="text-warn">{r.withdrawal_pending_count} · {fmtKES(r.withdrawal_pending_total)}</span>
+                      : '—'}
+                  </Td>
+                  <Td>
+                    {r.withdrawals_enabled
+                      ? <span className="inline-flex items-center gap-1 text-up"><Check size={13} /> On</span>
+                      : <span className="inline-flex items-center gap-1 text-down"><X size={13} /> Off</span>}
+                  </Td>
+                  <Td className="pr-5 text-right">
+                    <span className="inline-flex gap-1.5">
+                      <Button size="sm" variant="ghost" onClick={() => { scope.setSiteId(r.site_id); navigate('/admin'); }} data-testid="open-brand">Open</Button>
+                      <Button size="sm" onClick={() => setEditing(r)}>Edit</Button>
+                    </span>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
         )}
-      </section>
+      </Card>
 
       {showCreate && <CreateBrandModal onClose={() => setShowCreate(false)} onDone={() => { setShowCreate(false); void load(); }} />}
       {editing && <EditBrandModal site={editing} onClose={() => setEditing(null)} onDone={() => { setEditing(null); void load(); }} />}
     </div>
   );
 }
-
-function SummaryCard({ label, value, icon, tone }: { label: string; value: string; icon: React.ReactNode; tone?: 'up' | 'down' }) {
-  return (
-    <div className="bg-surface border border-line rounded-xl px-4 py-3">
-      <div className="flex items-center gap-1.5 text-muted mb-1.5">{icon}<span className={CAP}>{label}</span></div>
-      <div className={`text-lg font-semibold tabular-nums ${tone === 'up' ? 'text-up' : tone === 'down' ? 'text-down' : 'text-ink'}`}>{value}</div>
-    </div>
-  );
-}
-
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
-      <div className="w-full max-w-md bg-surface border border-line rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
-          <button onClick={onClose} className="text-muted hover:text-ink transition-colors"><X size={18} /></button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-const inputCls = 'w-full px-3 py-2.5 bg-canvas border border-line rounded-lg text-ink text-[13px] focus:outline-none focus:border-brand';
-const labelCls = 'block text-[12px] font-medium text-muted mb-1.5';
 
 function CreateBrandModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [name, setName] = useState('');
@@ -239,29 +195,24 @@ function CreateBrandModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   }
 
   return (
-    <ModalShell title="New Brand" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        <div>
-          <label className={labelCls}>Brand name</label>
+    <Modal title="New Brand" onClose={onClose} width={440}
+      footer={<>
+        <Button type="button" onClick={onClose}>Cancel</Button>
+        <Button type="submit" form="create-brand" variant="primary" disabled={busy}>{busy ? 'Creating…' : 'Create brand'}</Button>
+      </>}>
+      <form id="create-brand" onSubmit={submit} className="space-y-4">
+        <Field label="Brand name">
           <input className={inputCls} value={name} autoFocus placeholder="e.g. Tamu Traders"
             onChange={(e) => setName(e.target.value)} required />
-        </div>
-        <div>
-          <label className={labelCls}>Slug</label>
-          <input className={inputCls} value={slugTouched ? slug : slugify(name)}
+        </Field>
+        <Field label="Slug" hint="Lowercase letters, numbers, hyphens. 3-40 chars. Used at signup to attribute players.">
+          <input className={inputCls + ' font-mono'} value={slugTouched ? slug : slugify(name)}
             onChange={(e) => { setSlugTouched(true); setSlug(e.target.value); }}
             placeholder="tamu-traders" required />
-          <p className="text-[11px] text-faint mt-1">Lowercase letters, numbers, hyphens. 3-40 chars. Used at signup to attribute players.</p>
-        </div>
-        {err && <div className="flex items-center gap-2 text-down text-[12px]"><AlertCircle size={14} /> {err}</div>}
-        <div className="flex gap-2 pt-1">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-line text-muted hover:text-ink text-[13px] transition-colors">Cancel</button>
-          <button type="submit" disabled={busy} className="flex-1 py-2.5 rounded-lg bg-brand hover:bg-brand/90 text-white font-medium text-[13px] transition-colors disabled:opacity-50">
-            {busy ? 'Creating…' : 'Create brand'}
-          </button>
-        </div>
+        </Field>
+        {err && <div className="flex items-center gap-2 text-[13px] text-down"><AlertCircle size={14} /> {err}</div>}
       </form>
-    </ModalShell>
+    </Modal>
   );
 }
 
@@ -287,33 +238,29 @@ function EditBrandModal({ site, onClose, onDone }: { site: SiteRow; onClose: () 
   }
 
   return (
-    <ModalShell title={`Edit · ${site.name}`} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        <div>
-          <label className={labelCls}>Brand name</label>
+    <Modal title={`Edit · ${site.name}`} onClose={onClose} width={440}
+      footer={<>
+        <Button type="button" onClick={onClose}>Cancel</Button>
+        <Button type="submit" form="edit-brand" variant="primary" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button>
+      </>}>
+      <form id="edit-brand" onSubmit={submit} className="space-y-4">
+        <Field label="Brand name">
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} required />
-        </div>
-        <div>
-          <label className={labelCls}>Status</label>
+        </Field>
+        <Field label="Status">
           <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="active">Active</option>
             <option value="suspended">Suspended (blocks new signups)</option>
             <option value="disabled">Disabled (brand offline)</option>
           </select>
-        </div>
-        <label className="flex items-center justify-between py-2 px-3 rounded-lg bg-canvas border border-line cursor-pointer">
+        </Field>
+        <div className="flex h-11 items-center justify-between rounded-lg bg-raised px-3">
           <span className="text-[13px] text-ink">Withdrawals enabled</span>
-          <input type="checkbox" checked={withdrawals} onChange={(e) => setWithdrawals(e.target.checked)} className="h-4 w-4 accent-brand" />
-        </label>
-        <p className="text-[11px] text-faint">Slug <span className="text-muted">/{site.slug}</span> is permanent. Game config is shared across all brands.</p>
-        {err && <div className="flex items-center gap-2 text-down text-[12px]"><AlertCircle size={14} /> {err}</div>}
-        <div className="flex gap-2 pt-1">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-line text-muted hover:text-ink text-[13px] transition-colors">Cancel</button>
-          <button type="submit" disabled={busy} className="flex-1 py-2.5 rounded-lg bg-brand hover:bg-brand/90 text-white font-medium text-[13px] transition-colors disabled:opacity-50">
-            {busy ? 'Saving…' : 'Save changes'}
-          </button>
+          <Switch checked={withdrawals} onChange={setWithdrawals} label="Withdrawals enabled" />
         </div>
+        <p className="text-[12px] text-faint">Slug <span className="font-mono text-muted">/{site.slug}</span> is permanent. Game config is shared across all brands.</p>
+        {err && <div className="flex items-center gap-2 text-[13px] text-down"><AlertCircle size={14} /> {err}</div>}
       </form>
-    </ModalShell>
+    </Modal>
   );
 }

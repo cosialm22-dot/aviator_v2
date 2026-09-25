@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { Search, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { inputCls } from '../ui/kit';
 
 // ============================================================================
 // PlayerCombobox - accessible typeahead that searches registered *players* by
@@ -109,7 +110,7 @@ export default function PlayerCombobox({
   return (
     <div ref={rootRef} className="relative">
       <div className="relative">
-        <Search size={16} strokeWidth={1.75} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint pointer-events-none" />
+        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
         <input
           ref={inputRef}
           type="text"
@@ -126,16 +127,16 @@ export default function PlayerCombobox({
           onChange={e => { setTerm(e.target.value); setOpen(true); }}
           onFocus={() => term.trim() !== '' && setOpen(true)}
           onKeyDown={onKeyDown}
-          className="w-full pl-9 pr-9 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition-colors disabled:opacity-50"
+          className={inputCls + ' pl-8 pr-10 disabled:opacity-50'}
         />
         {term !== '' && (
           <button
             type="button"
             aria-label="Clear search"
             onClick={() => { setTerm(''); setResults([]); setSearched(false); setOpen(false); inputRef.current?.focus(); }}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-faint hover:text-ink transition-colors"
+            className="absolute right-0.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-muted transition-colors hover:bg-white/[0.06] hover:text-ink"
           >
-            <X size={15} />
+            <X size={14} />
           </button>
         )}
       </div>
@@ -145,10 +146,10 @@ export default function PlayerCombobox({
           id={listboxId}
           role="listbox"
           aria-label="Matching players"
-          className="absolute z-30 mt-1.5 w-full max-h-72 overflow-y-auto rounded-lg border border-line bg-surface shadow-lg py-1"
+          className="absolute z-30 mt-1.5 max-h-72 w-full overflow-y-auto rounded-xl bg-raised p-1 shadow-[0_12px_40px_rgba(0,0,0,0.5)] ring-1 ring-white/[0.08]"
         >
           {loading && (
-            <li className="px-3 py-2.5 text-[13px] text-muted flex items-center gap-2">
+            <li className="flex items-center gap-2 px-3 py-2.5 text-[13px] text-muted">
               <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />
               Searching&hellip;
             </li>
@@ -164,14 +165,14 @@ export default function PlayerCombobox({
               aria-selected={active === i}
               onMouseEnter={() => setActive(i)}
               onMouseDown={e => { e.preventDefault(); choose(p); }}
-              className={'px-3 py-2 flex items-center gap-2.5 cursor-pointer transition-colors ' + (active === i ? 'bg-brand/10' : 'hover:bg-canvas')}
+              className={'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 ' + (active === i ? 'bg-brand text-white' : 'text-ink')}
             >
-              <span className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: p.avatar_color }}>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold text-white" style={{ backgroundColor: p.avatar_color }}>
                 {p.username[0]?.toUpperCase()}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] text-ink font-medium truncate">{p.username}</span>
-                <span className="block text-[11px] text-faint">Joined {new Date(p.created_at).toLocaleDateString()}</span>
+                <span className="block truncate text-[13px] font-medium">{p.username}</span>
+                <span className={'block text-[12px] tabular-nums ' + (active === i ? 'text-white/70' : 'text-faint')}>Joined {new Date(p.created_at).toLocaleDateString()}</span>
               </span>
             </li>
           ))}

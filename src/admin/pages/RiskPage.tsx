@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
-import { ShieldAlert, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { Badge, Button, Card, Empty, ErrorState, PageHeader, Pills, TableWrap, Td, Th } from '../ui/kit';
 
 // ============================================================================
 // Risk & Fraud Alerts (docs/admin-dashboard/07-risk-fraud-detection.md 7.2)
@@ -28,12 +28,15 @@ interface AlertRow {
 
 type Level = 'medium' | 'high' | 'critical';
 
-const LEVEL_BADGE: Record<string, string> = {
-  low: 'bg-white/[0.06] text-muted',
-  medium: 'bg-amber-500/10 text-amber-400',
-  high: 'bg-orange-500/10 text-orange-300',
-  critical: 'bg-down/10 text-down',
+// Badge tone per risk level (kit tones: muted / warn / down).
+const LEVEL_TONE: Record<string, string> = {
+  low: 'muted',
+  medium: 'warn',
+  high: 'down',
+  critical: 'down',
 };
+
+const LEVELS: Level[] = ['medium', 'high', 'critical'];
 
 const FLAG_LABEL: Record<string, string> = {
   unusual_win_rate: 'Unusual win rate',
@@ -74,81 +77,66 @@ export default function RiskPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-6">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-[22px] font-semibold text-ink tracking-tight flex items-center gap-2">
-              <ShieldAlert size={20} strokeWidth={1.9} className="text-down" /> Risk &amp; Fraud
-            </h1>
-            <p className="text-[13px] text-muted mt-1">Players ranked by risk score. Scores are recomputed on each withdrawal request and on demand.</p>
-          </div>
-          {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
-        </div>
+    <>
+      <PageHeader
+        title="Risk & Fraud"
+        subtitle="Players ranked by risk score. Scores are recomputed on each withdrawal request and on demand."
+        actions={<Button onClick={() => load(minLevel)}><RefreshCw size={14} /> Refresh</Button>}
+      />
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {(['medium', 'high', 'critical'] as Level[]).map((l) => (
-            <button
-              key={l}
-              onClick={() => setMinLevel(l)}
-              className={'px-3 py-1.5 rounded-lg text-[12px] font-semibold capitalize transition-colors ' +
-                (minLevel === l ? 'bg-brand text-white' : 'bg-surface border border-line text-muted hover:text-ink')}
-            >
-              {l}+
-            </button>
-          ))}
-          <button onClick={() => load(minLevel)} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface text-[12px] font-semibold text-muted hover:text-ink transition-colors">
-            <RefreshCw size={13} /> Refresh
-          </button>
-        </div>
+      {err && <ErrorState message={err} />}
 
-        <div className="rounded-xl border border-line bg-surface overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
-                  <th className="text-left font-medium px-5 py-3">Player</th>
-                  <th className="text-left font-medium px-5 py-3">Level</th>
-                  <th className="text-right font-medium px-5 py-3">Score</th>
-                  <th className="text-left font-medium px-5 py-3">Flags</th>
-                  <th className="text-right font-medium px-5 py-3 hidden md:table-cell">Dep / Wd</th>
-                  <th className="text-right font-medium px-5 py-3 hidden lg:table-cell">Balance</th>
-                  <th className="text-right font-medium px-5 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {loading ? (
-                  <tr><td colSpan={7} className="px-5 py-10 text-center text-faint">Loading...</td></tr>
-                ) : rows.length === 0 ? (
-                  <tr><td colSpan={7} className="px-5 py-10 text-center text-faint">No players at this risk level.</td></tr>
-                ) : rows.map((r) => (
-                  <tr key={r.user_id} className="hover:bg-canvas transition-colors align-top">
-                    <td className="px-5 py-3"><span className="text-ink font-medium">{r.username}</span></td>
-                    <td className="px-5 py-3"><span className={'text-[10px] px-2 py-0.5 rounded font-semibold capitalize ' + (LEVEL_BADGE[r.risk_level] ?? 'bg-white/[0.06] text-muted')}>{r.risk_level}</span></td>
-                    <td className="px-5 py-3 text-right text-ink font-semibold tabular-nums">{r.score}</td>
-                    <td className="px-5 py-3">
-                      <div className="flex flex-wrap gap-1 max-w-[260px]">
-                        {(r.flags ?? []).length === 0
-                          ? <span className="text-faint text-xs">-</span>
-                          : (r.flags ?? []).map((f) => (
-                            <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-muted">{FLAG_LABEL[f] ?? f}</span>
-                          ))}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-right text-muted text-xs tabular-nums hidden md:table-cell">{ksh(r.total_deposited)} / {ksh(r.total_withdrawn)}</td>
-                    <td className="px-5 py-3 text-right text-ink text-xs tabular-nums hidden lg:table-cell">{ksh(r.wallet_balance)}</td>
-                    <td className="px-5 py-3 text-right">
-                      <button onClick={() => reassess(r.user_id)} disabled={busyId === r.user_id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line text-[12px] font-semibold text-muted hover:text-ink transition-colors disabled:opacity-40">
-                        {busyId === r.user_id ? <Spin /> : <RefreshCw size={12} />} Reassess
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
+      <Pills<Level>
+        items={LEVELS.map((l) => ({ value: l, label: <span className="capitalize">{l}+</span> }))}
+        value={minLevel}
+        onChange={setMinLevel}
+        label="Minimum risk level"
+      />
+
+      <Card pad={false} className="overflow-hidden">
+        <TableWrap minWidth={640}>
+          <thead>
+            <tr>
+              <Th>Player</Th>
+              <Th>Level</Th>
+              <Th numeric>Score</Th>
+              <Th>Flags</Th>
+              <Th numeric className="hidden md:table-cell">Dep / Wd</Th>
+              <Th numeric className="hidden lg:table-cell">Balance</Th>
+              <Th numeric>Actions</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {loading ? (
+              <tr><td colSpan={7} className="px-3 py-12 text-center text-[13px] text-faint">Loading...</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={7}><Empty title="No players at this risk level." /></td></tr>
+            ) : rows.map((r) => (
+              <tr key={r.user_id} className="align-top transition-colors hover:bg-white/[0.03]">
+                <Td><span className="font-medium text-ink">{r.username}</span></Td>
+                <Td><Badge tone={LEVEL_TONE[r.risk_level] ?? 'muted'}><span className="capitalize">{r.risk_level}</span></Badge></Td>
+                <Td numeric className="font-semibold text-ink">{r.score}</Td>
+                <Td>
+                  <div className="flex max-w-[280px] flex-wrap gap-1">
+                    {(r.flags ?? []).length === 0
+                      ? <span className="text-faint">-</span>
+                      : (r.flags ?? []).map((f) => (
+                        <Badge key={f}>{FLAG_LABEL[f] ?? f}</Badge>
+                      ))}
+                  </div>
+                </Td>
+                <Td numeric className="hidden text-muted md:table-cell">{ksh(r.total_deposited)} / {ksh(r.total_withdrawn)}</Td>
+                <Td numeric className="hidden text-ink lg:table-cell">{ksh(r.wallet_balance)}</Td>
+                <Td className="text-right">
+                  <Button size="sm" onClick={() => reassess(r.user_id)} loading={busyId === r.user_id}>
+                    {busyId !== r.user_id && <RefreshCw size={12} />} Reassess
+                  </Button>
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </TableWrap>
+      </Card>
+    </>
   );
 }

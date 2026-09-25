@@ -2,10 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { errMsg } from '../../../lib/errors';
 import { useAdmin } from '../../roleContext';
-import { Spin } from '../../components/Spin';
+import { Button, Card, SearchInput, Select } from '../../ui/kit';
 import BirdMark from '../../../components/game/BirdMark';
 import { BIRDS } from '../../../components/game/birds';
-import { Check, Palette, Bird } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 // ============================================================================
 // SiteThemePanel — super-admin per-site theme + BIRD picker. Twenty curated,
@@ -69,46 +69,40 @@ export default function SiteThemePanel() {
   }
 
   if (!isSuperAdmin) {
-    return <div className="rounded-xl border border-line bg-surface px-5 py-4 text-[13px] text-muted">Only a super admin can change site theme & bird.</div>;
+    return <Card><p className="text-[13px] text-muted">Only a super admin can change site theme & bird.</p></Card>;
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-surface overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-line bg-white/[0.02] flex items-center gap-2">
-        <Palette size={14} className="text-brand" />
-        <span className="text-[13px] font-semibold text-ink">Site theme & bird</span>
-      </div>
-      <div className="p-5 space-y-6">
+    <Card title="Site theme & bird">
+      <div className="space-y-6">
         {/* site selector */}
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-[12px] text-muted">Site</label>
-          <select value={sel ?? ''} onChange={(e) => { const s = sites.find((x) => x.id === e.target.value); setSel(e.target.value); setSkin(s?.plane_skin ?? 'fisheagle'); }}
-            className="px-3 py-2 bg-canvas border border-line rounded-lg text-sm text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
-            {sites.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.slug})</option>)}
-          </select>
-          {msg && <span className="text-[12px] text-up">{msg}</span>}
-          {err && <span className="text-[12px] text-down">{err}</span>}
+          <label className="text-[13px] font-medium text-muted">Site</label>
+          <Select<string> value={sel ?? ''} label="Site"
+            onChange={(v) => { const s = sites.find((x) => x.id === v); setSel(v); setSkin(s?.plane_skin ?? 'fisheagle'); }}
+            options={sites.map((s) => ({ value: s.id, label: `${s.name} (${s.slug})` }))} />
+          {msg && <span className="text-[13px] text-up">{msg}</span>}
+          {err && <span className="text-[13px] text-down">{err}</span>}
         </div>
 
         {/* bird picker */}
         <div>
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted flex items-center gap-1.5"><Bird size={13} />Bird · {BIRDS.length} species</div>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search birds…"
-              className="h-8 w-48 max-w-full rounded-lg border border-line bg-canvas px-3 text-[12px] text-ink outline-none placeholder:text-faint focus:border-brand/40" />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-[13px] font-medium text-muted">Bird · {BIRDS.length} species</div>
+            <SearchInput value={q} onChange={setQ} placeholder="Search birds…" label="Search birds" className="w-48 max-w-full" />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
             {list.map((b) => (
-              <button key={b.id} onClick={() => setSkin(b.id)}
-                className={'rounded-xl border p-3 text-left transition ' + (skin === b.id ? 'border-brand bg-brand/[0.06]' : 'border-line bg-canvas hover:border-brand/40')}>
-                <div className="h-16 flex items-center justify-center rounded-lg bg-[#111118] mb-2 overflow-hidden">
+              <button key={b.id} onClick={() => setSkin(b.id)} aria-pressed={skin === b.id}
+                className={'rounded-xl p-3 text-left transition-colors ' + (skin === b.id ? 'bg-raised ring-2 ring-brand' : 'bg-raised/60 hover:bg-raised')}>
+                <div className="mb-2 flex h-16 items-center justify-center overflow-hidden rounded-lg bg-canvas">
                   <BirdMark skin={b.id} width={76} />
                 </div>
                 <div className="flex items-center gap-1.5">
                   {skin === b.id && <Check size={13} className="text-brand" />}
-                  <span className="text-[12px] font-semibold text-ink leading-tight">{b.label}</span>
+                  <span className="text-[13px] font-medium leading-tight text-ink">{b.label}</span>
                 </div>
-                <div className="text-[10px] text-faint mt-0.5">{ARCH_LABEL[b.archetype]}</div>
+                <div className="mt-0.5 text-[12px] text-faint">{ARCH_LABEL[b.archetype]}</div>
               </button>
             ))}
           </div>
@@ -116,19 +110,19 @@ export default function SiteThemePanel() {
 
         {/* palettes */}
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted mb-2.5">Palette</div>
+          <div className="mb-3 text-[13px] font-medium text-muted">Palette</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {THEMES.map((t) => (
-              <button key={t.id} onClick={() => setTheme(t.id)}
-                className={'rounded-xl border p-3 text-left transition ' + (theme === t.id ? 'border-brand bg-brand/[0.06]' : 'border-line bg-canvas hover:border-brand/40')}>
-                <div className="flex gap-1 mb-2">
+              <button key={t.id} onClick={() => setTheme(t.id)} aria-pressed={theme === t.id}
+                className={'rounded-xl p-3 text-left transition-colors ' + (theme === t.id ? 'bg-raised ring-2 ring-brand' : 'bg-raised/60 hover:bg-raised')}>
+                <div className="mb-2 flex gap-1">
                   {[t.tokens.bg, t.tokens.surface, t.tokens.brand, t.tokens.accent].map((c) => (
                     <span key={c} className="h-4 flex-1 rounded" style={{ background: c }} />
                   ))}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {theme === t.id && <Check size={13} className="text-brand" />}
-                  <span className="text-[12px] font-semibold text-ink">{t.label}</span>
+                  <span className="text-[13px] font-medium text-ink">{t.label}</span>
                 </div>
               </button>
             ))}
@@ -136,12 +130,11 @@ export default function SiteThemePanel() {
         </div>
 
         <div className="flex justify-end">
-          <button onClick={apply} disabled={saving || !current}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand hover:bg-brand-dark text-white font-semibold text-sm rounded-lg transition-colors disabled:opacity-40">
-            {saving && <Spin />}Apply to {current?.name ?? 'site'}
-          </button>
+          <Button variant="primary" onClick={apply} disabled={!current} loading={saving}>
+            Apply to {current?.name ?? 'site'}
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

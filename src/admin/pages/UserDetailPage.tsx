@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Spin } from '../components/Spin';
 import { errMsg } from '../../lib/errors';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAdmin } from '../roleContext';
+import { Badge, Button, Card, Empty, ErrorState, Field, Modal, Notice, PageHeader, Select, StatCard, TableWrap, Td, Th, inputCls } from '../ui/kit';
 
 // ============================================================================
 // UserDetailPage - admin player detail (Milestone 2)
@@ -47,8 +47,6 @@ interface UserDetail {
 }
 
 const ROLES = ['player', 'marketer', 'admin'] as const;
-const HEAD = 'text-[11px] font-semibold text-muted uppercase tracking-[0.1em]';
-const CAP = 'text-[11px] font-medium uppercase tracking-[0.08em] text-muted';
 
 function fmtKES(n: number): string { return 'KSh ' + Math.round(n).toLocaleString('en-KE'); }
 
@@ -71,23 +69,24 @@ function friendly(code: string): string {
   return code || 'Action failed. Please try again.';
 }
 
-function roleBadge(role: string): string {
-  return role === 'super_admin' ? 'bg-down/10 text-down border-down/30'
-    : role === 'admin' ? 'bg-brand/10 text-brand border-brand/20'
-    : role === 'marketer' ? 'bg-violet-500/10 text-violet-300 border-violet-500/30'
-    : 'bg-white/[0.06] text-muted border-line';
+type Tone = 'up' | 'down' | 'warn' | 'brand' | 'muted';
+function roleTone(role: string): Tone {
+  return role === 'super_admin' ? 'down'
+    : role === 'admin' ? 'brand'
+    : role === 'marketer' ? 'warn'
+    : 'muted';
 }
-function txnBadge(type: string): string {
+function txnTone(type: string): Tone {
   switch (type) {
-    case 'deposit': case 'win': case 'bonus': return 'bg-up/10 text-up';
-    case 'withdrawal': return 'bg-down/10 text-down';
-    case 'adjustment': return 'bg-amber-500/10 text-amber-400';
-    case 'refund': return 'bg-sky-500/10 text-sky-400';
-    default: return 'bg-white/[0.06] text-muted';
+    case 'deposit': case 'win': case 'bonus': return 'up';
+    case 'withdrawal': return 'down';
+    case 'adjustment': return 'warn';
+    case 'refund': return 'brand';
+    default: return 'muted';
   }
 }
 
-const SHELL = 'space-y-6';
+const SHELL = 'flex flex-col gap-6';
 
 export default function UserDetailPage() {
   const { userId } = useParams();
@@ -159,11 +158,18 @@ export default function UserDetailPage() {
     finally { setBusy(false); }
   }
 
-  if (loading) return <div className={SHELL}><div className="h-40 rounded-xl border border-line bg-surface animate-pulse" /></div>;
+  // Stable closers so the kit Modal does not re-run its focus effect on every keystroke.
+  const closeAdjust = useCallback(() => { if (!busy) setShowAdjust(false); }, [busy]);
+  const closeBan = useCallback(() => { if (!busy) setShowBan(false); }, [busy]);
+  const closeRole = useCallback(() => { if (!busy) setPendingRole(null); }, [busy]);
+
+  const back = <button onClick={() => navigate('/admin/users')} className="text-[13px] font-medium text-brand transition-colors hover:underline">&larr; Back</button>;
+
+  if (loading) return <div className={SHELL}><div className="h-40 rounded-xl bg-surface animate-pulse" /></div>;
   if (!d) return (
     <div className={SHELL}>
-      <button onClick={() => navigate('/admin/users')} className="text-[13px] text-muted hover:text-ink transition-colors">&larr; Back</button>
-      <div className="mt-4 text-down text-sm">{err ?? 'Player not found'}</div>
+      <div>{back}</div>
+      <ErrorState message={err ?? 'Player not found'} />
     </div>
   );
 
@@ -180,179 +186,144 @@ export default function UserDetailPage() {
 
   return (
     <div className={SHELL}>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <button onClick={() => navigate('/admin/users')} className="text-[13px] text-muted hover:text-ink transition-colors">&larr; Back</button>
-          <div className="flex items-center gap-3">
-            {notice && <span role="status" className="px-3 py-1.5 bg-up/10 border border-up/30 rounded-lg text-up text-[12px] max-w-[320px] truncate" title={notice}>{notice}</span>}
-            {err && <span role="alert" className="px-3 py-1.5 bg-down/10 border border-down/30 rounded-lg text-down text-[12px] max-w-[320px] truncate" title={err}>{err}</span>}
-          </div>
-        </div>
-
-        {/* Identity + actions */}
-        <div className="rounded-xl border border-line bg-surface p-5 flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-semibold" style={{ backgroundColor: p.avatar_color }}>{p.username[0]?.toUpperCase()}</div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-ink text-lg font-semibold">{p.username}</h2>
-                <span className={'inline-flex px-2 py-0.5 rounded border text-[11px] font-semibold ' + roleBadge(p.role)}>{p.role}</span>
-                {p.is_banned && <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-down"><span className="h-1.5 w-1.5 rounded-full bg-down" />Banned</span>}
-              </div>
-              <div className="text-xs text-muted mt-1 space-x-3">
-                {p.phone_number && <span className="font-mono">{p.phone_number}</span>}
-                <span>Joined {new Date(p.created_at).toLocaleDateString()}</span>
-                {p.last_active_at && <span>Active {new Date(p.last_active_at).toLocaleDateString()}</span>}
-              </div>
-              {p.is_banned && p.ban_reason && <div className="text-[12px] text-down mt-1.5">Reason: {p.ban_reason}</div>}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {!canAct ? (
-              <span className="inline-flex items-center px-3 py-2 rounded-lg border border-line bg-canvas text-muted text-xs" data-testid="view-only">View only — support cannot change accounts</span>
-            ) : p.role === 'super_admin' || p.role === 'platform_superadmin' ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line bg-canvas text-muted text-xs font-medium" title="The super admin is permanent: it cannot be demoted, banned, or removed.">Protected super admin</span>
-            ) : (
-              <>
-                {d.can_manage_roles && !d.is_self && (
-                  <select
-                    value={p.role}
-                    onChange={e => { if (e.target.value !== p.role) setPendingRole(e.target.value); }}
-                    aria-label="Change role"
-                    className="px-3 py-2 rounded-lg border border-line bg-surface text-ink text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors"
-                  >
-                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                )}
-                <button onClick={() => { setErr(null); setAdjAmount(''); setAdjReason(''); setShowAdjust(true); }} disabled={d.wallet_balance == null} className="px-3 py-2 rounded-lg border border-line bg-surface text-ink text-xs font-medium hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">Adjust Balance</button>
-                {p.is_banned
-                  ? <button onClick={() => setBan(false)} disabled={busy} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-brand/30 text-brand hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition-colors disabled:opacity-40">{busy && <Spin />}Unban</button>
-                  : <button onClick={() => { setErr(null); setBanReason(''); setShowBan(true); }} disabled={busy} className="px-3 py-2 rounded-lg text-xs font-medium border border-down/30 text-down hover:bg-down/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-down/40 transition-colors disabled:opacity-40">Ban</button>}
-              </>
+      <PageHeader
+        eyebrow={back}
+        title={p.username}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px]">
+            <Badge tone={roleTone(p.role)}>{p.role}</Badge>
+            {p.is_banned && <Badge tone="down">Banned</Badge>}
+            {p.phone_number && <span className="font-mono text-[12px]">{p.phone_number}</span>}
+            <span>Joined {new Date(p.created_at).toLocaleDateString()}</span>
+            {p.last_active_at && <span>Active {new Date(p.last_active_at).toLocaleDateString()}</span>}
+          </span>
+        }
+        actions={!canAct ? (
+          <span className="inline-flex h-8 items-center rounded-lg bg-raised px-3 text-[13px] text-muted" data-testid="view-only">View only — support cannot change accounts</span>
+        ) : p.role === 'super_admin' || p.role === 'platform_superadmin' ? (
+          <span className="inline-flex h-8 items-center rounded-lg bg-raised px-3 text-[13px] font-medium text-muted" title="The super admin is permanent: it cannot be demoted, banned, or removed.">Protected super admin</span>
+        ) : (
+          <>
+            {d.can_manage_roles && !d.is_self && (
+              <Select<string>
+                value={p.role}
+                onChange={v => { if (v !== p.role) setPendingRole(v); }}
+                label="Change role"
+                options={ROLES.map(r => ({ value: r, label: r }))}
+              />
             )}
-          </div>
-        </div>
+            <Button onClick={() => { setErr(null); setAdjAmount(''); setAdjReason(''); setShowAdjust(true); }} disabled={d.wallet_balance == null}>Adjust Balance</Button>
+            {p.is_banned
+              ? <Button onClick={() => setBan(false)} loading={busy}>Unban</Button>
+              : <Button variant="danger" onClick={() => { setErr(null); setBanReason(''); setShowBan(true); }} disabled={busy}>Ban</Button>}
+          </>
+        )}
+      />
 
-        {/* Stats */}
-        <div className="rounded-xl border border-line bg-surface overflow-hidden">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y sm:divide-y-0 divide-line">
-            {STATS.map(s => (
-              <div key={s.l} className="p-5">
-                <div className={CAP}>{s.l}</div>
-                <div className="mt-2 text-lg font-semibold text-ink tabular-nums">{s.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {notice && <Notice tone="ok">{notice}</Notice>}
+      {err && <Notice tone="error">{err}</Notice>}
+      {p.is_banned && p.ban_reason && <div className="rounded-xl bg-down/10 px-4 py-2.5 text-[13px] text-down">Reason: {p.ban_reason}</div>}
 
-        {/* Recent bets */}
-        <div className="rounded-xl border border-line bg-surface overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-line"><h3 className={HEAD}>Recent Bets</h3></div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
-                  <th className="px-5 py-2.5 text-left font-medium">Time</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Amount</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Cashout</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Won</th>
-                  <th className="px-5 py-2.5 text-left font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {d.bets.length === 0 ? (
-                  <tr><td colSpan={5} className="px-5 py-10 text-center text-faint">No bets</td></tr>
-                ) : d.bets.map(b => (
-                  <tr key={b.id}>
-                    <td className="px-5 py-2.5 text-muted text-xs">{new Date(b.created_at).toLocaleString()}</td>
-                    <td className="px-5 py-2.5 text-right text-ink tabular-nums">{fmtKES(Number(b.amount))}</td>
-                    <td className="px-5 py-2.5 text-right text-muted tabular-nums">{b.cashout_multiplier ? `${Number(b.cashout_multiplier).toFixed(2)}x` : '-'}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">{b.winnings ? <span className="text-up">+{Number(b.winnings).toLocaleString()}</span> : '-'}</td>
-                    <td className="px-5 py-2.5"><span className={'text-[10px] font-semibold px-1.5 py-0.5 rounded ' + (b.status === 'won' ? 'bg-up/10 text-up' : b.status === 'lost' ? 'bg-down/10 text-down' : 'bg-amber-500/10 text-amber-400')}>{b.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Recent transactions */}
-        <div className="rounded-xl border border-line bg-surface overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-line"><h3 className={HEAD}>Recent Transactions</h3></div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-[10px] uppercase tracking-[0.08em] text-faint">
-                  <th className="px-5 py-2.5 text-left font-medium">Time</th>
-                  <th className="px-5 py-2.5 text-left font-medium">Type</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Amount</th>
-                  <th className="px-5 py-2.5 text-left font-medium hidden sm:table-cell">Description</th>
-                  <th className="px-5 py-2.5 text-left font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {d.transactions.length === 0 ? (
-                  <tr><td colSpan={5} className="px-5 py-10 text-center text-faint">No transactions</td></tr>
-                ) : d.transactions.map(t => (
-                  <tr key={t.id}>
-                    <td className="px-5 py-2.5 text-muted text-xs">{new Date(t.created_at).toLocaleString()}</td>
-                    <td className="px-5 py-2.5"><span className={'text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ' + txnBadge(t.type)}>{t.type}</span></td>
-                    <td className={'px-5 py-2.5 text-right tabular-nums ' + (Number(t.amount) < 0 ? 'text-down' : 'text-ink')}>{Number(t.amount) > 0 ? '+' : ''}{fmtKES(Number(t.amount))}</td>
-                    <td className="px-5 py-2.5 text-muted text-xs hidden sm:table-cell max-w-[260px] truncate" title={t.description ?? ''}>{t.description ?? '-'}</td>
-                    <td className="px-5 py-2.5 text-muted text-xs">{t.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {STATS.map(s => <StatCard key={s.l} label={s.l} value={s.v} />)}
       </div>
+
+      {/* Recent bets */}
+      <Card title="Recent Bets" pad={false}>
+        <TableWrap minWidth={0}>
+          <thead>
+            <tr>
+              <Th className="pl-5">Time</Th>
+              <Th numeric>Amount</Th>
+              <Th numeric>Cashout</Th>
+              <Th numeric>Won</Th>
+              <Th className="pr-5">Status</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {d.bets.length === 0 ? (
+              <tr><td colSpan={5}><Empty title="No bets" /></td></tr>
+            ) : d.bets.map(b => (
+              <tr key={b.id} className="transition-colors hover:bg-white/[0.03]">
+                <Td className="pl-5 whitespace-nowrap text-[12px] text-muted tabular-nums">{new Date(b.created_at).toLocaleString()}</Td>
+                <Td numeric className="text-ink">{fmtKES(Number(b.amount))}</Td>
+                <Td numeric className="text-muted">{b.cashout_multiplier ? `${Number(b.cashout_multiplier).toFixed(2)}x` : '-'}</Td>
+                <Td numeric>{b.winnings ? <span className="text-up">+{Number(b.winnings).toLocaleString()}</span> : '-'}</Td>
+                <Td className="pr-5"><Badge tone={b.status === 'won' ? 'up' : b.status === 'lost' ? 'down' : 'warn'}>{b.status}</Badge></Td>
+              </tr>
+            ))}
+          </tbody>
+        </TableWrap>
+      </Card>
+
+      {/* Recent transactions */}
+      <Card title="Recent Transactions" pad={false}>
+        <TableWrap minWidth={0}>
+          <thead>
+            <tr>
+              <Th className="pl-5">Time</Th>
+              <Th>Type</Th>
+              <Th numeric>Amount</Th>
+              <Th className="hidden sm:table-cell">Description</Th>
+              <Th className="pr-5">Status</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {d.transactions.length === 0 ? (
+              <tr><td colSpan={5}><Empty title="No transactions" /></td></tr>
+            ) : d.transactions.map(t => (
+              <tr key={t.id} className="transition-colors hover:bg-white/[0.03]">
+                <Td className="pl-5 whitespace-nowrap text-[12px] text-muted tabular-nums">{new Date(t.created_at).toLocaleString()}</Td>
+                <Td><Badge tone={txnTone(t.type)}><span className="capitalize">{t.type}</span></Badge></Td>
+                <Td numeric className={Number(t.amount) < 0 ? 'text-down' : 'text-ink'}>{Number(t.amount) > 0 ? '+' : ''}{fmtKES(Number(t.amount))}</Td>
+                <Td className="hidden sm:table-cell max-w-[260px] truncate text-muted" title={t.description ?? ''}>{t.description ?? '-'}</Td>
+                <Td className="pr-5 text-muted">{t.status}</Td>
+              </tr>
+            ))}
+          </tbody>
+        </TableWrap>
+      </Card>
 
       {/* Adjust balance modal */}
       {showAdjust && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busy ? null : setShowAdjust(false)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Adjust Balance</h3>
-            <p className="text-muted text-[13px] mt-2 leading-relaxed">Current balance: <span className="font-semibold text-ink">{fmtKES(Number(d.wallet_balance ?? 0))}</span>. Use a positive amount to credit, negative to debit.</p>
-            <label className="block mt-4 text-[12px] font-medium text-muted">Amount (KES)</label>
-            <input type="number" value={adjAmount} onChange={e => setAdjAmount(e.target.value)} autoFocus placeholder="e.g. 500 or -200" className="mt-1 w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink font-mono placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
-            <label className="block mt-3 text-[12px] font-medium text-muted">Reason</label>
-            <input type="text" value={adjReason} onChange={e => setAdjReason(e.target.value)} placeholder="Reason (required)" className="mt-1 w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus:border-brand/40 transition" />
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowAdjust(false)} disabled={busy} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={adjustBalance} disabled={busy || !adjAmount.trim() || !adjReason.trim()} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark">{busy && <Spin />}Apply</button>
-            </div>
-          </div>
-        </div>
+        <Modal title="Adjust Balance" onClose={closeAdjust} width={400}
+          subtitle={<>Current balance: <span className="font-semibold text-ink tabular-nums">{fmtKES(Number(d.wallet_balance ?? 0))}</span>. Use a positive amount to credit, negative to debit.</>}
+          footer={<>
+            <Button onClick={() => setShowAdjust(false)} disabled={busy}>Cancel</Button>
+            <Button variant="primary" onClick={adjustBalance} loading={busy} disabled={!adjAmount.trim() || !adjReason.trim()}>Apply</Button>
+          </>}>
+          <Field label="Amount (KES)">
+            <input type="number" value={adjAmount} onChange={e => setAdjAmount(e.target.value)} autoFocus placeholder="e.g. 500 or -200" className={inputCls + ' tabular-nums'} />
+          </Field>
+          <Field label="Reason">
+            <input type="text" value={adjReason} onChange={e => setAdjReason(e.target.value)} placeholder="Reason (required)" className={inputCls} />
+          </Field>
+        </Modal>
       )}
 
       {/* Ban modal */}
       {showBan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busy ? null : setShowBan(false)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Ban {p.username}</h3>
-            <p className="text-muted text-[13px] mt-2 leading-relaxed">The player will be flagged as banned. A reason is required and recorded in the audit log.</p>
-            <textarea value={banReason} onChange={e => setBanReason(e.target.value)} autoFocus rows={3} placeholder="Reason for ban (required)" className="mt-4 w-full px-3 py-2.5 bg-surface border border-line rounded-lg text-sm text-ink placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-down/30 focus:border-down/40 resize-none transition" />
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowBan(false)} disabled={busy} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={() => setBan(true, banReason)} disabled={busy || !banReason.trim()} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-down hover:brightness-95">{busy && <Spin />}Ban</button>
-            </div>
-          </div>
-        </div>
+        <Modal title={`Ban ${p.username}`} tone="danger" onClose={closeBan} width={400}
+          subtitle="The player will be flagged as banned. A reason is required and recorded in the audit log."
+          footer={<>
+            <Button onClick={() => setShowBan(false)} disabled={busy}>Cancel</Button>
+            <Button variant="danger" onClick={() => setBan(true, banReason)} loading={busy} disabled={!banReason.trim()}>Ban</Button>
+          </>}>
+          <textarea value={banReason} onChange={e => setBanReason(e.target.value)} autoFocus rows={3} placeholder="Reason for ban (required)" aria-label="Reason for ban"
+            className="w-full resize-none rounded-lg bg-raised px-3 py-2 text-[13px] text-ink placeholder:text-faint focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand/50" />
+        </Modal>
       )}
 
       {/* Role change confirmation */}
       {pendingRole && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => busy ? null : setPendingRole(null)}>
-          <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-ink font-semibold text-lg">Change role</h3>
-            <p className="text-muted text-[13px] mt-3 leading-relaxed">Change <span className="font-semibold text-ink">{p.username}</span> from <span className="font-semibold text-ink">{p.role}</span> to <span className="font-semibold text-ink">{pendingRole}</span>? This grants or revokes dashboard access.</p>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setPendingRole(null)} disabled={busy} className="flex-1 py-2.5 border border-line bg-surface rounded-lg text-muted font-semibold text-sm hover:text-ink transition-colors disabled:opacity-40">Cancel</button>
-              <button onClick={() => changeRole(pendingRole)} disabled={busy} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark">{busy && <Spin />}Change</button>
-            </div>
-          </div>
-        </div>
+        <Modal title="Change role" onClose={closeRole} width={400}
+          footer={<>
+            <Button onClick={() => setPendingRole(null)} disabled={busy}>Cancel</Button>
+            <Button variant="primary" onClick={() => changeRole(pendingRole)} loading={busy}>Change</Button>
+          </>}>
+          <p className="text-[13px] leading-relaxed text-muted">Change <span className="font-semibold text-ink">{p.username}</span> from <span className="font-semibold text-ink">{p.role}</span> to <span className="font-semibold text-ink">{pendingRole}</span>? This grants or revokes dashboard access.</p>
+        </Modal>
       )}
     </div>
   );
