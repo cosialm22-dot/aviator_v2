@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-// useMaintenance - reflects the server's `system.maintenance_mode` flag so the
-// betting UI can lock the instant the platform is closed.
+// useMaintenance - reflects the server's `system.maintenance_mode` flag so the betting UI can
+// lock the instant the platform is closed.
 //
-// The authoritative gate is the DB place_bet RPC (it raises MAINTENANCE_MODE);
-// this hook only keeps the UI honest so players never tap "Bet" into a server
-// rejection. We poll the public is_maintenance() RPC rather than subscribe via
-// Realtime because system_settings is admin-only and not in the realtime
-// publication. A lightweight poll is more than enough for an operational toggle
-// that flips rarely; the value is also re-checked immediately on mount.
-export function useMaintenance(pollMs = 20000): boolean {
+// The authoritative gate is the place_bet RPC (it raises MAINTENANCE_MODE); this hook only keeps
+// the UI honest. The flag is PUSHED on the public broadcast topic "config" when it changes, so
+// pages no longer poll. It is read once on load, after every (re)connect, and every 5 minutes as
+// a safety net in case a message is missed.
+const SAFETY_POLL_MS = 5 * 60_000;
+
+export function useMaintenance(): boolean {
   const [on, setOn] = useState(false);
 
   useEffect(() => {
@@ -19,10 +19,15 @@ export function useMaintenance(pollMs = 20000): boolean {
       const { data, error } = await supabase.rpc('is_maintenance');
       if (alive && !error) setOn(Boolean(data));
     };
-    void check();
-    const id = setInterval(check, pollMs);
-    return () => { alive = false; clearInterval(id); };
-  }, [pollMs]);
+    const ch = supabase
+      .channel('config')
+      .on('broadcast', { event: 'maintenance' }, ({ payload }) => {
+        if (alive && typeof payload?.maintenance === 'boolean') setOn(payload.maintenance);
+      })
+      .subscribe((status) => { if (status === 'SUBSCRIBED') void check(); });
+    const id = setInterval(check, SAFETY_POLL_MS);
+    return () => { alive = false; clearInterval(id); void supabase.removeChannel(ch); };
+  }, []);
 
   return on;
 }

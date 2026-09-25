@@ -1,11 +1,7 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import AviatorGame from './components/game/AviatorGame';
-import ProfilePage from './components/profile/ProfilePage';
-import MarketerHub from './components/marketer/MarketerHub';
-import AuthModal from './components/auth/AuthModal';
-import WalletModal from './components/wallet/WalletModal';
 import DemoNudgeToast from './components/game/DemoNudgeToast';
 import { useAuth } from './hooks/useAuth';
 import { useWallet } from './hooks/useWallet';
@@ -18,6 +14,25 @@ import { StreamerModeProvider } from './hooks/useStreamerMode';
 // of visitors (players) never load. Code-splitting it keeps the player bundle
 // lean and only fetches admin chunks when an operator navigates to /admin.
 const AdminApp = lazy(() => import('./admin/AdminApp'));
+// Everything that is not the game screen loads on demand, so the first paint of the game only
+// downloads the game. The modals are prefetched once the browser is idle, so opening them later
+// is instant.
+const loadAuthModal = () => import('./components/auth/AuthModal');
+const loadWalletModal = () => import('./components/wallet/WalletModal');
+const ProfilePage = lazy(() => import('./components/profile/ProfilePage'));
+const MarketerHub = lazy(() => import('./components/marketer/MarketerHub'));
+const AuthModal = lazy(loadAuthModal);
+const WalletModal = lazy(loadWalletModal);
+
+function usePrefetchOnIdle() {
+  useEffect(() => {
+    const run = () => { void loadAuthModal(); void loadWalletModal(); };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    if (w.requestIdleCallback) { const id = w.requestIdleCallback(run, { timeout: 4000 }); return () => (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(id); }
+    const t = setTimeout(run, 2500);
+    return () => clearTimeout(t);
+  }, []);
+}
 
 type AuthMode = 'signin' | 'signup' | null;
 export type PlayMode = 'real' | 'demo';
@@ -28,6 +43,7 @@ function PlayerApp() {
   // Real vs Demo play mode. Lifted here so the header switch, the game, and the
   // conversion toast all share one source of truth.
   const [mode, setMode] = useState<PlayMode>('real');
+  usePrefetchOnIdle();
 
   const { user, profile, wallet, loading, signUp, signIn, signOut, refreshWallet } = useAuth();
   const { deposit, withdraw, depositing, withdrawing } = useWallet(user?.id, refreshWallet);
@@ -104,21 +120,25 @@ function PlayerApp() {
           <Route
             path="profile"
             element={
-              <ProfilePage
-                user={user}
-                profile={profile}
-                wallet={wallet}
-                onSignInRequired={() => setAuthMode('signin')}
-              />
+              <Suspense fallback={<InlineFallback />}>
+                <ProfilePage
+                  user={user}
+                  profile={profile}
+                  wallet={wallet}
+                  onSignInRequired={() => setAuthMode('signin')}
+                />
+              </Suspense>
             }
           />
           <Route
             path="marketer"
             element={
-              <MarketerHub
-                profile={profile}
-                onSignInRequired={() => setAuthMode('signin')}
-              />
+              <Suspense fallback={<InlineFallback />}>
+                <MarketerHub
+                  profile={profile}
+                  onSignInRequired={() => setAuthMode('signin')}
+                />
+              </Suspense>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -130,15 +150,18 @@ function PlayerApp() {
       )}
 
       {authMode && (
+        <Suspense fallback={null}>
         <AuthModal
           initialMode={authMode}
           onSignUp={signUp}
           onSignIn={signIn}
           onClose={() => setAuthMode(null)}
         />
+        </Suspense>
       )}
 
       {walletOpen && wallet && (
+        <Suspense fallback={null}>
         <WalletModal
           balance={wallet.balance}
           onDeposit={deposit}
@@ -148,6 +171,7 @@ function PlayerApp() {
           activeBonus={activeLocked}
           defaultPhone={user?.phone}
         />
+        </Suspense>
       )}
 
       {walletOpen && !wallet && profile && (
@@ -169,6 +193,14 @@ function PlayerApp() {
       )}
     </div>
     </StreamerModeProvider>
+  );
+}
+
+function InlineFallback() {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-win border-t-transparent rounded-full animate-spin" />
+    </div>
   );
 }
 

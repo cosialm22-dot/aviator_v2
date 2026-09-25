@@ -99,19 +99,20 @@ export function useChatStream({ userId, username, avatarColor = '#3b82f6' }: Cha
   // messages already on screen are preserved and an empty table is a no-op.
   useEffect(() => {
     supabase
-      .from('chat_messages').select('*')
+      .from('chat_messages').select('id, user_id, username, avatar_color, text, created_at')
       .order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => {
         if (data && data.length) setMessages(prev => mergeMessages(prev, data as ChatMessage[]));
       });
   }, []);
 
-  // Realtime - new real messages from other signed-in users.
+  // Realtime - new real messages, pushed on the public broadcast topic "chat" by a DB trigger
+  // (cheaper than postgres_changes, which RLS-checked every insert once per open page).
   useEffect(() => {
     const channel = supabase
-      .channel('chat_messages_live')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
-        setMessages(prev => mergeMessages(prev, [payload.new as ChatMessage]));
+      .channel('chat')
+      .on('broadcast', { event: 'message' }, ({ payload }) => {
+        if (payload?.id) setMessages(prev => mergeMessages(prev, [payload as ChatMessage]));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
