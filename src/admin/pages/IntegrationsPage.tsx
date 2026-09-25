@@ -11,7 +11,7 @@ import { listIntegrations, testCloudflare, type IntegrationsDoc } from '../brand
 // ============================================================================
 const TESTS: Record<string, () => Promise<{ ok: boolean; message: string }>> = { cloudflare: testCloudflare };
 // Payment gateways are managed on Payment accounts (with scopes and go-live), not here.
-const PAYMENT_PROVIDERS = new Set(['megapay']);
+const PAYMENT_PROVIDERS = new Set(['megapay', 'mpesa_b2c']);
 
 export default function IntegrationsPage() {
   const [doc, setDoc] = useState<IntegrationsDoc | null>(null);

@@ -12,8 +12,9 @@ import { pollDeposit, startDeposit, type Invoke } from '../lib/megapayClient';
 //   • deposit  -> megapay-stk-push edge fn (Mega Pay M-Pesa prompt). We poll
 //                 megapay-status, which asks Mega Pay and credits the wallet once;
 //                 the megapay_reconcile job settles anything the browser misses.
-//   • withdraw -> request_withdrawal RPC creates a pending withdrawal_request;
-//                 payout (mpesa-b2c) is triggered by admin/auto-approve.
+//   • withdraw -> request_withdrawal RPC holds the amount and creates the request
+//                 (approved at once when small and low-risk); the payouts-worker
+//                 sends it by M-Pesa B2C, or staff pay it by hand (migration 20260930097000).
 // The public API ({ deposit, withdraw, depositing, withdrawing }) is unchanged.
 // ============================================================================
 
@@ -24,6 +25,9 @@ export type DepositStage = 'sending' | 'awaiting_pin';
 
 const invoke: Invoke = (name, opts) =>
   supabase.functions.invoke(name, opts as { body: Record<string, unknown> }) as Promise<{ data: unknown; error: unknown }>;
+
+/** What the player is told after a withdrawal request: paid automatically, or reviewed first. */
+export interface WithdrawalResult { status: 'approved' | 'pending'; automatic: boolean }
 
 /** Map raw backend error codes to safe, user-facing copy. Never leak internals. */
 function friendly(code: string, op: 'deposit' | 'withdrawal'): string {
@@ -38,7 +42,13 @@ function friendly(code: string, op: 'deposit' | 'withdrawal'): string {
     INCORRECT_PASSWORD: 'Incorrect password. Please try again.',
     PASSWORD_REQUIRED: 'Enter your password to confirm this withdrawal.',
     SESSION_EXPIRED: 'Your session expired. Please sign in again.',
-    WITHDRAWAL_PENDING: 'You already have a withdrawal being processed.',
+    WITHDRAWAL_PENDING: 'You already have a withdrawal in progress. Wait for it, or cancel it in Profile → Payments.',
+    WITHDRAWALS_DISABLED: 'Withdrawals are paused right now. Please try again later.',
+    MAINTENANCE_MODE: 'We are doing maintenance. Please try again shortly.',
+    ACCOUNT_BANNED: 'This account cannot withdraw. Contact support.',
+    DAILY_LIMIT: 'This is more than your daily withdrawal limit allows.',
+    AMOUNT_TOO_HIGH: 'Amount is above the maximum for one withdrawal.',
+    MARKETER_DEMO_NON_WITHDRAWABLE: 'Marketer demo balance cannot be withdrawn.',
     RATE_LIMIT: 'Too many attempts - please wait a minute and try again.',
     network: 'Connection error. Check your internet and try again.',
   };
@@ -102,7 +112,7 @@ export function useWallet(userId: string | undefined, onRefresh: () => Promise<v
     amount: number,
     method: 'mpesa' | 'bank',
     details: Record<string, string>,
-  ): Promise<void> => {
+  ): Promise<WithdrawalResult> => {
     if (!userId) throw new Error('Please sign in to continue.');
     if (method !== 'mpesa') throw new Error('Only M-Pesa withdrawals are currently supported.');
     const phone = toDarajaMsisdn(details.phone || '');
@@ -124,9 +134,11 @@ export function useWallet(userId: string | undefined, onRefresh: () => Promise<v
       const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
       if (authErr) throw new Error(friendly('INCORRECT_PASSWORD', 'withdrawal'));
 
-      const { error } = await supabase.rpc('request_withdrawal', { p_amount: amount, p_phone: phone });
+      const { data, error } = await supabase.rpc('request_withdrawal', { p_amount: amount, p_phone: phone });
       if (error) throw new Error(friendly(error.message, 'withdrawal'));
       await onRefresh();
+      const r = (data ?? {}) as { status?: string; automatic_payout?: boolean };
+      return { status: r.status === 'approved' ? 'approved' : 'pending', automatic: r.automatic_payout === true };
     } finally {
       setWithdrawing(false);
     }

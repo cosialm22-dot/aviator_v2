@@ -46,8 +46,10 @@ BEGIN
   EXCEPTION WHEN others THEN
     IF SQLERRM NOT LIKE '%INSUFFICIENT_BALANCE%' THEN RAISE EXCEPTION 'D1 wrong error: %',SQLERRM; END IF;
   END;
-  v_res := request_withdrawal(800::numeric,'254712345678');     -- <= real -> ok
-  IF (v_res->>'status')<>'pending' THEN RAISE EXCEPTION 'D2 withdrawal 800 not pending'; END IF;
+  v_res := request_withdrawal(800::numeric,'254712345678');     -- <= real -> ok (small + low risk: approved at once)
+  IF (v_res->>'status') NOT IN ('pending','approved') THEN RAISE EXCEPTION 'D2 withdrawal 800 not accepted: %', v_res; END IF;
+  -- the amount is held from REAL money only (bonus untouched)
+  IF (SELECT real_balance FROM wallets WHERE user_id = p1) <> 5000 THEN RAISE EXCEPTION 'D3 real after hold expected 5000 got %', (SELECT real_balance FROM wallets WHERE user_id = p1); END IF;
 
   -- ================= E. nonzero FIFO conversion (manual bonus wx=0.5) via loss path =================
   INSERT INTO auth.users(id, raw_user_meta_data) VALUES (p2,'{"username":"tester_p2"}');

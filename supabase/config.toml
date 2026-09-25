@@ -46,3 +46,11 @@ verify_jwt = false
 
 [functions.brand-domains]
 verify_jwt = false
+
+#   payouts-worker: pg_cron / wake-ups (x-cron-secret, checked against Vault); "test" runs its RPCs as the caller
+#   payout-result:  Safaricom callbacks, authenticated by the per-attempt HMAC token in the URL
+[functions.payouts-worker]
+verify_jwt = false
+
+[functions.payout-result]
+verify_jwt = false
