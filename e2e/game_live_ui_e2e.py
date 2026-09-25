@@ -124,7 +124,11 @@ try:
         if took_off:
             cash.click(); cashed = True
         until(lambda: "Flew away" in txt(), 120000)
-        bet = sql(f"select status, amount, cashout_multiplier, winnings from bets where user_id='{uid}' order by created_at desc limit 1")[0]
+        bet = sql(f"select b.status, b.amount, b.cashout_multiplier, b.winnings, g.crash_multiplier from bets b join game_rounds g on g.id = b.round_id where b.user_id='{uid}' order by b.created_at desc limit 1")[0]
+        if not took_off and float(bet["crash_multiplier"] or 0) <= 1.05:
+            # the round busted almost at take-off: nothing could be cashed out; not a UI failure
+            NOTES.append(f"round crashed at {bet['crash_multiplier']}x before a cash-out was possible")
+            cashed = True
         b1 = int(sql(f"select real_balance from wallets where user_id='{uid}'")[0]["real_balance"])
         won = bet["status"] == "won"
         exp = -int(round(float(bet["amount"]) * 100)) + (int(round(float(bet["winnings"]) * 100)) if won else 0)
