@@ -4,6 +4,45 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #37 — Brand domains, automated (Cloudflare), and a Vault-backed integrations store — DONE (branch `brand/p5-domains`)
+- **Ask:** every marketer's brand on its own domain, with the domain set up from the admin (owner's choice: "Automate in admin"; Namecheap stays a guided step).
+- **Integrations** (`integrations` table, migration `20260930095000`): one provider account per scope (System, a platform, or a brand).
+  - Settings sit in the row. Secret values go only to Supabase Vault; the row keeps the Vault id and a hint (`••••a334`).
+  - No console RPC ever returns a secret. Only the service role can resolve one (`svc_integration_resolve`: brand → platform → System).
+  - Changing an account marks it untested. Saves are audited with the names of the fields that changed, never their values.
+  - Cloudflare is System-only, because Worker custom domains must be in the Worker's own account. Step 6 adds the payment gateways to the same catalog.
+- **Domains** (`site_domains` gains a provisioning state machine; edge function `brand-domains`, ported from invest254 `domains.ts` and moved from Pages to Worker Custom Domains). The steps:
+  1. Find or create the Cloudflare zone for the registrable domain (`.co.ke` and similar suffixes are handled).
+  2. While the zone is pending, read the domain's live nameservers over DNS-over-HTTPS and show them next to the two Cloudflare assigned. When they match, ask Cloudflare to re-check at once.
+  3. Attach `<domain>` (and `www.<domain>`) to the app's Worker. Cloudflare creates the DNS records and the certificate.
+  4. If a DNS record is in the way, stop and list it; nothing is deleted silently. "Replace these records" deletes only the listed A/AAAA/CNAME records on those exact names.
+  5. Wait for HTTPS, then go live only when `https://<domain>/__brand` answers with *this* brand.
+  - Every step is idempotent. "Check now", the add itself and a pg_cron sweep every 5 minutes all run the same `advance()`.
+  - The sweep backs off (2 min doubling, to 1 h) and re-verifies live domains every 6 h. It authenticates with a Vault secret, so there is no environment secret to manage.
+- **Rules (SQL, tested):**
+  - What was typed is cleaned: scheme, path, port and `www.` are stripped. IPs, `workers.dev`, `pages.dev`, `supabase.co` and made-up TLDs are refused.
+  - Up to 10 domains per brand. The first domain is primary. Removing the primary promotes another.
+  - A domain, or a subdomain of it, can't be taken by a brand outside your scope, since it would share the Cloudflare zone. The refusal never names the other brand.
+  - Owner and platform admin manage domains; the brand owner sees them read-only.
+- **Edge:**
+  - `/__brand` is the health probe.
+  - `www.<domain>` redirects to `<domain>` (301, path and query kept). It can be switched to serving www instead.
+  - A secondary domain can send visitors to the primary.
+  - Redirecting also means one login session per brand, since browser storage is per origin.
+- **Console:**
+  - **Domains tab:** add with a live preview of what will be connected; five-step progress; guided nameserver step with copy buttons (Namecheap / GoDaddy / other, the DNSSEC warning, and the domain's current nameservers).
+  - **Domain actions:** conflict review; options; Check now; Make primary; Remove (which detaches from Cloudflare). The tab refreshes itself while a domain is pending.
+  - **Owner only:** "Domains on the app without a brand" lists Worker domains no brand claims (today `printpesa.com`) with "Assign to this brand"; a domain connected by hand can be recorded.
+  - **Integrations page:** secrets are write-only and "Test connection" verifies the token and the Worker.
+- **Tests:**
+  - `supabase/tests/domains_integrations_e2e.py`: 71 checks.
+  - `domains.spec.ts`: 20 checks: the state machine against a fake Cloudflare, request shapes, error words, and the suffix list kept equal to the SQL one.
+  - `worker.test.ts`: 7 checks for redirects and the probe.
+  - `domainRules.test.ts`: 8 checks.
+  - `admin_ui_e2e.py`: owner Integrations checks.
+  - `e2e/domains_live_e2e.py`: a real subdomain goes live and redirects, then is removed.
+  - `brand_config_e2e.py`: its www check now uses an apex domain, because www applies only to a registrable domain.
+
 ## #36 — Brand console in the back office — DONE (branch `brand/p4-console`)
 - **Brands page** (`/admin/brands`): one card per brand, drawn in its own colours, plane and bird, with its domain, marketer, status and config version.
   - A platform admin sees only its platform's brands; a brand owner goes straight to its own brand.

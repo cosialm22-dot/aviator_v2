@@ -218,18 +218,18 @@ BEGIN
   PERFORM public.admin_brand_rollback(B, v + 1);
 
   -- ── public payload ──
-  INSERT INTO site_domains(hostname, site_id, is_primary, status) VALUES ('brand-b.example.com', B, true, 'active');
-  out := out || jsonb_build_object('t','primary domain mirrored to sites.primary_domain', 'ok', (SELECT primary_domain FROM sites WHERE id = B) = 'brand-b.example.com');
-  r := public.public_site_by_host('brand-b.example.com');
+  INSERT INTO site_domains(hostname, site_id, is_primary, status) VALUES ('brand-b-e2e.com', B, true, 'active');
+  out := out || jsonb_build_object('t','primary domain mirrored to sites.primary_domain', 'ok', (SELECT primary_domain FROM sites WHERE id = B) = 'brand-b-e2e.com');
+  r := public.public_site_by_host('brand-b-e2e.com');
   out := out || jsonb_build_object('t','host resolves to its brand', 'ok', (r->>'site_id')::uuid = B AND r->>'matched' = 'domain', 'got', r->>'matched');
-  r := public.public_site_by_host('WWW.brand-b.example.com:443');
-  out := out || jsonb_build_object('t','www. and port are ignored', 'ok', (r->>'site_id')::uuid = B);
+  r := public.public_site_by_host('WWW.brand-b-e2e.com:443');
+  out := out || jsonb_build_object('t','www. (on an apex) and port are ignored', 'ok', (r->>'site_id')::uuid = B);
   r := public.public_site_by_host('unknown.example', 'e2e-brand-c');
   out := out || jsonb_build_object('t','?brand= previews an active brand on a shared host', 'ok', (r->>'site_id')::uuid = C AND r->>'matched' = 'preview');
   UPDATE sites SET status = 'disabled' WHERE id = C;
   r := public.public_site_by_host('unknown.example', 'e2e-brand-c');
   out := out || jsonb_build_object('t','a disabled brand cannot be previewed', 'ok', (r->>'site_id')::uuid = A);
-  r := public.public_site_by_host('brand-b.example.com');
+  r := public.public_site_by_host('brand-b-e2e.com');
   out := out || jsonb_build_object('t','payload carries theme, plane, bird and public settings', 'ok',
     r->'config'->>'plane.model' = 'jet' AND r->'config'->>'stream.bird' = 'flamingo' AND r->'theme_tokens'->>'brand' = '#f0b90b' AND r->'config'->>'copy.flew_away' = 'GONE!', 'got', r->'config'->'plane.model');
   out := out || jsonb_build_object('t','payload never carries private settings', 'ok',

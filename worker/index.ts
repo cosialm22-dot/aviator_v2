@@ -6,7 +6,9 @@
 //   * the brand's CSS variables, fonts, title, description, theme colour, favicon and canonical
 //     link are in the HTML — no flash of the default look, correct link previews and tab icons;
 //   * window.__BRAND__ carries the resolved brand so the app does not wait for a round trip;
-//   * /manifest.webmanifest and /robots.txt are generated per brand.
+//   * /manifest.webmanifest, /robots.txt and /sitemap.xml are generated per brand;
+//   * /__brand answers which brand this host serves (the domain automation health probe);
+//   * www.<domain> and a brand's secondary domains redirect (301) to the canonical host when set.
 // Everything else (JS, CSS, images, sounds) is served straight from static assets — the Worker only
 // runs for the paths listed in wrangler.jsonc `run_worker_first`.
 // ============================================================================
@@ -25,6 +27,7 @@ type Brand = {
   site_id: string; slug: string; name: string; status: string; version: number;
   wordmark_text: string | null; logo_url: string | null; favicon_url: string | null; primary_domain: string | null;
   theme_tokens: Record<string, string>; config: Record<string, unknown>;
+  matched?: string; host?: { hostname: string; redirect_to: string | null } | null;
 };
 
 const DEFAULT_SITE = '00000000-0000-0000-0000-000000000001';
@@ -111,8 +114,25 @@ export default {
   async fetch(req: Request, env: Env, ctx: Ctx): Promise<Response> {
     const url = new URL(req.url);
     const slug = url.searchParams.get('brand');
-    if (url.pathname === '/manifest.webmanifest') return manifest(await brandFor(url.host, slug, env, ctx), url);
-    if (url.pathname === '/robots.txt') return robots(await brandFor(url.host, slug, env, ctx), url);
+    // One brand lookup per request (edge-cached per host for 60 s).
+    let pending: Promise<Brand | null> | null = null;
+    const brand = () => (pending ??= brandFor(url.host, slug, env, ctx));
+
+    // Health probe for domain automation (brand-domains edge function): which brand this host serves.
+    if (url.pathname === '/__brand') {
+      const b = await brandFor(url.host, null, env, ctx);
+      return new Response(JSON.stringify(b ? { site_id: b.site_id, slug: b.slug, matched: b.matched ?? null, host: b.host?.hostname ?? null } : null),
+        { status: b ? 200 : 503, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    }
+    // Canonical host: www.<domain> → <domain>, and a brand's extra domains → its primary when asked.
+    // One origin per brand also means one login session (browser storage is per origin).
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      const b = await brand();
+      const to = b?.matched === 'domain' ? b.host?.redirect_to : null;
+      if (to && to !== url.hostname) return Response.redirect(`https://${to}${url.pathname}${url.search}`, 301);
+    }
+    if (url.pathname === '/manifest.webmanifest') return manifest(await brand(), url);
+    if (url.pathname === '/robots.txt') return robots(await brand(), url);
     if (url.pathname === '/sitemap.xml') {
       return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${esc(url.origin)}/</loc></url></urlset>`,
         { headers: { 'Content-Type': 'application/xml', 'Cache-Control': 'public, max-age=3600' } });
@@ -122,7 +142,7 @@ export default {
     const type = res.headers.get('content-type') ?? '';
     if (!type.includes('text/html') || url.pathname.startsWith('/admin')) return res;
 
-    const b = await brandFor(url.host, slug, env, ctx);
+    const b = await brand();
     if (!b) return res;
     const h = headFor(b, url);
     const out = new HTMLRewriter()

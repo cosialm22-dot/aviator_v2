@@ -220,6 +220,14 @@ try:
                     "series": days, "attention": {"withdrawals_pending": 3, "withdrawals_pending_kes": 4500, "deposits_attention": 1},
                     "totals": {"players": 1200, "active_7d": 300, "player_balances_kes": 88000, "bonus_balances_kes": 4000}}
         seen_urls = []
+        integ = {"catalog": {"cloudflare": {"label": "Cloudflare (domains)", "help": "Creates each brand's zone.", "scopes": ["global"],
+                   "config": [{"name": "account_id", "label": "Account ID", "kind": "text", "required": True}, {"name": "worker_service", "label": "Worker name", "kind": "text", "required": True, "default": "aviatorv2"}],
+                   "secrets": [{"name": "api_token", "label": "API token", "required": True}]}},
+                 "items": [{"id": "i1", "provider": "cloudflare", "scope_kind": "global", "scope_id": None, "label": None, "enabled": True,
+                            "config": {"account_id": "0123456789abcdef0123456789abcdef", "worker_service": "aviatorv2"},
+                            "secrets": {"api_token": {"set": True, "hint": "••••a334", "set_at": "2026-09-25T10:00:00Z"}},
+                            "test_ok": None, "test_message": None, "tested_at": None, "updated_at": "2026-09-25T10:00:00Z", "updated_by": "owner"}]}
+        saves = []
         def handle(route, request):
             u = request.url
             seen_urls.append(request.method + " " + u.split("/v1/")[-1][:60])
@@ -237,6 +245,14 @@ try:
                 return route.fulfill(status=200, headers=h, body=json.dumps([{"site_id": b["id"], "name": b["name"], "slug": b["slug"], "status": "active", "withdrawals_enabled": True,
                     "default_marketer_id": None, "default_marketer_username": None, "created_at": "2026-01-01T00:00:00Z", "player_count": 600, "marketer_count": 2,
                     "deposit_total": 100000, "ggr": 5000, "withdrawal_pending_count": 1, "withdrawal_pending_total": 1500, "withdrawal_paid_total": 20000, "net_cashflow": 80000} for b in brands]))
+            if u.endswith("/rpc/admin_integrations"): return route.fulfill(status=200, headers=h, body=json.dumps(integ))
+            if u.endswith("/rpc/admin_integration_save"):
+                saves.append(body); it = integ["items"][0]; it["config"] = body["p_config"]; it["updated_at"] = "2026-09-25T11:00:00Z"
+                return route.fulfill(status=200, headers=h, body=json.dumps(it))
+            if u.endswith("/functions/v1/brand-domains") and request.method == "POST":
+                it = integ["items"][0]; it.update(test_ok=True, test_message="Connected: the token works and the app's Worker was found.", tested_at="2026-09-25T11:01:00Z")
+                return route.fulfill(status=200, headers=h, body=json.dumps({"ok": True, "message": it["test_message"]}))
+            if request.method == "OPTIONS": return route.fulfill(status=200, headers={**h, "Access-Control-Allow-Headers": "*"}, body="")
             if "/rest/v1/withdrawal_requests" in u: return route.fulfill(status=200, headers={**h, "Content-Range": "0-0/3"}, body="[]")
             if "/rest/v1/" in u: return route.fulfill(status=200, headers=h, body="[]")
             if "/realtime/" in u: return route.abort()
@@ -245,14 +261,14 @@ try:
         console = []
         page.on("console", lambda m: console.append(f"{m.type}: {m.text}"[:200]))
         page.on("requestfailed", lambda r: console.append(f"FAILED {r.method} {r.url[:90]} {r.failure}"))
-        page.route(re.compile(re.escape(URL) + r"/(rest|realtime)/.*"), handle)
+        page.route(re.compile(re.escape(URL) + r"/(rest|realtime|functions)/.*"), handle)
         page.goto(APP + "/admin", wait_until="domcontentloaded")
         check("owner: Overview opens across all brands", until(lambda: page.get_by_role("heading", name="Overview").is_visible(), 20000)
               and until(lambda: "Platform console · all brands" in page.get_by_test_id("workspace-scope").inner_text(), 5000))
         check("owner: KPIs show the all-brands figures", until(lambda: "KSh 25,000" in page.get_by_test_id("kpi-deposits").inner_text(), 10000))
         check("owner: needs-attention lists queue links", "Withdrawals waiting for review" in page.get_by_test_id("attention").inner_text())
         labels = nav_labels(page)
-        check("owner: sees platform and settings items", "Brands" in labels and "Platforms" in labels and "Controls" in labels and "Settings" in labels, labels)
+        check("owner: sees platform and settings items", "Brands" in labels and "Platforms" in labels and "Integrations" in labels and "Controls" in labels and "Settings" in labels, labels)
         page.get_by_test_id("scope-switcher").select_option(brands[1]["id"])
         page.wait_for_timeout(3000)
         try:
@@ -282,6 +298,21 @@ try:
         check("owner: 'Open' on a brand scopes the back office to it", until(lambda: page.get_by_role("heading", name="Overview").is_visible()
               and "Second Brand" in page.get_by_test_id("scope-banner").inner_text(), 10000))
         shot(page, "owner-brand-scoped")
+        page.goto(APP + "/admin/integrations", wait_until="domcontentloaded")
+        card = page.get_by_test_id("int-cloudflare")
+        check("owner: Integrations shows Cloudflare with only a hint of the saved token",
+              until(lambda: card.is_visible() and "Saved ••••a334" in card.inner_text(), 15000) and page.get_by_test_id("int-cloudflare-secret-api_token").input_value() == "")
+        check("owner: the token field is a password field that is never pre-filled", page.get_by_test_id("int-cloudflare-secret-api_token").get_attribute("type") == "password")
+        def edited():
+            if page.get_by_test_id("int-cloudflare-cfg-worker_service").input_value() != "aviatorv3":
+                page.get_by_test_id("int-cloudflare-cfg-worker_service").fill("aviatorv3")
+            return page.get_by_test_id("int-cloudflare-save").is_enabled()
+        until(edited, 8000)
+        page.get_by_test_id("int-cloudflare-save").click()
+        check("owner: saving without typing a token keeps it (no secret sent)", until(lambda: len(saves) == 1, 8000) and saves[0]["p_secrets"] == {} and saves[0]["p_config"]["worker_service"] == "aviatorv3", (saves, [x for x in seen_urls if "integ" in x or "brand-domains" in x], page.get_by_test_id("int-cloudflare").inner_text()[:600]))
+        check("owner: Test connection reports the result", until(lambda: page.get_by_test_id("int-cloudflare-test").is_enabled(), 8000)
+              and (page.get_by_test_id("int-cloudflare-test").click() or True) and until(lambda: "Connected" in page.get_by_test_id("int-cloudflare").inner_text(), 10000))
+        shot(page, "owner-integrations")
         check("owner: no page errors", not errors, errors[:3])
         ctx.close()
         browser.close()

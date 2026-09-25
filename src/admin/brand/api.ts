@@ -94,6 +94,8 @@ export async function uploadBrandAsset(site: string, kind: 'plane' | 'logo' | 'f
 }
 
 /** Staff copy for the brand RPC error codes. */
+const withStop = (t: string) => (/[.!?]$/.test(t) ? t : `${t}.`);
+
 export function brandError(e: unknown, schema?: BrandSchema | null): string {
   const msg = e instanceof Error ? e.message : String(e ?? '');
   const [code, key, ...rest] = msg.split(':');
@@ -123,6 +125,15 @@ export function brandError(e: unknown, schema?: BrandSchema | null): string {
     case 'UPLOAD_TYPE': return 'Use a PNG, JPEG, WebP or ICO image.';
     case 'UPLOAD_SIZE': return 'Images must be 2 MB or smaller.';
     case 'CURRENCY_UNSUPPORTED': return 'Only KES is supported.';
+    // domains + integrations: the server already wrote the words after the code
+    case 'DOMAIN_TAKEN': case 'INVALID_DOMAIN': case 'TOO_MANY_DOMAINS': case 'PRIMARY_REQUIRED': case 'PRIMARY_REDIRECT': case 'INVALID_URL': case 'NOT_CONFIGURED': case 'CLOUDFLARE':
+      return withStop([key, ...rest].join(':').trim() || 'Not possible.');
+    case 'REQUIRED': return `${[key, ...rest].join(':').trim()} is required.`;
+    case 'INVALID': return withStop(`${[key, ...rest].join(':').trim()} is not valid`);
+    case 'TOO_LONG': return `${[key, ...rest].join(':').trim()} is too long.`;
+    case 'SCOPE_NOT_ALLOWED': return 'This provider cannot be set up here.';
+    case 'UNKNOWN_PROVIDER': case 'UNKNOWN_SECRET': case 'UNKNOWN_FIELD': return 'The console is out of date. Reload the page.';
+    case 'UNAUTHENTICATED': return 'Your session has ended. Sign in again.';
     default: return 'Something went wrong. Please try again.';
   }
 }
