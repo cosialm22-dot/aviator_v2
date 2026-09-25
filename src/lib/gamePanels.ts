@@ -2,7 +2,7 @@
 // the global Header and the panels need state that only the game screen has (free bets, bets).
 
 /** Panels the game screen opens when a menu item is picked (see AviatorGame). */
-export type GamePanel = 'freebets' | 'history' | 'limits' | 'howto' | 'chat';
+export type GamePanel = 'freebets' | 'history' | 'rules' | 'chat';
 
 export function openGamePanel(panel: GamePanel): void {
   if (panel === 'chat') window.dispatchEvent(new Event('aviator:open-chat'));

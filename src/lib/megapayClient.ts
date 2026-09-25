@@ -10,15 +10,23 @@
 
 export type DepositStatus = 'initiated' | 'pending' | 'completed' | 'failed' | 'cancelled' | 'timeout';
 
+/** The live bonus offer (amounts in KES); zeros when a part is switched off. */
+export interface BonusOffer { welcome: number; matchPct: number; matchCap: number; wagerX: number }
+
 export interface PaymentConfig {
   depositProvider: 'megapay' | 'daraja';
   minDeposit: number;
   maxDeposit: number;
   minWithdrawal: number;
+  minBet: number;
+  maxBet: number;
+  maxPayout: number;
+  offer: BonusOffer | null;
 }
 
 export const DEFAULT_PAYMENT_CONFIG: PaymentConfig = {
   depositProvider: 'megapay', minDeposit: 100, maxDeposit: 150_000, minWithdrawal: 100,
+  minBet: 50, maxBet: 100_000, maxPayout: 500_000, offer: null,
 };
 
 /** Coerce the fn_public_payment_config() payload; anything missing or odd falls back to the defaults. */
@@ -30,11 +38,20 @@ export function parsePaymentConfig(raw: unknown): PaymentConfig {
   };
   const min = num(r.min_deposit, DEFAULT_PAYMENT_CONFIG.minDeposit);
   const max = Math.max(min, num(r.max_deposit, DEFAULT_PAYMENT_CONFIG.maxDeposit));
+  const o = (r.offer && typeof r.offer === 'object' ? r.offer : null) as Record<string, unknown> | null;
+  const n0 = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
+  const offer: BonusOffer | null = o
+    ? { welcome: Math.round(n0(o.welcome)), matchPct: Math.round(n0(o.match_pct)), matchCap: Math.round(n0(o.match_cap)), wagerX: n0(o.wager_x) }
+    : null;
   return {
     depositProvider: r.deposit_provider === 'daraja' ? 'daraja' : 'megapay',
     minDeposit: min,
     maxDeposit: max,
     minWithdrawal: num(r.min_withdrawal, DEFAULT_PAYMENT_CONFIG.minWithdrawal),
+    minBet: num(r.min_bet, DEFAULT_PAYMENT_CONFIG.minBet),
+    maxBet: num(r.max_bet, DEFAULT_PAYMENT_CONFIG.maxBet),
+    maxPayout: num(r.max_payout, DEFAULT_PAYMENT_CONFIG.maxPayout),
+    offer: offer && (offer.welcome > 0 || (offer.matchPct > 0 && offer.matchCap > 0)) ? offer : null,
   };
 }
 

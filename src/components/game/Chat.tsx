@@ -13,12 +13,8 @@ interface Props {
 // How close to the bottom (px) still counts as "pinned to newest".
 const STICK_THRESHOLD_PX = 48;
 
-// ============================================================================
-// Chat - the full live-chat PANEL (presentational). The message stream itself
-// is owned by useChatStream (lifted to AviatorGame) so this panel and the mobile
-// ChatTicker always render the identical stream. This component owns only the
-// scroll-follow behaviour and the input box.
-// ============================================================================
+// Chat panel (presentational): scroll-follow and the input box. The stream comes from
+// useChatStream, which ChatSheet mounts only while chat is open.
 export default function Chat({ messages, sending, onSend, userId, username }: Props) {
   const [input, setInput] = useState('');
 
@@ -67,33 +63,24 @@ export default function Chat({ messages, sending, onSend, userId, username }: Pr
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-edge flex-shrink-0">
-        <span className="text-xs font-bold text-white uppercase tracking-wider">Live Chat</span>
-        <span className="flex items-center gap-1.5 text-[10px] text-green-400 font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          Live
-        </span>
-      </div>
-
       {/* Messages */}
-      <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-2.5 scrollbar-thin">
+      <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-3 scrollbar-thin">
         {messages.map(msg => (
           <div key={msg.id} className="flex gap-2 items-start">
             <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 mt-0.5 border border-white/10"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0 mt-0.5 border border-white/10"
               style={{ backgroundColor: msg.avatar_color }}
             >
               {msg.username[0]?.toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <span className="text-[11px] font-bold" style={{ color: msg.avatar_color }}>
+              <span className="text-[12px] font-bold" style={{ color: msg.avatar_color }}>
                 {msg.username}
               </span>
               {msg.user_id === userId && (
-                <span className="ml-1.5 text-[9px] text-slate-500">(wewe)</span>
+                <span className="ml-1.5 text-[11px] text-slate-500">you</span>
               )}
-              <p className="text-[11px] text-slate-300 break-words leading-snug mt-0.5">{msg.text}</p>
+              <p className="text-[13px] text-slate-200 break-words leading-snug mt-0.5">{msg.text}</p>
             </div>
           </div>
         ))}
@@ -107,21 +94,22 @@ export default function Chat({ messages, sending, onSend, userId, username }: Pr
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Andika hapa..."
+              placeholder="Message" aria-label="Message"
               maxLength={200}
               disabled={sending}
-              className="flex-1 bg-panel-raised border border-edge rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-danger/70 transition-colors disabled:opacity-60"
+              className="h-11 flex-1 rounded-full border border-edge bg-panel-raised px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 transition-colors disabled:opacity-60"
             />
             <button
               onClick={sendMessage}
               disabled={!input.trim() || sending}
-              className="w-9 h-9 flex items-center justify-center bg-danger rounded-lg text-white disabled:opacity-40 hover:bg-[#a80015] transition active:scale-95 flex-shrink-0"
+              aria-label="Send"
+              className="grid h-11 w-11 place-items-center rounded-full bg-win text-white disabled:opacity-40 transition active:scale-95 flex-shrink-0"
             >
-              <Send size={14} />
+              <Send size={16} />
             </button>
           </div>
         ) : (
-          <p className="text-center text-[11px] text-slate-500 py-1">Ingia ili ucheze chat</p>
+          <p className="py-2 text-center text-sm text-slate-500">Log in to chat</p>
         )}
       </div>
     </div>
