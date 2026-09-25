@@ -4,6 +4,47 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #35 — Brand skins in the player app, a plane library, and an edge renderer — DONE (branch `brand/p2-theming`)
+- **One token contract, the whole UI themed:** a brand's `theme_tokens` (invest254's keys) become CSS variables (`src/brand/tokens.ts`).
+  - Every colour on the game screen and on the sheets reads a brand variable: 36 hard-coded hexes are gone.
+  - The `:root` defaults are today's exact values, so the classic brand does not change by a pixel.
+  - Action colours stay recognisable on every brand: Cancel is red, Cash out amber, money won green.
+  - Text on the call-to-action takes the readable ink for the brand colour (dark on gold, white on blue).
+- **Type and shape:** each brand has title, body and number faces (35 curated Google fonts, the same list the server accepts), a heading weight and a corner radius.
+- **24 complete looks** (`src/brand/themes.ts`, original identities, not copies of real sites):
+  - Each look sets the palette, fonts, sky style (sunburst, soft rays, radar grid, stars or plain) and the flight-line, countdown, multiplier and fly-away colours.
+  - It also sets the plane and its colours, and the streamer bird.
+  - 16 seed presets derive a whole palette from one colour (ported `derivePalette`).
+- **Plane library:** 10 drawn aircraft plus the original sprite and an uploaded image, tinted from the brand, with animated propellers and engine flames.
+  - Models: jet, propeller, biplane, fighter, stealth, rocket, cargo, glider, seaplane, supersonic.
+  - One set of SVG paths feeds the canvas (cached `Path2D` and gradients), the header mark and the generated favicon.
+  - Players see the brand's plane. Marketers in streamer mode see the brand's bird (`stream.bird`), and can have their own flight-line colour.
+- **Settings the app now honours:**
+  - Features: second bet, auto play, live bets, history, chat, demo, free bets, rain, promo codes, sign-ups, deposits/withdrawals, sound default, maintenance message.
+  - Bet chips and starting bet; deposit chips; withdrawal caps.
+  - Copy: fly-away line, announcement, tagline, sign-up title.
+  - Support: WhatsApp, Telegram, phone, email.
+  - Social links, legal pages (`/legal/terms|privacy|responsible`, rendered as text only), the operator/licence line and minimum age.
+  - SEO: title, description, share image, indexing.
+  - Analytics: GA4, GTM, Meta and TikTok pixels.
+  - Home-screen app name and icon.
+  - A suspended brand shows only an "unavailable" notice on its own domain.
+- **Edge renderer:** the Cloudflare Worker now runs `worker/index.ts` in front of the static app, for HTML and three generated files only.
+  - It resolves the host's brand, cached 60 s at the edge.
+  - It writes the brand's variables, fonts, title, description, theme colour, icon and canonical link into the HTML, and hands the brand over as `window.__BRAND__`: no flash of the default look, and correct link previews.
+  - It also serves a per-brand `manifest.webmanifest`, `robots.txt` and `sitemap.xml`.
+- **Live re-skin:** the page listens on the shared "config" channel (one subscription for the page) and re-applies a brand the moment it is saved.
+- **Brand assets:**
+  - Storage bucket `brand-assets`: public read, raster only (no SVG), 2 MB.
+  - Writes are allowed only under the folder of a brand the caller may edit.
+  - `features.referrals` now decides whether `?ref=` sign-ups are credited to that marketer.
+  - The brand's marketer always gets a referral code.
+- **Tests:**
+  - `e2e/brand_ui_e2e.py`: 38 checks in the browser across looks, switches, limits, wallet, the unavailable screen and the untouched classic brand; with `BRAND_LIVE=1` it also covers the Worker pipeline.
+  - `src/brand/brand.test.ts`: 14 checks. Every theme variable is covered; every look passes the server rules; CTA ink contrast is at least 4.3:1; web and server fonts match; every server plane model has a renderer.
+  - `brand_config_e2e.py`: 124 checks, adding storage scope and the referral switch.
+  - `scripts/sync_brand_settings.py --check`: the typed settings file matches the database.
+
 ## #34 — Multi-brand foundation: operator tiers, one brand-config contract, server-enforced brand limits — DONE (branch `brand/p1-foundation`)
 - **Ask:** every marketer gets their own site with its own look (different planes; marketers stream a bird), every setting configurable per brand, roles and scope borrowed from invest254.
 - **Tiers (from invest254 docs/41):** new `platform_admin` tier and `platforms` table. A platform admin runs a group of brands and works on one brand at a time. Its pick is stored on the server (`profiles.acting_site_id`, re-checked on every read), so every existing brand-scoped RPC and RLS policy serves it without being rewritten. `src/admin/capabilities.ts` is the capability map with `can()`, ported from invest254; `capabilities.test.ts` pins it.

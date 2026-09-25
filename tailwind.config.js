@@ -16,15 +16,29 @@ export default {
         // institutional teal brand + trading up/down semantics, distinct from the
         // player palette.
 
-        // ── PLAYER (dark) theme ─────────────────────────────────────────────
-        night: { DEFAULT: '#1b1b1b', deep: '#141414' },          // page background
-        panel: { DEFAULT: '#1b1b1b', raised: '#262626', high: '#2c2c2c' }, // dark cards/panels
-        edge: { DEFAULT: '#333333', strong: '#3a3a3a' },         // dark hairline borders
-        frost: '#e8e8e8',                                        // dark-theme primary text
-        win: { DEFAULT: '#28a745', dark: '#1f8a3a' },            // success / primary CTA green (Bet button)
-        danger: '#e51e3c',                                       // player brand-red accent (plane/trail/logo)
-        info: '#17a2b8',                                         // player accent-blue (referrals/marketing)
-        funmode: '#c8930a',                                      // FUN MODE banner amber
+        // ── PLAYER game screen — every colour is a brand CSS variable ("r g b" triplets set by
+        // src/brand/tokens.ts; :root defaults in index.css reproduce the classic look exactly).
+        g: {
+          bg: 'rgb(var(--g-bg) / <alpha-value>)', bar: 'rgb(var(--g-bar) / <alpha-value>)', panel: 'rgb(var(--g-panel) / <alpha-value>)', inset: 'rgb(var(--g-inset) / <alpha-value>)',
+          chip: 'rgb(var(--g-chip) / <alpha-value>)', 'chip-hi': 'rgb(var(--g-chip-hi) / <alpha-value>)', line: 'rgb(var(--g-line) / <alpha-value>)', 'line-hi': 'rgb(var(--g-line-hi) / <alpha-value>)',
+          fg: 'rgb(var(--g-fg) / <alpha-value>)', text: 'rgb(var(--g-text) / <alpha-value>)', mute: 'rgb(var(--g-mute) / <alpha-value>)', dim: 'rgb(var(--g-dim) / <alpha-value>)',
+          money: 'rgb(var(--g-money) / <alpha-value>)', 'money-bg': 'rgb(var(--g-money-bg) / <alpha-value>)',
+          'won-bg': 'rgb(var(--g-won-bg) / <alpha-value>)', 'won-edge': 'rgb(var(--g-won-edge) / <alpha-value>)',
+          cta: 'rgb(var(--g-cta) / <alpha-value>)', 'cta-hi': 'rgb(var(--g-cta-hi) / <alpha-value>)', 'cta-lo': 'rgb(var(--g-cta-lo) / <alpha-value>)', 'cta-edge': 'rgb(var(--g-cta-edge) / <alpha-value>)', 'cta-fg': 'rgb(var(--g-cta-fg) / <alpha-value>)',
+          accent: 'rgb(var(--g-accent) / <alpha-value>)', 'accent-fg': 'rgb(var(--g-accent-fg) / <alpha-value>)',
+          down: 'rgb(var(--g-down) / <alpha-value>)', 'down-hi': 'rgb(var(--g-down-hi) / <alpha-value>)', 'down-edge': 'rgb(var(--g-down-edge) / <alpha-value>)',
+          warn: 'rgb(var(--g-warn) / <alpha-value>)', 'warn-hi': 'rgb(var(--g-warn-hi) / <alpha-value>)', 'warn-edge': 'rgb(var(--g-warn-edge) / <alpha-value>)',
+          info: 'rgb(var(--g-info) / <alpha-value>)', 'info-hi': 'rgb(var(--g-info-hi) / <alpha-value>)',
+        },
+        // Older player names, now aliases of the brand variables.
+        night: { DEFAULT: 'rgb(var(--g-bg) / <alpha-value>)', deep: 'rgb(var(--g-bg) / <alpha-value>)' },
+        panel: { DEFAULT: 'rgb(var(--g-panel) / <alpha-value>)', raised: 'rgb(var(--g-chip) / <alpha-value>)', high: 'rgb(var(--g-chip-hi) / <alpha-value>)' },
+        edge: { DEFAULT: 'rgb(var(--g-line) / <alpha-value>)', strong: 'rgb(var(--g-line-hi) / <alpha-value>)' },
+        frost: 'rgb(var(--g-fg) / <alpha-value>)',
+        win: { DEFAULT: 'rgb(var(--g-cta) / <alpha-value>)', dark: 'rgb(var(--g-cta-lo) / <alpha-value>)' },
+        danger: 'rgb(var(--g-accent) / <alpha-value>)',
+        info: 'rgb(var(--g-info) / <alpha-value>)',
+        funmode: '#c8930a',                                      // Demo balance amber (fixed: "not real money")
 
         // ── ADMIN theme — Apple dark (macOS / iOS system colours), same family as the player sheets ──
         brand: { DEFAULT: '#0a84ff', dark: '#0071e3' }, // systemBlue: selection, links, primary buttons
@@ -43,18 +57,19 @@ export default {
         // ── PLAYER SHEETS & PAGES: Apple dark system colours (iOS HIG) ──────
         // Everything off the game screen (wallet, sign-in, menu, sheets, profile) uses only these.
         ios: {
-          bg: '#000000',                       // systemBackground / grouped background
-          elev: '#1c1c1e',                     // secondarySystemBackground: sheets, grouped cells
-          elev2: '#2c2c2e',                    // tertiarySystemBackground: cells on sheets, pressed
-          elev3: '#3a3a3c',
+          bg: 'rgb(var(--ios-bg) / <alpha-value>)',                  // grouped background
+          elev: 'rgb(var(--ios-elev) / <alpha-value>)',              // sheets, grouped cells
+          elev2: 'rgb(var(--ios-elev2) / <alpha-value>)',            // cells on sheets, pressed
+          elev3: 'rgb(var(--ios-elev3) / <alpha-value>)',
           fill: 'rgba(118,118,128,0.24)',      // tertiarySystemFill: inputs, segmented track
-          fill2: 'rgba(118,118,128,0.18)',     // quaternarySystemFill
-          sep: 'rgba(84,84,88,0.65)',          // separator (hairline)
-          label: '#ffffff',
-          label2: 'rgba(235,235,245,0.6)',     // secondaryLabel
-          label3: 'rgba(235,235,245,0.3)',     // tertiaryLabel
-          green: '#30d158', red: '#ff453a', orange: '#ff9f0a', blue: '#0a84ff', yellow: '#ffd60a', indigo: '#5e5ce6', pink: '#ff375f', teal: '#40c8e0',
-          cta: '#28a909',                      // the game's Bet green, for primary buttons
+          fill2: 'rgba(118,118,128,0.18)',
+          sep: 'rgba(84,84,88,0.65)',
+          label: 'rgb(var(--ios-fg) / <alpha-value>)',
+          label2: 'rgb(var(--ios-fg2) / 0.6)',
+          label3: 'rgb(var(--ios-fg2) / 0.3)',
+          green: 'rgb(var(--ios-green) / <alpha-value>)', red: 'rgb(var(--ios-red) / <alpha-value>)', orange: 'rgb(var(--ios-orange) / <alpha-value>)', blue: 'rgb(var(--ios-blue) / <alpha-value>)',
+          yellow: '#ffd60a', indigo: '#5e5ce6', pink: '#ff375f', teal: '#40c8e0',
+          cta: 'rgb(var(--ios-cta) / <alpha-value>)', 'cta-fg': 'rgb(var(--ios-cta-fg) / <alpha-value>)',
         },
       },
       // iOS text styles (Large, default Dynamic Type): size / line height / tracking / weight.
@@ -72,6 +87,8 @@ export default {
         caption2: ['11px', { lineHeight: '13px', letterSpacing: '0.07px' }],
       },
       transitionTimingFunction: { ios: 'cubic-bezier(0.32, 0.72, 0, 1)' },
+      borderRadius: { brand: 'var(--brand-radius)' },
+      fontFamily: { title: 'var(--font-title)', body: 'var(--font-body)', mono: 'var(--font-mono)' },
     },
   },
   plugins: [],

@@ -9,6 +9,7 @@ import RedeemPromoCode from '../promo/RedeemPromoCode';
 import type { FirstDepositBonus } from '../../hooks/useBonus';
 import Sheet from '../ui/Sheet';
 import { Button, Field, Segmented, Spinner, kes } from '../ui/ios';
+import { useBrand } from '../../brand/useBrand';
 
 /*
  * Wallet: M-Pesa deposit (Mega Pay prompt, PIN typed on the phone) and withdrawal request.
@@ -46,7 +47,12 @@ function prefill(p?: string): string {
 
 export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, onDepositDone, eligibleForFirstDeposit = false, activeBonus = null, defaultPhone }: Props) {
   const cfg = usePaymentConfig();
-  const [tab, setTab] = useState<Tab>('deposit');
+  const promoCodes = useBrand().config['features.promo_codes'];
+  // The brand's switches decide which halves of the wallet exist (the server enforces them too).
+  const tabs = ([['deposit', 'Deposit'], ['withdraw', 'Withdraw']] as [Tab, string][])
+    .filter(([t]) => (t === 'deposit' ? cfg.depositsOpen : cfg.withdrawalsOpen));
+  const [tab, setTab] = useState<Tab>(cfg.depositsOpen || !cfg.withdrawalsOpen ? 'deposit' : 'withdraw');
+  useEffect(() => { if (tabs.length && !tabs.some(([t]) => t === tab)) setTab(tabs[0][0]); }, [tabs, tab]);
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState(() => prefill(defaultPhone));
   const [stage, setStage] = useState<DepositStage | null>(null);
@@ -139,8 +145,10 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, o
             <p className="text-large-title tabular-nums text-white"><span className="mr-1.5 align-[0.35em] text-subhead font-semibold text-ios-label2">KES</span>{kes(balance)}</p>
           </div>
 
-          <Segmented label="Wallet action" value={tab} onChange={switchTab} items={[['deposit', 'Deposit'], ['withdraw', 'Withdraw']]} />
+          {tabs.length > 1 && <Segmented label="Wallet action" value={tab} onChange={switchTab} items={tabs} />}
+          {tabs.length === 0 && <p className="py-6 text-center text-subhead text-ios-label2" data-testid="wallet-closed">Payments are paused. Please check back soon.</p>}
 
+          {tabs.length > 0 && <>
           <div className="mt-5 space-y-3">
             {tab === 'deposit' && eligibleForFirstDeposit && offer && (
               <p className="flex items-center gap-2.5 rounded-xl bg-[rgba(48,209,88,0.12)] px-4 py-3 text-subhead font-medium text-ios-green">
@@ -164,7 +172,8 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, o
                 placeholder="0" min={minAmount} max={tab === 'deposit' ? cfg.maxDeposit : undefined} step={1}
                 aria-label="Amount in Kenyan shillings" leading="KES" className="h-14 [&_input]:text-title2 [&_input]:tabular-nums" />
               <p className="px-4 pt-1.5 text-footnote tabular-nums text-ios-label2" data-testid={tab === 'deposit' ? 'deposit-limits' : undefined}>
-                {tab === 'deposit' ? `Min ${k0(cfg.minDeposit)} · Max ${k0(cfg.maxDeposit)}` : `Min ${k0(cfg.minWithdrawal)} · Available ${kes(balance)}`}
+                {tab === 'deposit' ? `Min ${k0(cfg.minDeposit)} · Max ${k0(cfg.maxDeposit)}`
+                  : `Min ${k0(cfg.minWithdrawal)}${cfg.maxWithdrawal ? ` · Max ${k0(cfg.maxWithdrawal)}` : ''}${cfg.dailyWithdrawal ? ` · ${k0(cfg.dailyWithdrawal)}/day` : ''} · Available ${kes(balance)}`}
               </p>
             </div>
 
@@ -198,9 +207,10 @@ export default function WalletModal({ balance, onDeposit, onWithdraw, onClose, o
             {tab === 'deposit' ? 'Deposit' : 'Withdraw'}{parsedAmount > 0 ? ` ${k0(parsedAmount)} KES` : ''}
           </Button>
 
-          {tab === 'deposit' && (promoOpen ? <div className="mt-4"><RedeemPromoCode /></div> : (
+          {tab === 'deposit' && promoCodes && (promoOpen ? <div className="mt-4"><RedeemPromoCode /></div> : (
             <Button variant="plain" size="md" className="mt-2 w-full" onClick={() => setPromoOpen(true)}>Add promo code</Button>
           ))}
+          </>}
         </div>
       )}
     </Sheet>

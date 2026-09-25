@@ -34,3 +34,4 @@ dist-ssr
 supabase/.temp/
 __pycache__/
 *.pyc
+.wrangler/

@@ -25,18 +25,18 @@ export default memo(function GameHistory({ history }: Props) {
         ))}
       </div>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="Round history"
-        className="grid h-8 w-10 shrink-0 place-items-center rounded-full bg-[#2c2d30] text-[#9ea0a3] hover:text-white">
+        className="grid h-8 w-10 shrink-0 place-items-center rounded-full bg-g-chip text-g-mute hover:text-white">
         <MoreHorizontal size={14} />
       </button>
       {open ? (
-        <div className="absolute inset-x-0 top-full z-30 mt-1.5 rounded-xl border border-[#2a2b2e] bg-[#1b1c1d] p-3 shadow-2xl">
+        <div className="absolute inset-x-0 top-full z-30 mt-1.5 rounded-xl border border-g-line bg-g-panel p-3 shadow-2xl">
           <div className="mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#9ea0a3]"><History size={14} />Round history</span>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close round history" className="-mr-2 grid h-9 w-9 place-items-center text-[#9ea0a3] hover:text-white"><X size={16} /></button>
+            <span className="flex items-center gap-1.5 text-[13px] font-semibold text-g-mute"><History size={14} />Round history</span>
+            <button type="button" onClick={() => setOpen(false)} aria-label="Close round history" className="-mr-2 grid h-9 w-9 place-items-center text-g-mute hover:text-white"><X size={16} /></button>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-1.5">
             {history.slice(0, 60).map((round, i) => (
-              <span key={round.id || i} className={`rounded-full bg-[#101011] py-1.5 text-center text-[13px] font-semibold tabular-nums ${multColor(round.crash_multiplier)}`}>
+              <span key={round.id || i} className={`rounded-full bg-g-inset py-1.5 text-center text-[13px] font-semibold tabular-nums ${multColor(round.crash_multiplier)}`}>
                 {label(round.crash_multiplier)}
               </span>
             ))}

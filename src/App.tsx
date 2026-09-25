@@ -9,6 +9,9 @@ import { useWallet } from './hooks/useWallet';
 import { useBonus } from './hooks/useBonus';
 import { useDemoGame } from './hooks/useDemoGame';
 import { StreamerModeProvider } from './hooks/useStreamerMode';
+import { useBrand } from './brand/useBrand';
+import { setSoundDefault } from './lib/sound';
+import BrandUnavailable from './components/brand/BrandUnavailable';
 
 // The operator admin panel is a large, role-gated surface that the vast majority
 // of visitors (players) never load. Code-splitting it keeps the player bundle
@@ -21,6 +24,7 @@ const loadAuthModal = () => import('./components/auth/AuthModal');
 const loadWalletModal = () => import('./components/wallet/WalletModal');
 const ProfilePage = lazy(() => import('./components/profile/ProfilePage'));
 const MarketerHub = lazy(() => import('./components/marketer/MarketerHub'));
+const LegalPage = lazy(() => import('./components/legal/LegalPage'));
 const AuthModal = lazy(loadAuthModal);
 const WalletModal = lazy(loadWalletModal);
 
@@ -43,6 +47,12 @@ function PlayerApp() {
   // Real vs Demo play mode. Lifted here so the header balance and the game share one source.
   const [mode, setMode] = useState<PlayMode>('real');
   usePrefetchOnIdle();
+  const brand = useBrand();
+  const cfg = brand.config;
+  // A brand without demo play keeps everyone on real money; the brand's sound default applies
+  // until a player chooses.
+  useEffect(() => { if (!cfg['features.demo'] && mode === 'demo') setMode('real'); }, [cfg, mode]);
+  useEffect(() => { setSoundDefault(cfg['features.sound']); }, [cfg]);
 
   const { user, profile, wallet, loading, signUp, signIn, signOut, refreshWallet } = useAuth();
   const { deposit, withdraw, depositing, withdrawing } = useWallet(user?.id, refreshWallet);
@@ -91,9 +101,12 @@ function PlayerApp() {
     requestAnimationFrame(() => requestAnimationFrame(() => { void flyToBalance(label, rect); }));
   };
 
+  // A suspended or disabled brand serves nothing but a notice on its own domain.
+  if (brand.status !== 'active' && brand.matched === 'domain') return <BrandUnavailable name={brand.name} />;
+
   if (loading) {
     return (
-      <div className="flex h-[100dvh] items-center justify-center bg-[#0e0e0e]" role="status" aria-label="Loading">
+      <div className="flex h-[100dvh] items-center justify-center bg-g-bg" role="status" aria-label="Loading">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-danger border-t-transparent" />
       </div>
     );
@@ -105,8 +118,8 @@ function PlayerApp() {
   };
 
   return (
-    <StreamerModeProvider role={profile?.role}>
-    <div className="h-[100dvh] bg-[#0e0e0e] flex flex-col overflow-hidden">
+    <StreamerModeProvider role={profile?.role} defaultOn={cfg['stream.default_on']}>
+    <div className="h-[100dvh] bg-g-bg flex flex-col overflow-hidden">
       <Header
         profile={profile}
         balance={wallet?.balance ?? 0}
@@ -161,6 +174,10 @@ function PlayerApp() {
                 />
               </Suspense>
             }
+          />
+          <Route
+            path="legal/:doc"
+            element={<Suspense fallback={<InlineFallback />}><LegalPage /></Suspense>}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
