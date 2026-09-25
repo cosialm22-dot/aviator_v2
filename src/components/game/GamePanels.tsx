@@ -1,16 +1,18 @@
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { FreeBet } from '../../hooks/usePromos';
 import type { GamePanel } from '../../lib/gamePanels';
-import { fmtX, money, multColor } from '../../lib/betBoard';
+import { fmtX, money } from '../../lib/betBoard';
 import { usePaymentConfig } from '../../hooks/usePaymentConfig';
 import Sheet from '../ui/Sheet';
+import { Button, Empty, Group, Row, Spinner } from '../ui/ios';
 
-// The sheets behind the ☰ menu: Free bets, My bets, Rules.
+// The sheets behind the ☰ menu: Free bets, My bets, Rules. iOS inset grouped lists.
 
 interface MyBet { id: string; amount: number; cashout_multiplier: number | null; winnings: number | null; status: string; created_at: string; is_free?: boolean | null; game_rounds: { crash_multiplier: number } | null }
 
-const when = (iso: string) => new Date(iso).toLocaleString('en-KE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+const when = (iso: string) => new Date(iso).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const dayKey = (iso: string) => new Date(iso).toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long' });
 
 function BetHistory({ userId }: { userId: string }) {
   const [rows, setRows] = useState<MyBet[] | null>(null);
@@ -24,52 +26,60 @@ function BetHistory({ userId }: { userId: string }) {
     })();
     return () => { alive = false; };
   }, [userId]);
-  if (!rows) return <p className="py-10 text-center text-sm text-[#7b7b7b]">Loading…</p>;
-  if (!rows.length) return <p className="py-10 text-center text-sm text-[#7b7b7b]">No bets yet</p>;
+  if (!rows) return <div className="grid place-items-center py-12"><Spinner /></div>;
+  if (!rows.length) return <Empty>No bets yet</Empty>;
+  // Group by day, newest first.
+  const days: [string, MyBet[]][] = [];
+  for (const b of rows) {
+    const k = dayKey(b.created_at);
+    const last = days[days.length - 1];
+    if (last && last[0] === k) last[1].push(b); else days.push([k, [b]]);
+  }
   return (
-    <ul className="flex flex-col gap-1 p-2">
-      <li className="grid grid-cols-[1fr_68px_52px_72px] px-2 text-[11px] text-[#7b7b7b]"><span>Time</span><span className="text-right">Bet</span><span className="text-right">X</span><span className="text-right">Win</span></li>
-      {rows.map((b) => {
-        const won = b.status === 'won' && b.cashout_multiplier != null;
-        return (
-          <li key={b.id} className={`grid min-h-[44px] grid-cols-[1fr_68px_52px_72px] items-center rounded-xl px-2 py-1.5 text-[13px] ${won ? 'border border-[#427f00] bg-[#123405]' : 'bg-[#101011]'}`}>
-            <span className="text-[12px] text-[#9ea0a3]">
-              {when(b.created_at)}
-              {b.game_rounds ? <span className={`block text-[11px] ${multColor(b.game_rounds.crash_multiplier)}`}>{fmtX(b.game_rounds.crash_multiplier)}</span> : null}
-            </span>
-            <span className="text-right tabular-nums text-white">{money(b.amount)}{b.is_free ? <span className="block text-[11px] text-[#5cd334]">free</span> : null}</span>
-            <span className={`text-right tabular-nums ${won ? multColor(b.cashout_multiplier!) : 'text-[#7b7b7b]'}`}>{won ? fmtX(b.cashout_multiplier!) : b.status === 'active' ? '…' : '—'}</span>
-            <span className="text-right tabular-nums text-white">{won ? money(b.winnings ?? 0) : b.status === 'lost' ? '0.00' : ''}</span>
-          </li>
-        );
-      })}
-    </ul>
+    <div className="space-y-6 px-4 pt-1">
+      {days.map(([day, list]) => (
+        <Group key={day} header={day} on="sheet">
+          {list.map((b) => {
+            const won = b.status === 'won' && b.cashout_multiplier != null;
+            const live = b.status === 'active';
+            return (
+              <Row key={b.id}
+                title={<span className="tabular-nums">{money(b.amount)} KES{b.is_free ? <span className="ml-1.5 text-footnote text-ios-green">Free</span> : null}</span>}
+                subtitle={`${new Date(b.created_at).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}${b.game_rounds ? ` · flew ${fmtX(b.game_rounds.crash_multiplier)}` : ''}`}
+                trailing={
+                  <span className="text-right tabular-nums">
+                    <span className={`block text-body ${won ? 'text-ios-green' : live ? 'text-ios-label2' : 'text-ios-label2'}`}>
+                      {won ? `+${money(b.winnings ?? 0)}` : live ? 'Live' : `−${money(b.amount)}`}
+                    </span>
+                    {won ? <span className="block text-footnote text-ios-label2">{fmtX(b.cashout_multiplier!)}</span> : null}
+                  </span>
+                } />
+            );
+          })}
+        </Group>
+      ))}
+    </div>
   );
 }
 
 function Rules({ minAuto }: { minAuto: number }) {
   const cfg = usePaymentConfig();
   const k = (n: number) => n.toLocaleString('en-KE');
-  const rows: [string, string][] = [
-    ['Min bet', `${k(cfg.minBet)} KES`],
-    ['Max bet', `${k(cfg.maxBet)} KES`],
-    ['Max win', `${k(cfg.maxPayout)} KES`],
-    ['Bets per round', '2'],
-    ['Auto cash out', `from ${minAuto.toFixed(2)}x`],
-  ];
+  const steps = ['Bet before take-off.', 'Cash out before it flies away.', 'You win your bet × the multiplier.'];
   return (
-    <div className="p-4 text-sm">
-      <ol className="flex flex-col gap-2.5">
-        {['Bet before take-off.', 'Cash out before it flies away.', 'Win = bet × multiplier.'].map((t, i) => (
-          <li key={t} className="flex items-center gap-3 text-white">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#2c2d30] text-[13px] font-bold text-[#9ea0a3]">{i + 1}</span>{t}
-          </li>
+    <div className="space-y-6 px-4 pt-1">
+      <Group header="How to play" on="sheet">
+        {steps.map((t, i) => (
+          <Row key={t} title={t} icon={<span className="grid h-[29px] w-[29px] shrink-0 place-items-center rounded-full bg-ios-fill text-footnote font-semibold text-white">{i + 1}</span>} />
         ))}
-      </ol>
-      <dl className="mt-4 grid grid-cols-[1fr_auto] gap-y-2 rounded-xl bg-[#101011] px-3 py-3">
-        {rows.map(([a, b]) => <Fragment key={a}><dt className="text-[#9ea0a3]">{a}</dt><dd className="text-right font-semibold tabular-nums text-white">{b}</dd></Fragment>)}
-      </dl>
-      <p className="mt-3 text-[12px] text-[#7b7b7b]">Demo uses play money and its own rounds.</p>
+      </Group>
+      <Group header="Limits" footer="Demo uses play money and its own rounds." on="sheet">
+        <Row title="Minimum bet" detail={`${k(cfg.minBet)} KES`} />
+        <Row title="Maximum bet" detail={`${k(cfg.maxBet)} KES`} />
+        <Row title="Maximum win" detail={`${k(cfg.maxPayout)} KES`} />
+        <Row title="Bets per round" detail="2" />
+        <Row title="Auto cash out" detail={`from ${minAuto.toFixed(2)}x`} />
+      </Group>
     </div>
   );
 }
@@ -82,25 +92,22 @@ export function GamePanels({ panel, onClose, userId, freeBets, canUseFreeBet, on
   if (!panel || panel === 'chat') return null;
   if (panel === 'freebets') return (
     <Sheet title="Free bets" onClose={onClose}>
-      {freeBets.length === 0 ? <p className="py-10 text-center text-sm text-[#7b7b7b]">None right now</p> : (
-        <ul className="flex flex-col gap-2 p-3">
-          {freeBets.map((fb) => (
-            <li key={fb.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#101011] py-2 pl-3 pr-2">
-              <span>
-                <span className="block font-semibold text-white">{money(fb.amount)} KES</span>
-                <span className="text-[12px] text-[#7b7b7b]">Auto 2.00x{fb.expires_at ? ` · ends ${when(fb.expires_at)}` : ''}</span>
-              </span>
-              <button type="button" disabled={!canUseFreeBet} onClick={() => { onUseFreeBet(fb.id, 2); onClose(); }}
-                className="h-10 rounded-full bg-[#28a909] px-5 text-sm font-bold text-white disabled:opacity-40">Use</button>
-            </li>
-          ))}
-        </ul>
+      {freeBets.length === 0 ? <Empty>None right now</Empty> : (
+        <div className="px-4 pt-1">
+          <Group footer="A free bet goes on your first bet panel and cashes out at 2.00x." on="sheet">
+            {freeBets.map((fb) => (
+              <Row key={fb.id} title={<span className="tabular-nums">{money(fb.amount)} KES</span>}
+                subtitle={fb.expires_at ? `Ends ${when(fb.expires_at)}` : 'No expiry'}
+                trailing={<Button size="sm" variant="tinted" disabled={!canUseFreeBet} onClick={() => { onUseFreeBet(fb.id, 2); onClose(); }}>Use</Button>} />
+            ))}
+          </Group>
+        </div>
       )}
     </Sheet>
   );
   if (panel === 'history') return (
     <Sheet title="My bets" onClose={onClose}>
-      {userId ? <BetHistory userId={userId} /> : <p className="py-10 text-center text-sm text-[#7b7b7b]">Log in to see your bets</p>}
+      {userId ? <BetHistory userId={userId} /> : <Empty>Log in to see your bets</Empty>}
     </Sheet>
   );
   return (

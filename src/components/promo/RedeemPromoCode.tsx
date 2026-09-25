@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, AlertCircle } from 'lucide-react';
+import { Button, Field } from '../ui/ios';
 import { supabase } from '../../lib/supabase';
 
 // Self-contained promo-code redemption. Calls the SECURITY DEFINER
@@ -34,28 +35,15 @@ export default function RedeemPromoCode({ onRedeemed }: { onRedeemed?: () => voi
 
   return (
     <div>
-      <div className="flex gap-2">
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void redeem(); } }}
-          placeholder="PROMO CODE"
-          aria-label="Promo code"
-          autoFocus
-          className="h-11 min-w-0 flex-1 rounded-xl border border-[#2f3033] bg-[#141516] px-3 font-semibold uppercase tracking-wide text-white placeholder:text-[#5c5d60] focus:border-info/60 focus:outline-none"
-        />
-        <button
-          onClick={() => void redeem()}
-          disabled={busy || !code.trim()}
-          className="h-11 shrink-0 rounded-xl bg-info/15 px-4 text-sm font-semibold text-info transition hover:bg-info/25 disabled:opacity-50"
-        >
-          {busy ? '\u2026' : 'Apply'}
-        </button>
-      </div>
+      <Field value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void redeem(); } }}
+        placeholder="Promo code" aria-label="Promo code" autoFocus autoCapitalize="characters" spellCheck={false}
+        className="[&_input]:font-semibold [&_input]:tracking-wide"
+        trailing={<Button size="sm" variant="tinted" className="-mr-2" onClick={() => void redeem()} disabled={busy || !code.trim()}>{busy ? '\u2026' : 'Apply'}</Button>} />
       {result && (
-        <div role="status" className={`mt-2 flex items-center gap-1.5 text-[13px] ${result.ok ? 'text-win' : 'text-danger'}`}>
-          {result.ok ? <Check size={14} /> : <AlertCircle size={14} />} {result.msg}
-        </div>
+        <p role="status" className={`flex items-center gap-1.5 px-4 pt-1.5 text-footnote ${result.ok ? 'text-ios-green' : 'text-ios-red'}`}>
+          {result.ok ? <Check size={14} /> : <AlertCircle size={14} />}{result.msg}
+        </p>
       )}
     </div>
   );

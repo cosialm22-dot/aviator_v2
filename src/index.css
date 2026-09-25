@@ -16,6 +16,9 @@
   html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
   /* No double-tap zoom delay on game controls. */
   button, [role="tab"], [role="switch"], a { touch-action: manipulation; }
+  /* No browser spinners on number fields (the amount chips and keypad do that job). */
+  input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
   /* iOS zooms into inputs under 16px; keep them at 16px on phones. */
   @media (max-width: 639px) { input, select, textarea { font-size: 16px !important; } }
   @media (prefers-reduced-motion: reduce) {
@@ -153,3 +156,13 @@ canvas {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* iOS-style sheets: slide up on phones, scale-fade on larger screens (see components/ui/Sheet). */
+@keyframes sheetIn { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheetOut { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+@media (min-width: 640px) {
+  @keyframes sheetIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+  @keyframes sheetOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.96); } }
+}
+@keyframes menuIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }

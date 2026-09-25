@@ -4,6 +4,32 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #30 — Player UI rebuilt to Apple's dark design system; deposits return straight to the game — DONE (branch `ui/apple-grade`)
+- **Deposit flow:** a confirmed deposit no longer stops on a "Deposit Confirmed" page, and the wallet doesn't stay open.
+  - The sheet closes, the player lands on the game (from any page, e.g. Profile), and "+500.00" flies from the Deposit button into the header balance, which counts up as it lands.
+  - A deposit M-Pesa hasn't confirmed yet also closes the wallet. A spinner stays on the balance until it rises, for at most 3 minutes.
+  - A failed or refused payment still returns to the form with the reason.
+- **Design system (the owner chose "Apple-grade dark"):** every player screen except the game now uses one kit, `components/ui/ios.tsx` plus the Tailwind `ios.*` colours and iOS text styles. That covers the wallet, register and log in, the ☰ menu, rules, free bets, my bets, notifications, chat and profile.
+  - **Sources:** Apple Human Interface Guidelines. System dark colours (`#000` / `#1c1c1e` / `#2c2c2e`, label 60% / 30%, hairline separators). Default Dynamic Type sizes (Headline 17 semibold, Body 17, Subhead 15, Footnote 13, Title 2 22 bold, Large Title 34 bold).
+  - **Controls:**
+    - 44 pt rows and 50 pt primary buttons.
+    - 32 pt segmented controls and 51×31 switches.
+    - Filled text fields, and inset grouped lists with separators inset to the text.
+    - Settings-style coloured icon squares.
+  - **Sheets:**
+    - Slide up from the bottom, with a grabber, a centred title and a round × button.
+    - Can be dragged down to dismiss, and animate both in and out.
+    - Become centred cards on tablets and desktop.
+    - Lock the page scroll behind them.
+  - **Menu:** an iOS material menu with a blurred card. Labels sit left and symbols right, groups are split by thick gaps, Real / Demo is a segmented control on top, and Log out is red.
+  - **Chat:** iMessage-style bubbles, with the player's own messages on the right in green.
+  - **Profile:** an iOS Settings layout. The nav bar has "‹ Game". Below it: a large avatar and name, a Wallet row (opens the wallet), a Stats | Payments switch, stats as grouped rows, and payments grouped by day with type icons. Bets and wins are left out of Payments (they're in My bets).
+  - My bets are grouped by day, showing +win / −stake, the cash-out multiplier and where the round flew.
+  - Browser spinners on number fields are hidden.
+- **Tests:**
+  - `megapay_ui_e2e.py` 59/59: a deposit started from Profile closes the wallet, lands on the game, and the amount flies into the balance.
+  - `mobile_ui_e2e.py` 61/61, `aviator-ui.e2e.mjs` 88/88, `game_live_ui_e2e.py` 19/19, `admin_ui_e2e.py` 43/43, unit tests 99/99.
+
 ## #29 — Game froze when switching All Bets / Previous / Top; win shown on the plane; Real/Demo on the plane — FIXED (branch `fix/canvas-ui-wins`)
 - **Root cause of the freeze:** during every flight the engines pushed the multiplier into React state about 15 times a second. That re-rendered the whole game screen each time: both bet panels, the history strip, and both bets boards (one was only hidden with CSS).
   - With the Top or Previous list open the tree was larger.

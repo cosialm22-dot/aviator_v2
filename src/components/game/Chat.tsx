@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 import type { ChatMessage } from '../../hooks/useChatStream';
 
 interface Props {
@@ -62,54 +62,41 @@ export default function Chat({ messages, sending, onSend, userId, username }: Pr
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Messages */}
-      <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-3 scrollbar-thin">
-        {messages.map(msg => (
-          <div key={msg.id} className="flex gap-2 items-start">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0 mt-0.5 border border-white/10"
-              style={{ backgroundColor: msg.avatar_color }}
-            >
-              {msg.username[0]?.toUpperCase()}
+    <div className="flex h-full flex-col">
+      <div ref={listRef} onScroll={onScroll} className="flex-1 space-y-2.5 overflow-y-auto px-4 py-2">
+        {messages.map((msg) => {
+          const mine = !!userId && msg.user_id === userId;
+          return mine ? (
+            <div key={msg.id} className="flex justify-end">
+              <p className="max-w-[78%] break-words rounded-[18px] rounded-br-[6px] bg-ios-cta px-3.5 py-2 text-callout text-white">{msg.text}</p>
             </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[12px] font-bold" style={{ color: msg.avatar_color }}>
-                {msg.username}
+          ) : (
+            <div key={msg.id} className="flex items-end gap-2">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-caption1 font-semibold text-white" style={{ backgroundColor: msg.avatar_color }}>
+                {msg.username[0]?.toUpperCase()}
               </span>
-              {msg.user_id === userId && (
-                <span className="ml-1.5 text-[11px] text-slate-500">you</span>
-              )}
-              <p className="text-[13px] text-slate-200 break-words leading-snug mt-0.5">{msg.text}</p>
+              <div className="min-w-0 max-w-[78%]">
+                <span className="block px-3.5 pb-0.5 text-caption1 text-ios-label2">{msg.username}</span>
+                <p className="break-words rounded-[18px] rounded-bl-[6px] bg-ios-elev2 px-3.5 py-2 text-callout text-white">{msg.text}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Input */}
-      <div className="px-3 pb-3 pt-2 border-t border-edge flex-shrink-0">
+      <div className="shrink-0 px-4 pt-2">
         {username ? (
-          <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKey}
-              placeholder="Message" aria-label="Message"
-              maxLength={200}
-              disabled={sending}
-              className="h-11 flex-1 rounded-full border border-edge bg-panel-raised px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 transition-colors disabled:opacity-60"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() || sending}
-              aria-label="Send"
-              className="grid h-11 w-11 place-items-center rounded-full bg-win text-white disabled:opacity-40 transition active:scale-95 flex-shrink-0"
-            >
-              <Send size={16} />
+          <div className="flex items-center gap-2">
+            <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKey}
+              placeholder="Message" aria-label="Message" maxLength={200} disabled={sending}
+              className="h-10 min-w-0 flex-1 rounded-full border border-ios-sep bg-transparent px-4 text-body text-white placeholder:text-ios-label3 focus:border-ios-label3 focus:outline-none disabled:opacity-60" />
+            <button onClick={sendMessage} disabled={!input.trim() || sending} aria-label="Send"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ios-cta text-white transition-opacity disabled:bg-ios-fill disabled:text-ios-label3">
+              <ArrowUp size={20} strokeWidth={2.6} />
             </button>
           </div>
         ) : (
-          <p className="py-2 text-center text-sm text-slate-500">Log in to chat</p>
+          <p className="py-2 text-center text-subhead text-ios-label2">Log in to chat</p>
         )}
       </div>
     </div>
