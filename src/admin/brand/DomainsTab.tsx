@@ -129,7 +129,8 @@ function DomainCard({ d, canManage, automation, onChange, onRemoved, onMessage, 
     setBusy(name); onMessage(null);
     try { await fn(); } catch (e) { onMessage({ tone: 'error', text: `${d.hostname}: ${brandError(e)}` }); await reload(); } finally { setBusy(null); }
   };
-  const set = (patch: Parameters<typeof updateDomain>[1]) => act('opt', async () => onChange(await updateDomain(d.hostname, patch)));
+  // A primary switch changes two rows: reload the list after it.
+  const set = (patch: Parameters<typeof updateDomain>[1]) => act('opt', async () => { onChange(await updateDomain(d.hostname, patch)); if (patch.is_primary) await reload(); });
   const isApex = d.hostname === d.apex;
   const hosts = [d.hostname, ...(d.include_www && isApex ? [`www.${d.hostname}`] : [])];
 
