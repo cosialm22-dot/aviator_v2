@@ -4,6 +4,36 @@ Running log of bugs found while working through issues, with what was wrong, the
 
 ---
 
+## #39 — Multi-brand: full verification on production, operator guide — DONE (branch `brand/p7-verify`)
+- **Guide:** `docs/BRANDS.md` covers who can do what, launching a marketer's brand step by step, how a brand is resolved at the edge, domains (with the registrar step), payment accounts, secrets and rotation, and the reference.
+- **Production run after the last deploy:**
+
+  | Suite | Result |
+  |---|---|
+  | brand_ui (live Worker) | 46/46 |
+  | brand_console | 25/25 |
+  | domains_live | 27/27 |
+  | payments_scope_live | 21/21 |
+  | admin_ui | 47/47 |
+  | megapay_ui | 59/59 |
+  | mobile_ui | 61/61 |
+  | game_live_ui | 24/24 |
+  | demo UI | 88/88 |
+  | engine_live | 29/29 |
+  | megapay_functions_live | 21/21 |
+  | brand_config | 124/124 |
+  | domains_integrations | 71/71 |
+  | payment_scopes | 41/41 |
+  | admin_tenancy | 47/47 |
+  | rls_tuning | 13/13 |
+  | megapay_gateway | 35/35 |
+  | megapay_admin | 35/35 |
+  | push_channels | 7/7 |
+  | vitest | 154/154 |
+
+- **Fixed a flaky test:** `push_channels_e2e.py` picked "the latest" maintenance event. In one transaction every event has the same timestamp and a random id, so it sometimes read the `true` event. It now counts the new `false` event.
+- **Still blocked:** 7 of `run_sql_tests.py`'s files fail with duplicate keys. Their fixed-id fixture accounts were committed by the #32 incident and are still in production; see "Needs the owner's action".
+
 ## #38 — Per-brand payment accounts (payment scopes) — DONE (branch `brand/p6-payments`)
 - **Ask:** "for now, all brands share the same gateway, but add config where each brand can have its own gateway." This ports invest254 docs/43 (PAY-1).
 - **Model** (migration `20260930096000`): a brand's deposits go to its **payment owner**. That is the brand's own Mega Pay account if it is live; otherwise its platform's account if that is live; otherwise the System's account. The System's account is the one saved on Payment accounts, or, when none is saved, the server settings (today's setup, unchanged).
@@ -615,6 +645,8 @@ Found while auditing every role guard for the new tier:
 ---
 
 ## Needs the owner's action
+- **After rotating credentials:** paste the new Cloudflare API token into Admin → Integrations → Cloudflare and press Test connection. Domain automation uses the token saved there (in Vault), not the environment. Domains already live keep working without it. A least-privilege token is listed in `docs/BRANDS.md` §6.
+- **`printpesa.com`** is attached to the app but no brand claims it, so it shows the default brand. Assign it from any brand's Domains tab ("Domains on the app without a brand") if it belongs to a marketer.
 - **Delete the 15 committed test-fixture accounts (#32).**
 - **Automatic deposit checks:** DONE on 2026-09-25. Both vault secrets were created at the owner's instruction, and a test call through pg_net to `megapay-reconcile` returned HTTP 200.
 - **Authorise the fix for #17:** DONE. Authorised on 2026-09-25 and fixed (#18).

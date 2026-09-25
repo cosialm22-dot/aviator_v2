@@ -34,10 +34,14 @@ BEGIN
   out := out || jsonb_build_object('t', 'unchanged value -> no extra event', 'ok',
      (SELECT count(*) FROM realtime.messages WHERE topic = 'config' AND event = 'maintenance' AND inserted_at >= t0::date) = n);
   -- 3) turning it off emits {maintenance:false}
+  n := (SELECT count(*) FROM realtime.messages WHERE topic = 'config' AND event = 'maintenance' AND inserted_at >= t0::date AND payload->>'maintenance' = 'false');
   UPDATE system_settings SET value = 'false'::jsonb WHERE key = 'system.maintenance_mode';
+  -- (one transaction: every message has the same inserted_at and ids are random, so look for the
+  --  false event itself rather than "the latest")
   SELECT payload INTO m FROM realtime.messages WHERE topic = 'config' AND event = 'maintenance' AND inserted_at >= t0::date
-   ORDER BY inserted_at DESC, id DESC LIMIT 1;
-  out := out || jsonb_build_object('t', 'maintenance off -> {maintenance:false}', 'ok', (m->>'maintenance')::boolean IS FALSE, 'got', m);
+     AND payload->>'maintenance' = 'false' LIMIT 1;
+  out := out || jsonb_build_object('t', 'maintenance off -> {maintenance:false}', 'ok', (m->>'maintenance')::boolean IS FALSE
+     AND (SELECT count(*) FROM realtime.messages WHERE topic = 'config' AND event = 'maintenance' AND inserted_at >= t0::date AND payload->>'maintenance' = 'false') = n + 1, 'got', m);
   -- 4) other settings never emit on the config topic
   n := (SELECT count(*) FROM realtime.messages WHERE topic = 'config' AND inserted_at >= t0::date);
   UPDATE system_settings SET value = value WHERE key <> 'system.maintenance_mode';
