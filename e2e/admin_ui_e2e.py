@@ -309,7 +309,7 @@ try:
             return page.get_by_test_id("int-cloudflare-save").is_enabled()
         until(edited, 8000)
         page.get_by_test_id("int-cloudflare-save").click()
-        check("owner: saving without typing a token keeps it (no secret sent)", until(lambda: len(saves) == 1, 8000) and saves[0]["p_secrets"] == {} and saves[0]["p_config"]["worker_service"] == "aviatorv3", (saves, [x for x in seen_urls if "integ" in x or "brand-domains" in x], page.get_by_test_id("int-cloudflare").inner_text()[:600]))
+        check("owner: saving without typing a token keeps it (no secret sent)", until(lambda: (page.wait_for_timeout(100) or True) and len(saves) == 1, 8000) and saves[0]["p_secrets"] == {} and saves[0]["p_config"]["worker_service"] == "aviatorv3", (saves, [x for x in seen_urls if "integ" in x or "brand-domains" in x], page.get_by_test_id("int-cloudflare").inner_text()[:600]))
         check("owner: Test connection reports the result", until(lambda: page.get_by_test_id("int-cloudflare-test").is_enabled(), 8000)
               and (page.get_by_test_id("int-cloudflare-test").click() or True) and until(lambda: "Connected" in page.get_by_test_id("int-cloudflare").inner_text(), 10000))
         shot(page, "owner-integrations")
